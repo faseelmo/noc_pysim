@@ -1,8 +1,10 @@
-from src.processing_element import ProcessingElement
-from src.router import Router
 from src.link import Link
+from src.packet import Packet
+from src.router import Router
+from src.processing_element import ProcessingElement
 
 from typing import Union
+import math
 
 class MeshNetwork:
     def __init__(self): 
@@ -14,6 +16,29 @@ class MeshNetwork:
         print(f"Length of routers: {len(self.routers)}")
         print(f"Length of processing elements: {len(self.processing_elements)}")
         print(f"Length of links: {len(self.links)}")
+
+    def send_packet(
+            self, 
+            communication_link: dict,
+            current_cycle: int):
+
+        current_link = communication_link['link']
+        communication_link['status'] = 'transmitting'
+        packet = communication_link['packet']
+
+        cycles_required_for_transmission = math.ceil(packet.size / current_link.bandwidth)
+
+        current_link.transmit(current_cycle, cycles_required_for_transmission)
+        current_link.check_transmission(current_cycle)  
+
+        if current_link.is_busy == False:
+            communication_link['status'] = 'done'
+
+    def simulate_cycle(self, current_cycle: int, communication_link: dict):
+        if communication_link['status'] != 'done':
+            self.send_packet(communication_link, current_cycle)
+        else:
+            print(f"No more scheduled links to transmit")
 
     def create_links(self) -> dict:
         link_dict = {}
@@ -40,7 +65,7 @@ class MeshNetwork:
                     link_dict[key] = Link(self.routers[(x, y)], self.processing_elements[(x, y)])
         return link_dict
 
-    def route_packet(self, source: ProcessingElement, destination: ProcessingElement) -> list:
+    def get_routing_links(self, source: ProcessingElement, destination: ProcessingElement) -> list:
         routing_link_list = []
 
         x_src, y_src = source.x, source.y
@@ -76,9 +101,7 @@ class MeshNetwork:
         dest_router = self.get_router(x_dest, y_dest)
         link = self.get_link(dest_router, dest_pe)
         routing_link_list.append(link)
-
         return routing_link_list
-
 
     def get_router(self, x: int, y: int) -> Router:
         return self.routers.get((x, y))
@@ -96,36 +119,29 @@ class MeshNetwork:
 if __name__ == "__main__":
     mesh = MeshNetwork()
 
-    r1 = mesh.get_router(0, 0)
-    print(f"Router 1: {r1}")
-
-    r2 = mesh.get_router(1, 0)
-    print(f"Router 2: {r2}")
-
-    link1 = mesh.get_link(r1, r2)
-    print(f"Link 1: {link1}")
-
-    
-    def test_routing(pe1_xy, pe2_xy):
+    def test_get_routing_links(pe1_xy, pe2_xy):
         print(f"")
         pe1 = mesh.get_processing_element(*pe1_xy)
         pe2 = mesh.get_processing_element(*pe2_xy)
         print(f"{pe1} -> {pe2}")
-        routing = mesh.route_packet(pe1, pe2)
+        routing = mesh.get_routing_links(pe1, pe2)
         for link in routing:
             print(link)
 
     """Routing Tests"""
     # bottom left to top right 
-    test_routing((0, 0), (3, 3))
+    test_get_routing_links((0, 0), (3, 3))
 
     # top right to bottom left
-    test_routing((3, 3), (0, 0))
+    test_get_routing_links((3, 3), (0, 0))
 
     # top left to bottom right
-    test_routing((0, 3), (3, 0))
+    test_get_routing_links((0, 3), (3, 0))
 
     # bottom right to top left
-    test_routing((3, 0), (0, 3))
+    test_get_routing_links((3, 0), (0, 3))
+
+    def test_routing():
+        pass
 
 
