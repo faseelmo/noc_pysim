@@ -1,4 +1,3 @@
-# from router import Router
 from src.processing_element import ProcessingElement
 from src.router import Router
 from src.link import Link
@@ -41,9 +40,45 @@ class MeshNetwork:
                     link_dict[key] = Link(self.routers[(x, y)], self.processing_elements[(x, y)])
         return link_dict
 
-    def route_packet(self, source: ProcessingElement, destination: ProcessingElement) -> None:
-        routing_list = []
-        pass
+    def route_packet(self, source: ProcessingElement, destination: ProcessingElement) -> list:
+        routing_link_list = []
+
+        x_src, y_src = source.x, source.y
+        x_dest, y_dest = destination.x, destination.y
+
+        """if src is on the left of dest, step_x is 1, else -1"""
+        step_x = 1 if x_src < x_dest else -1 
+        src_pe = self.get_processing_element(x_src, y_src)
+        src_router = self.get_router(x_src, y_src)
+        link = self.get_link(src_pe, src_router)
+
+        routing_link_list.append(link)
+
+        while x_src != x_dest:
+            current_router = self.get_router(x_src, y_src)
+            x_src += step_x
+            next_router = self.get_router(x_src, y_src)
+            link = self.get_link(current_router, next_router)
+            routing_link_list.append(link)
+        print(f"Transversing in x-direction done")
+
+        """if src is below dest, step_y is 1 (i.e we want to move up), else -1"""
+        step_y = 1 if y_src < y_dest else -1
+        while y_src != y_dest:
+            current_router = self.get_router(x_src, y_src)
+            y_src += step_y
+            next_router = self.get_router(x_src, y_src)
+            link = self.get_link(current_router, next_router)
+            routing_link_list.append(link)
+        print(f"Transversing in y-direction done")
+
+        dest_pe = self.get_processing_element(x_dest, y_dest)
+        dest_router = self.get_router(x_dest, y_dest)
+        link = self.get_link(dest_router, dest_pe)
+        routing_link_list.append(link)
+
+        return routing_link_list
+
 
     def get_router(self, x: int, y: int) -> Router:
         return self.routers.get((x, y))
@@ -62,16 +97,35 @@ if __name__ == "__main__":
     mesh = MeshNetwork()
 
     r1 = mesh.get_router(0, 0)
-    pe1 = mesh.get_processing_element(0, 0)
     print(f"Router 1: {r1}")
-    print(f"Processing Element 1: {pe1}")
 
     r2 = mesh.get_router(1, 0)
-    pe2 = mesh.get_processing_element(1, 0)
     print(f"Router 2: {r2}")
-    print(f"Processing Element 2: {pe2}")
 
     link1 = mesh.get_link(r1, r2)
     print(f"Link 1: {link1}")
+
+    
+    def test_routing(pe1_xy, pe2_xy):
+        print(f"")
+        pe1 = mesh.get_processing_element(*pe1_xy)
+        pe2 = mesh.get_processing_element(*pe2_xy)
+        print(f"{pe1} -> {pe2}")
+        routing = mesh.route_packet(pe1, pe2)
+        for link in routing:
+            print(link)
+
+    """Routing Tests"""
+    # bottom left to top right 
+    test_routing((0, 0), (3, 3))
+
+    # top right to bottom left
+    test_routing((3, 3), (0, 0))
+
+    # top left to bottom right
+    test_routing((0, 3), (3, 0))
+
+    # bottom right to top left
+    test_routing((3, 0), (0, 3))
 
 

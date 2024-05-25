@@ -16,7 +16,7 @@ class Link:
             raise ValueError("Invalid link type")
 
     def __repr__(self):
-        return f"{self.source} -> {self.destination}"
+        return f"{self.source} - {self.destination}"
 
     def __eq__(self, other):
         if isinstance(other, Link):
