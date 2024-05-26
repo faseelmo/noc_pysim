@@ -24,11 +24,12 @@ if __name__ == "__main__":
 
     src.send_packet(packet, 1)
 
+    from src.node import NodeStatus
     for cycle in range(100): 
-        if src.status != 'done':
+        if src.status != NodeStatus.DONE:
             src.send_packet(packet, cycle)
-        elif src.status == 'done' : 
-            src.status = 'idle'
+        elif src.status == NodeStatus.DONE : 
+            src.status = NodeStatus.IDLE
             break
 
 

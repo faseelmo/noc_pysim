@@ -21,7 +21,7 @@ class Link:
 
     def transmit(self, cycles_required, current_cycle): 
         if self.is_busy:
-            print(f"Link is busy")
+            print(f"Link {self} is busy")
             return 
 
         print(f"\nStarting Transmission")

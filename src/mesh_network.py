@@ -4,7 +4,6 @@ from src.router import Router
 from src.processing_element import ProcessingElement
 
 from typing import Union
-import math
 
 class MeshNetwork:
     def __init__(self): 
@@ -16,9 +15,6 @@ class MeshNetwork:
         print(f"Length of routers: {len(self.routers)}")
         print(f"Length of processing elements: {len(self.processing_elements)}")
         print(f"Length of links: {len(self.links)}")
-
-    # def simulate_cycle(self, current_cycle: int, ):
-
 
     def create_links(self) -> dict:
         link_dict = {}
@@ -123,6 +119,7 @@ if __name__ == "__main__":
 
 
     def test_simulate_cycle(pe1_xy, pe2_xy, max_cycles):
+        from src.node import NodeStatus
         pe1 = mesh.get_processing_element(*pe1_xy)
         pe2 = mesh.get_processing_element(*pe2_xy)
 
@@ -133,13 +130,13 @@ if __name__ == "__main__":
 
         node = pe1
         for cycle in range(max_cycles):
-            if node.status == 'recieved':
+            if node.status == NodeStatus.RECEIVED:
                 print(f"Packet has been recieved by {node}")
                 break
-            if node.status != 'done':
+            if node.status != NodeStatus.DONE:
                 node.send_packet(packet, cycle)
-            elif node.status == 'done':
-                node.status = 'idle'
+            elif node.status == NodeStatus.DONE:
+                node.status = NodeStatus.IDLE
                 node = packet.current_node
 
             # elif node.status == 'recieved':
