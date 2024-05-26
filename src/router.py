@@ -1,7 +1,8 @@
-class Router: 
+from src.node import Node
+
+class Router(Node):
     def __init__(self, x, y):
-        self.x = x
-        self.y = y
+        super().__init__(x, y)
 
     def __repr__(self):
         return f"R({self.x}, {self.y})"

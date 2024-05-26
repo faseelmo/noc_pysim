@@ -17,28 +17,8 @@ class MeshNetwork:
         print(f"Length of processing elements: {len(self.processing_elements)}")
         print(f"Length of links: {len(self.links)}")
 
-    def send_packet(
-            self, 
-            communication_link: dict,
-            current_cycle: int):
+    # def simulate_cycle(self, current_cycle: int, ):
 
-        current_link = communication_link['link']
-        communication_link['status'] = 'transmitting'
-        packet = communication_link['packet']
-
-        cycles_required_for_transmission = math.ceil(packet.size / current_link.bandwidth)
-
-        current_link.transmit(current_cycle, cycles_required_for_transmission)
-        current_link.check_transmission(current_cycle)  
-
-        if current_link.is_busy == False:
-            communication_link['status'] = 'done'
-
-    def simulate_cycle(self, current_cycle: int, communication_link: dict):
-        if communication_link['status'] != 'done':
-            self.send_packet(communication_link, current_cycle)
-        else:
-            print(f"No more scheduled links to transmit")
 
     def create_links(self) -> dict:
         link_dict = {}
@@ -141,7 +121,33 @@ if __name__ == "__main__":
     # bottom right to top left
     test_get_routing_links((3, 0), (0, 3))
 
-    def test_routing():
-        pass
+
+    def test_simulate_cycle(pe1_xy, pe2_xy, max_cycles):
+        pe1 = mesh.get_processing_element(*pe1_xy)
+        pe2 = mesh.get_processing_element(*pe2_xy)
+
+        routing = mesh.get_routing_links(pe1, pe2)
+        packet = Packet(40, pe1, pe2, routing)
+
+        print(f"\nPacket Routing Before cycle starting is {routing}")
+
+        node = pe1
+        for cycle in range(max_cycles):
+            if node.status == 'recieved':
+                print(f"Packet has been recieved by {node}")
+                break
+            if node.status != 'done':
+                node.send_packet(packet, cycle)
+            elif node.status == 'done':
+                node.status = 'idle'
+                node = packet.current_node
+
+            # elif node.status == 'recieved':
+            #     print(f"Packet has been recieved by {node}")
+            #     break
+
+        print(f"\nPacket Routing after cycle is {routing}")
+
+    test_simulate_cycle((0, 0), (1, 1), 100)
 
 

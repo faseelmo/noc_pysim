@@ -16,13 +16,9 @@ class Packet:
         self.current_link = None
         self.current_node = None
 
-    # def update_routing(self, current_node): 
-
-
-
 
     def __repr__(self):
-        return f"Packet({self.size} Bytes) from {self.source} to {self.destination}"
+        return f"Packet({self.size} Bytes) from {self.source} to {self.destination} at {self.current_node}"
 
 
 if __name__ == "__main__":
