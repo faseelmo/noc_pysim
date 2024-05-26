@@ -1,15 +1,38 @@
-from src.link import Link
+from src.processing_element import ProcessingElement
+from src.router import Router
+
+from typing import Union
 
 class Packet: 
-    def __init__(self, bytes: int):
-        # self.link = link
+    def __init__(self, bytes: int, 
+                 source : Union[Router, ProcessingElement], 
+                 destination: Union[Router, ProcessingElement], 
+                 routing_links: list):
+
         self.size = bytes
+        self.source = source
+        self.destination = destination
+        self.routing_links = routing_links
+        self.current_link = None
+        self.current_node = None
+
+    # def update_routing(self, current_node): 
+
+
+
 
     def __repr__(self):
-        return f"Packet({self.size})"
+        return f"Packet({self.size} Bytes) from {self.source} to {self.destination}"
+
 
 if __name__ == "__main__":
-    from src.router import Router
-    link = Link(Router(0, 0), Router(0, 1))
-    packet = Packet(link, 10)
+
+    from src.mesh_network import MeshNetwork
+    mesh = MeshNetwork()
+    src = mesh.get_processing_element(0, 0)
+    dest = mesh.get_processing_element(1, 1)
+    routing_links = mesh.get_routing_links(src, dest)
+
+    packet = Packet(10, src, dest, routing_links)
+    print(packet.routing_links)
     print(packet)

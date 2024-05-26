@@ -9,11 +9,15 @@ class Simulator:
         self.network = MeshNetwork()
 
     def run(self):
+
         src_pe = self.network.get_processing_element(0, 0)
         dest_pe = self.network.get_processing_element(1, 1)
-        list_of_links = self.network.get_routing_links(src_pe, dest_pe)
 
-        packet = Packet(100)
+        packet = Packet(100, src_pe, dest_pe)
+        list_of_links = self.network.get_routing_links(packet.source, packet.destination)
+        print(f"List of links is {list_of_links}")
+
+
         communication_link = {}
 
         for idx, link in enumerate(list_of_links):
@@ -32,5 +36,5 @@ class Simulator:
 
 if __name__ == "__main__":
 
-    sim = Simulator(150)
+    sim = Simulator(50)
     sim.run()

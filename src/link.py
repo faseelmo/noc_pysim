@@ -4,18 +4,17 @@ from src.processing_element import ProcessingElement
 from typing import Union
 
 class Link:
-    def __init__(self, source: Union[Router, ProcessingElement] , destination: Union[Router, ProcessingElement]):
+    def __init__(self, node1: Union[Router, ProcessingElement] , node2: Union[Router, ProcessingElement]):
 
-        self.nodes = frozenset([source, destination])
-        self.source = source
-        self.destination = destination
+        self.nodes = frozenset([node1, node2])
         self.bandwidth =  10 # bytes per cycle 
         self.is_busy = False
         self.transmission_end_cycle = 0
 
-        if isinstance(source, Router) and isinstance(destination, Router):
+        if isinstance(node1, Router) and isinstance(node2, Router):
             self.link_type = 'router_link'
-        elif isinstance(source, Router) and isinstance(destination, ProcessingElement ):
+        elif (isinstance(node1, Router) and isinstance(node2, ProcessingElement)) or \
+             (isinstance(node2, Router) and isinstance(node1, ProcessingElement)):
             self.link_type = 'pe_link'
         else:  
             raise ValueError("Invalid link type")
@@ -30,14 +29,22 @@ class Link:
         self.transmission_end_cycle = current_cycle + cycles_required
         print(f"Transmission will end at {self.transmission_end_cycle}")
 
-    def check_transmission(self, current_cycle):
+    def get_dest_node(self, src_node): 
+        for node in self.nodes:
+            if node != src_node:
+                return node 
+        raise ValueError("src_node node in link")
 
+
+    def check_transmission(self, current_cycle):
+        print(f"Current Cycle is {current_cycle}")
         if self.is_busy and self.transmission_end_cycle == current_cycle: 
             print(f"Transmission Completed")
             self.is_busy = False
 
     def __repr__(self): 
-        return f"{self.source} - {self.destination}"
+        nodes_list = list(self.nodes)
+        return f"Link({nodes_list[0]} - {nodes_list[1]})"
 
     def __eq__(self, other):
         if isinstance(other, Link):
