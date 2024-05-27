@@ -61,7 +61,7 @@ class MeshNetwork:
             next_router = self.get_router(x_src, y_src)
             link = self.get_link(current_router, next_router)
             routing_link_list.append(link)
-        print(f"Transversing in x-direction done")
+        # print(f"Transversing in x-direction done")
 
         """if src is below dest, step_y is 1 (i.e we want to move up), else -1"""
         step_y = 1 if y_src < y_dest else -1
@@ -71,7 +71,7 @@ class MeshNetwork:
             next_router = self.get_router(x_src, y_src)
             link = self.get_link(current_router, next_router)
             routing_link_list.append(link)
-        print(f"Transversing in y-direction done")
+        # print(f"Transversing in y-direction done")
 
         dest_pe = self.get_processing_element(x_dest, y_dest)
         dest_router = self.get_router(x_dest, y_dest)
@@ -124,27 +124,63 @@ if __name__ == "__main__":
         pe2 = mesh.get_processing_element(*pe2_xy)
 
         routing = mesh.get_routing_links(pe1, pe2)
-        packet = Packet(40, pe1, pe2, routing)
+        packet = Packet(70, pe1, pe2, routing)
 
         print(f"\nPacket Routing Before cycle starting is {routing}")
 
         node = pe1
         for cycle in range(max_cycles):
-            if node.status == NodeStatus.RECEIVED:
+            if node.status == NodeStatus.PACKET_ARRIVED_DEST:
                 print(f"Packet has been recieved by {node}")
                 break
-            if node.status != NodeStatus.DONE:
+
+            if node.status != NodeStatus.TX_DONE:
                 node.send_packet(packet, cycle)
-            elif node.status == NodeStatus.DONE:
+
+            elif node.status == NodeStatus.TX_DONE:
                 node.status = NodeStatus.IDLE
                 node = packet.current_node
 
-            # elif node.status == 'recieved':
-            #     print(f"Packet has been recieved by {node}")
-            #     break
-
         print(f"\nPacket Routing after cycle is {routing}")
 
-    test_simulate_cycle((0, 0), (1, 1), 100)
+    # test_simulate_cycle((0, 0), (2, 2), 100)
+    test_simulate_cycle((1, 0), (2, 0), 100)
 
+    def test_multiple_packets():
+        packet_1_src = mesh.get_processing_element(0, 0)
+        packet_1_dest = mesh.get_processing_element(2, 0)
+        routing_1 = mesh.get_routing_links(packet_1_src, packet_1_dest)
+        packet_1 = Packet(30, packet_1_src, packet_1_dest, routing_1)
+
+        packet_2_src = mesh.get_processing_element(1, 0)
+        packet_2_dest = mesh.get_processing_element(3, 0)
+        routing_2 = mesh.get_routing_links(packet_2_src, packet_2_dest)
+        packet_2 = Packet(30, packet_2_src, packet_2_dest, routing_2)
+
+        nodes = [packet_1_src, packet_2_src]
+        packets = [packet_1, packet_2] 
+
+        from src.node import NodeStatus
+        for cycle in range(100):
+            for i in range(len(nodes)):
+                node = nodes[i]
+                packet = packets[i]
+                if node.status == NodeStatus.PACKET_ARRIVED_DEST:
+                    continue
+                
+                if node.status != NodeStatus.TX_DONE:
+                    node.send_packet(packet, cycle)
+    
+                elif node.status == NodeStatus.TX_DONE:
+                    node.status = NodeStatus.IDLE
+                    nodes[i] = packet.current_node
+    
+            if all(node.status == NodeStatus.PACKET_ARRIVED_DEST for node in nodes):
+                print(f"All Packets have been recieved")
+                break
+            
+           
+    print(f"\n\n--- Multi packet ---\n\n")
+    test_multiple_packets()
+        # print(f"\nPacket Routing after cycle is {routing}")
 

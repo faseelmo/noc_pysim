@@ -5,8 +5,8 @@ from enum import Enum
 class NodeStatus(Enum):
     IDLE = 'idle'
     TRANSMITTING = 'transmitting'
-    DONE = 'done'
-    RECEIVED = 'received'
+    TX_DONE = 'tx_done'
+    PACKET_ARRIVED_DEST = 'packet_arrived_dest'
 
 class Node: 
     def __init__(self, x, y):
@@ -21,24 +21,20 @@ class Node:
             raise TypeError("packet must be an instance of Packet()")
 
         if self.status == NodeStatus.IDLE: 
-            packet.current_node = self
-            packet.current_link = packet.routing_links.pop(0)
+            packet.set_current_node(self)
+            packet.set_current_link(packet.pop_routing_link())
             self.status = NodeStatus.TRANSMITTING
-
             self.cycles_required_for_next_hop = math.ceil(packet.size / packet.current_link.bandwidth)
-            print(f"Cycles require for next hop is {self.cycles_required_for_next_hop}")
+            print(f"\nCycles require for next hop is {self.cycles_required_for_next_hop}")
 
         packet.current_link.transmit(current_cycle, self.cycles_required_for_next_hop)
-        packet.current_link.check_transmission(current_cycle)
+        link_is_busy = packet.current_link.check_transmission(current_cycle)
 
-        if packet.current_link.is_busy == False:
-            self.status = NodeStatus.DONE
+        if  not link_is_busy:
+            self.status = NodeStatus.TX_DONE
             dest_node = packet.current_link.get_dest_node(self)
-            print(f"Packet sent to {dest_node}")
-            print(f"Packet is {packet}")
             packet.current_node = dest_node
             packet.current_link = None
-            print(f"Packet After is {packet}")
 
-            if len(packet.routing_links) == 0:
-                self.status = NodeStatus.RECEIVED
+            if not packet.has_more_routing_links():
+                self.status = NodeStatus.PACKET_ARRIVED_DEST

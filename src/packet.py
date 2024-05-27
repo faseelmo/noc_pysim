@@ -16,10 +16,20 @@ class Packet:
         self.current_link = None
         self.current_node = None
 
+    def set_current_node(self, node):
+        self.current_node = node
+
+    def set_current_link(self, link):
+        self.current_link = link
+
+    def pop_routing_link(self):
+        return self.routing_links.pop(0)
+
+    def has_more_routing_links(self):
+        return len(self.routing_links) > 0
 
     def __repr__(self):
         return f"Packet({self.size} Bytes) from {self.source} to {self.destination} at {self.current_node}"
-
 
 if __name__ == "__main__":
 

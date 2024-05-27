@@ -21,12 +21,11 @@ class Link:
 
     def transmit(self, cycles_required, current_cycle): 
         if self.is_busy:
-            print(f"Link {self} is busy")
+            print(f"{self} is busy")
             return 
 
-        print(f"\nStarting Transmission")
         self.is_busy = True
-        self.transmission_end_cycle = current_cycle + cycles_required
+        self.transmission_end_cycle = current_cycle + cycles_required - 1 # -1 because current_cycle is included
         print(f"Transmission will end at {self.transmission_end_cycle}")
 
     def get_dest_node(self, src_node): 
@@ -35,12 +34,14 @@ class Link:
                 return node 
         raise ValueError("src_node node in link")
 
-
     def check_transmission(self, current_cycle):
+        """Returns True if transmission is still ongoing, False otherwise"""
         print(f"Current Cycle is {current_cycle}")
         if self.is_busy and self.transmission_end_cycle == current_cycle: 
             print(f"Transmission Completed")
             self.is_busy = False
+        return self.is_busy
+        
 
     def __repr__(self): 
         nodes_list = list(self.nodes)
