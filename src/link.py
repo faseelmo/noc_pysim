@@ -10,6 +10,7 @@ class Link:
         self.bandwidth =  10 # bytes per cycle 
         self.is_busy = False
         self.transmission_end_cycle = 0
+        self.packet_in_transit = None
 
         if isinstance(node1, Router) and isinstance(node2, Router):
             self.link_type = 'router_link'
@@ -19,14 +20,16 @@ class Link:
         else:  
             raise ValueError("Invalid link type")
 
-    def transmit(self, cycles_required, current_cycle): 
+    def transmit(self, cycles_required, current_cycle, packet): 
         if self.is_busy:
-            print(f"{self} is busy")
+            print(f"{self} is busy with {self.packet_in_transit}")
             return 
 
         self.is_busy = True
         self.transmission_end_cycle = current_cycle + cycles_required - 1 # -1 because current_cycle is included
+        self.packet_in_transit = packet
         print(f"Transmission will end at {self.transmission_end_cycle}")
+        print(f"{self} is transmitting {self.packet_in_transit}")
 
     def get_dest_node(self, src_node): 
         for node in self.nodes:
@@ -36,10 +39,11 @@ class Link:
 
     def check_transmission(self, current_cycle):
         """Returns True if transmission is still ongoing, False otherwise"""
-        print(f"Current Cycle is {current_cycle}")
+        # print(f"Current Cycle is {current_cycle}")
         if self.is_busy and self.transmission_end_cycle == current_cycle: 
             print(f"Transmission Completed")
             self.is_busy = False
+            self.packet_in_transit = None
         return self.is_busy
         
 

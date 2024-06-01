@@ -17,7 +17,6 @@ class Simulator:
         list_of_links = self.network.get_routing_links(packet.source, packet.destination)
         print(f"List of links is {list_of_links}")
 
-
         communication_link = {}
 
         for idx, link in enumerate(list_of_links):

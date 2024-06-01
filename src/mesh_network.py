@@ -92,6 +92,10 @@ class MeshNetwork:
         assert link is not None, f"Link between {source} and {destination} does not exist"
         return link
 
+    def visualize_mesh(self): 
+        import networkx as nx
+
+
 if __name__ == "__main__":
     mesh = MeshNetwork()
 
@@ -144,24 +148,27 @@ if __name__ == "__main__":
         print(f"\nPacket Routing after cycle is {routing}")
 
     # test_simulate_cycle((0, 0), (2, 2), 100)
-    test_simulate_cycle((1, 0), (2, 0), 100)
+    # test_simulate_cycle((1, 0), (2, 0), 100)
+
 
     def test_multiple_packets():
         packet_1_src = mesh.get_processing_element(0, 0)
         packet_1_dest = mesh.get_processing_element(2, 0)
         routing_1 = mesh.get_routing_links(packet_1_src, packet_1_dest)
-        packet_1 = Packet(30, packet_1_src, packet_1_dest, routing_1)
+        packet_1 = Packet(30, packet_1_src, packet_1_dest, routing_1, 1)
 
         packet_2_src = mesh.get_processing_element(1, 0)
-        packet_2_dest = mesh.get_processing_element(3, 0)
+        packet_2_dest = mesh.get_processing_element(2, 0)
         routing_2 = mesh.get_routing_links(packet_2_src, packet_2_dest)
-        packet_2 = Packet(30, packet_2_src, packet_2_dest, routing_2)
+        packet_2 = Packet(30, packet_2_src, packet_2_dest, routing_2, 2)
 
-        nodes = [packet_1_src, packet_2_src]
+        nodes = [packet_1_src, packet_2_src] # initial nodes
         packets = [packet_1, packet_2] 
 
         from src.node import NodeStatus
         for cycle in range(100):
+            print(f"\nCycle {cycle}")
+            print(f"Status, {nodes[0]}:{nodes[0].status}, {nodes[1]}:{nodes[1].status}")
             for i in range(len(nodes)):
                 node = nodes[i]
                 packet = packets[i]
@@ -177,6 +184,8 @@ if __name__ == "__main__":
     
             if all(node.status == NodeStatus.PACKET_ARRIVED_DEST for node in nodes):
                 print(f"All Packets have been recieved")
+                print(f"Packet 1 at {nodes[0].status}")
+                print(f"Packet 2 at {nodes[1].status}")
                 break
             
            

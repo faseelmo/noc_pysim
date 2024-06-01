@@ -7,14 +7,18 @@ class Packet:
     def __init__(self, bytes: int, 
                  source : Union[Router, ProcessingElement], 
                  destination: Union[Router, ProcessingElement], 
-                 routing_links: list):
+                 routing_links: list, 
+                 idx: int):
 
-        self.size = bytes
+        # model one cycle to transmit the header 
+        # 
+        self.size = bytes #  message with flits
         self.source = source
         self.destination = destination
         self.routing_links = routing_links
         self.current_link = None
         self.current_node = None
+        self.idx = idx
 
     def set_current_node(self, node):
         self.current_node = node
@@ -29,7 +33,7 @@ class Packet:
         return len(self.routing_links) > 0
 
     def __repr__(self):
-        return f"Packet({self.size} Bytes) from {self.source} to {self.destination} at {self.current_node}"
+        return f"Packet({self.idx}) from {self.source} to {self.destination} at {self.current_node}"
 
 if __name__ == "__main__":
 
