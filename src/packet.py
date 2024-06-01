@@ -1,48 +1,20 @@
-from src.processing_element import ProcessingElement
-from src.router import Router
+class Packet:
+    def __init__(
+        self,
+        source_xy: tuple,
+        dest_xy: tuple,
+    ):
+        self.payload_size = 4
+        self.header_size = 1
+        self.header_info = {
+            "source": source_xy,
+            "dest": dest_xy,
+            "routing": [],
+        }
 
-from typing import Union
+    def __str__(self):
+        return f"Packet: {self.header_info}"
 
-class Packet: 
-    def __init__(self, bytes: int, 
-                 source : Union[Router, ProcessingElement], 
-                 destination: Union[Router, ProcessingElement], 
-                 routing_links: list, 
-                 idx: int):
-
-        # model one cycle to transmit the header 
-        # 
-        self.size = bytes #  message with flits
-        self.source = source
-        self.destination = destination
-        self.routing_links = routing_links
-        self.current_link = None
-        self.current_node = None
-        self.idx = idx
-
-    def set_current_node(self, node):
-        self.current_node = node
-
-    def set_current_link(self, link):
-        self.current_link = link
-
-    def pop_routing_link(self):
-        return self.routing_links.pop(0)
-
-    def has_more_routing_links(self):
-        return len(self.routing_links) > 0
-
-    def __repr__(self):
-        return f"Packet({self.idx}) from {self.source} to {self.destination} at {self.current_node}"
 
 if __name__ == "__main__":
-
-    from src.mesh_network import MeshNetwork
-    mesh = MeshNetwork()
-    src = mesh.get_processing_element(0, 0)
-    dest = mesh.get_processing_element(1, 1)
-    routing_links = mesh.get_routing_links(src, dest)
-
-    packet = Packet(10, src, dest, routing_links)
-    print(packet.routing_links)
-    print(packet)
+    pass
