@@ -11,6 +11,7 @@ class Packet:
             "dest": dest_xy,
             "routing": [],
         }
+        self.size = self.payload_size + self.header_size
 
     def __str__(self):
         return f"Packet: {self.header_info}"
