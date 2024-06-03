@@ -4,7 +4,7 @@ class Packet:
         source_xy: tuple,
         dest_xy: tuple,
     ):
-        self.payload_size = 4
+        self.payload_size = 2
         self.header_size = 1
         self.header_info = {
             "source": source_xy,
@@ -12,9 +12,13 @@ class Packet:
             "routing": [],
         }
         self.size = self.payload_size + self.header_size
+        self.current_location = source_xy
+
+    def update_location(self, location: tuple):
+        self.current_location = location
 
     def __str__(self):
-        return f"Packet: {self.header_info}"
+        return f"Packet: {self.header_info} in {self.current_location}"
 
 
 if __name__ == "__main__":
