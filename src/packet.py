@@ -4,7 +4,7 @@ class Packet:
         source_xy: tuple,
         dest_xy: tuple,
     ):
-        self.payload_size = 2
+        self.payload_size = 3
         self.header_size = 1
         self.header_info = {
             "source": source_xy,
