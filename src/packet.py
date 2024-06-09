@@ -1,9 +1,14 @@
+from enum import Enum
+
+
+class PacketStatus(Enum):
+    IDLE = "idle"
+    TRANSMITTING = "transmitting"
+    ROUTING = "routing"
+
+
 class Packet:
-    def __init__(
-        self,
-        source_xy: tuple,
-        dest_xy: tuple,
-    ):
+    def __init__(self, source_xy: tuple, dest_xy: tuple, source_task_id: int):
         self.payload_size = 3
         self.header_size = 1
         self.header_info = {
@@ -12,13 +17,44 @@ class Packet:
             "routing": [],
         }
         self.size = self.payload_size + self.header_size
-        self.current_location = source_xy
+        self.source_task_id = source_task_id
 
-    def update_location(self, location: tuple):
-        self.current_location = location
+        self.status = PacketStatus.IDLE
+        self.flits_transmitted = 0
+        self.current_location = None
+
+    def update_location(self, object):
+        self.current_location = object
+        print(f"Packet is now at {object}")
+
+    def increment_flits(self):
+        if self.status is PacketStatus.IDLE and self.flits_transmitted == 0:
+            self.flits_transmitted = 1
+            self.status = PacketStatus.TRANSMITTING
+        elif (
+            self.status is PacketStatus.TRANSMITTING
+            and self.flits_transmitted < self.size
+        ):
+            self.flits_transmitted += 1
+        else:
+            return
+
+    def check_transmission_status(self):
+        if (self.status is PacketStatus.TRANSMITTING) and (
+            self.flits_transmitted == self.size
+        ):
+            self.status = PacketStatus.IDLE
+            print(f"Packet {self} has been transmitted")
+            self.flits_transmitted = 0
+            return True, self.source_task_id
+        else:
+            return False, None
 
     def __str__(self):
-        return f"Packet: {self.header_info} in {self.current_location}"
+        return (
+            f"Packet: {self.header_info} in {self.current_location},"
+            f"Status: {self.status}, Flits Transmitted: {self.flits_transmitted}/{self.size}"
+        )
 
 
 if __name__ == "__main__":
