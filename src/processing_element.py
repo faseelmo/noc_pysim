@@ -5,10 +5,13 @@ from packet import Packet
 class TaskStatus(Enum):
     PENDING = "pending"         # require pending
     PROCESSING = "processing"   # computing
+    READY_TO_PROCESS = "ready"  # require satisfied
+
 
 
 from dataclasses import dataclass 
 from typing import Optional
+
 
 @dataclass
 class RequireInfo:
@@ -19,16 +22,14 @@ class RequireInfo:
 
 @dataclass
 class TaskInfo:
-    # require_list : list[RequireInfo]
     task_id: int 
     processing_cycles: int
-    required_packets: int
-    required_type_id: int 
     expected_generated_packets: int
+    require_list : list[RequireInfo]
     current_processing_cycle: int = 0   
-    received_packet_count: int = 0
     generated_packet_count: int = 0
     status: TaskStatus = TaskStatus.PENDING
+
 
 class ProcessingElement:
     def __init__(
@@ -43,13 +44,13 @@ class ProcessingElement:
         
         self.required_packet_types = self.get_unique_required_packet_type()
 
-        pass
 
     def get_unique_required_packet_type(self) -> list[int]:
         packet_type_list = []
-        for task in self.compute_list: 
-            if task.required_type_id not in packet_type_list:
-                packet_type_list.append(task.required_type_id)
+        for compute_task in self.compute_list: 
+            for require in compute_task.require_list:
+                if require.require_type_id not in packet_type_list:
+                    packet_type_list.append(require.require_type_id)
         print(f"Unique packet types required in this PE: {packet_type_list}")
         return packet_type_list
 
@@ -57,10 +58,11 @@ class ProcessingElement:
     def update_task_info(self, task_id: int):
         print(f"Updating task info for task {task_id}")
         for compute_task in self.compute_list:
-            if compute_task.required_type_id == task_id:
-                compute_task.received_packet_count += 1
-                print(f"Task {compute_task.task_id} has received {compute_task.received_packet_count}/{compute_task.required_packets} packets of type {compute_task.required_type_id}")
-                break
+            for require in compute_task.require_list:
+                if require.require_type_id == task_id:
+                    require.received_packet_count += 1
+                    print(f"Task {compute_task.task_id} has received {require.received_packet_count}/{require.required_packets} packets of type {require.require_type_id}")
+                    break
 
     def recieve_packets(self, packet: Packet):
         """
@@ -83,22 +85,30 @@ class ProcessingElement:
         """
         Checks if required packets for a task have been received
             Processing can only start if all required packets (w/ task_id) have been received
+            * Room for optimization here
 
         """
-        for task in self.compute_list:
-            if task.status is TaskStatus.PENDING:
-                if task.received_packet_count == task.required_packets:
-                    task.status = TaskStatus.PROCESSING
-                    self.compute_is_busy = True
+        for compute_task in self.compute_list:
+            readiness_check = []
+            require_list_len = len(compute_task.require_list)
+            for require in compute_task.require_list:
+                if compute_task.status is TaskStatus.PENDING:
+                    if require.received_packet_count == require.required_packets:
+                        readiness_check.append(True)
+                        print(f" - Type {require.require_type_id} packets for task {compute_task.task_id} satisfied")
 
-                else: 
-                    print(f"Task {task.task_id} not enough packets received to start processing")
+            if len(readiness_check) == require_list_len:
+                compute_task.status = TaskStatus.PROCESSING
+                self.compute_is_busy = True
+                print(f"Received all required packets for task {compute_task.task_id}")
+
 
 
     def reset_task(self, task: TaskInfo):
-        task.received_packet_count = 0
         task.current_processing_cycle = 0
         task.generated_packet_count += 1
+        for require in task.require_list:
+            require.received_packet_count = 0
 
     def update_task_status(self, task: TaskInfo):
         if task.generated_packet_count == task.expected_generated_packets:
@@ -123,15 +133,21 @@ class ProcessingElement:
         if len(processing_tasks) > 1:
             raise ValueError("Multiple tasks are processing at the same time")
 
-        for task in self.compute_list:
-            if task.status is TaskStatus.PROCESSING:
-                task.current_processing_cycle += 1  
-                if task.current_processing_cycle == task.processing_cycles:
-                    self.reset_task(task)
-                    self.update_task_status(task)
-                    print(f"{task.generated_packet_count}/{task.expected_generated_packets} packets generated for task {task.task_id}")
+        for compute_task in self.compute_list:
+            if compute_task.status is TaskStatus.PROCESSING:
+                compute_task.current_processing_cycle += 1  
+                if compute_task.current_processing_cycle == compute_task.processing_cycles:
+                    self.reset_task(compute_task)
+                    self.update_task_status(compute_task)
+                    print(
+                        f"Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
+                        f"packets for task {compute_task.task_id}"
+                    )
                 else :
-                    print(f"Task {task.task_id} is processing at cycle {task.current_processing_cycle}/{task.processing_cycles}")
+                    print(
+                        f"Task {compute_task.task_id} is processing at cycle "
+                        f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
+                    )
 
 
     def process(self, packet: Optional[Packet]):
@@ -185,9 +201,17 @@ if __name__ == "__main__":
     task_1 = TaskInfo(
         task_id=1, 
         processing_cycles=5, 
-        required_packets=2, 
-        required_type_id=0,
-        expected_generated_packets=2)
+        expected_generated_packets=2, 
+        require_list=[
+            RequireInfo(
+                require_type_id=0, 
+                required_packets=1), 
+            RequireInfo(
+                require_type_id=2, 
+                required_packets=1), 
+
+        ]
+    )
     computing_list = [task_1]
 
     # The Processing Element
@@ -205,7 +229,7 @@ if __name__ == "__main__":
     packet_2 = Packet(
         source_xy=(0, 0),
         dest_xy=(1, 1),
-        source_task_id=0
+        source_task_id=2
     )
 
     packet_list = [packet_1, packet_2]

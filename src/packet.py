@@ -52,7 +52,7 @@ class Packet:
 
     def __str__(self):
         return (
-            f"Packet: {self.header_info} in {self.current_location},"
+            f"Packet: {self.source_task_id} from {self.current_location},"
             f"Status: {self.status}, Flits Transmitted: {self.flits_transmitted}/{self.size}"
         )
 
