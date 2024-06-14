@@ -81,8 +81,8 @@ class ProcessingElement:
 
         return dependency_list
 
-    def update_task_info(self, task_id: int):
-        print(f"Updating task info for task {task_id}")
+    def update_TaskInfo(self, task_id: int):
+        # print(f"Updating TaskInfo for task {task_id}")
         for compute_task in self.compute_list:
             for require in compute_task.require_list:
                 if require.require_type_id == task_id:
@@ -104,11 +104,11 @@ class ProcessingElement:
         
         if is_transmitted:
             packet.update_location(self)
-            self.update_task_info(task_type)
+            self.update_TaskInfo(task_type)
 
     def can_start_new_processing(self):
         """
-        Checks if required packets for a task have been received
+        Checks if all the required packets for a task have been received
             Processing can only start if all required packets (w/ task_id) have been received
             > Room for optimization here
         """
@@ -130,6 +130,7 @@ class ProcessingElement:
             if len(readiness_check) == require_list_len:
                 compute_task.status = TaskStatus.PROCESSING
                 self.compute_is_busy = True
+                # maybe i should move reset task here
                 print(f"Received all required packets for task {compute_task.task_id} to start computing")
 
     def reset_task(self, compute_task: TaskInfo):
@@ -144,38 +145,45 @@ class ProcessingElement:
             self.compute_is_busy = False
 
     
-    def check_generate_for_inter_task_dependency(self, compute_task: TaskInfo): 
+    def check_generate_for_inter_task_dependency(self, current_task: TaskInfo): 
         """
         Check if the generated packets are required by other tasks in the same PE 
         """
-        print(f"Checking generate for inter task dependency")
         for dependency in self.dependency_list:
-            if dependency.generate_id == compute_task.task_id:
-                print(f" ~ 1.Generate used by same PE")
-                compute_task.sent_generated_packets += 1
+            # Incrementing the count of sent generated packets
+            #   if the generated packets are required by the same PE
+            if dependency.generate_id == current_task.task_id:
+                print(f"Incrementing sent generated packets for task {current_task.task_id}")
+                current_task.sent_generated_packets += 1
     
-        # append require count 
-        for compute_task in self.compute_list:
-            for require in compute_task.require_list:
-                for dependency in self.dependency_list:
-                    if dependency.generate_id == require.require_type_id:
-                        require.received_packet_count += 1
-                        print(f" ~ 2.Generate used by same PE")
-                        print(
-                            f"Task {compute_task.task_id} has received {require.received_packet_count}/{require.required_packets} "
-                            f"packets of type {require.require_type_id}")
+        for task_in_compute_list in self.compute_list:
+            # Incrementing the count of received packets 
+            #   if the generated packets are required by a 
+            #   different Task in the same PE
+            for require in task_in_compute_list.require_list:
+                if require.require_type_id == current_task.task_id:
+                    require.received_packet_count += 1
+                    print(
+                        f"Task {task_in_compute_list.task_id} has received {require.received_packet_count}/{require.required_packets} "
+                        f"packets of type {require.require_type_id}")
 
     def process_compute_task(self, compute_task: TaskInfo):
         if compute_task.status is TaskStatus.PROCESSING:
             compute_task.current_processing_cycle += 1  
             if compute_task.current_processing_cycle == compute_task.processing_cycles:
-                self.reset_task(compute_task)
+                print(
+                    f"Task {compute_task.task_id} is done processing "
+                    f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
+                )
+                # move reset task to can_start_new_processing, 
+                # when processing starts, reset the task rather than when it's done 
+                self.reset_task(compute_task) 
                 self.update_task_status(compute_task)
-                self.check_generate_for_inter_task_dependency(compute_task) # there's an issue here
                 print(
                     f"Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
-                    f"packets for task {compute_task.task_id}"
+                    f"packets in task {compute_task.task_id}"
                 )
+                self.check_generate_for_inter_task_dependency(compute_task) # there's an issue here
             else :
                 print(
                     f"Task {compute_task.task_id} is processing at cycle "
@@ -197,7 +205,7 @@ class ProcessingElement:
 
     def process(self, packet: Optional[Packet]):
         if packet is not None: 
-            print(f"{self} is recieving packet {packet}")
+            print(f"{self} is recieving packet (Type: {packet.source_task_id}) ")
             self.recieve_packets(packet)
 
         if not self.compute_is_busy:
@@ -247,14 +255,14 @@ if __name__ == "__main__":
     task_1 = TaskInfo(
         task_id=1, 
         processing_cycles=5, 
-        expected_generated_packets=1, 
+        expected_generated_packets=2, 
         require_list=[
             RequireInfo(
                 require_type_id=0, 
-                required_packets=1), 
+                required_packets=3), 
             RequireInfo(
                 require_type_id=2, 
-                required_packets=1)
+                required_packets=2)
         ]
     )
     task_3 = TaskInfo(
@@ -264,10 +272,7 @@ if __name__ == "__main__":
         require_list=[
             RequireInfo(
                 require_type_id=1, 
-                required_packets=1), 
-            # RequireInfo(
-            #     require_type_id=3, 
-            #     required_packets=1), 
+                required_packets=2), 
         ]
     )
     computing_list = [task_1, task_3]
@@ -279,7 +284,7 @@ if __name__ == "__main__":
     from packet import PacketStatus
     import copy 
 
-    packet_1 = Packet(
+    packet_0 = Packet(
         source_xy=(0, 0),
         dest_xy=(1, 1),
         source_task_id=0
@@ -291,22 +296,27 @@ if __name__ == "__main__":
         source_task_id=2
     )
 
-    # packet_2 = copy.deepcopy(packet_1)
-    # packet_4 = copy.deepcopy(packet_3)
-    # packet_5 = copy.deepcopy(packet_3)
+    packet_0_1 = copy.deepcopy(packet_0)
+    packet_0_2 = copy.deepcopy(packet_0)
+    packet_2_1 = copy.deepcopy(packet_2)
 
-    packet_list = [packet_1, packet_2]
-    
-    current_packet = packet_list.pop(0)
+
+    packet_list = [packet_0, packet_0_1,  packet_2, packet_2_1, packet_0_2,]
+    current_packet = packet_list.pop(0)  
 
     max_cycle = 50
+
+
     for cycle in range(max_cycle):
         print(f"\n> {cycle}")
         pe_1.process(current_packet)
         if not current_packet is None and current_packet.status is PacketStatus.IDLE:
+            # IDLE means that the packet has been transmitted
             if len(packet_list) > 0:
                 current_packet = packet_list.pop(0)
             else: 
+                # if all packets in the packet list have been processed
+                #  set the current packet to None to signify that there are no more packets
                 current_packet = None
         if pe_1.compute_is_busy:
             status = "Computing"
