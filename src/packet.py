@@ -1,48 +1,67 @@
-from src.processing_element import ProcessingElement
-from src.router import Router
+from enum import Enum
 
-from typing import Union
 
-class Packet: 
-    def __init__(self, bytes: int, 
-                 source : Union[Router, ProcessingElement], 
-                 destination: Union[Router, ProcessingElement], 
-                 routing_links: list, 
-                 idx: int):
+class PacketStatus(Enum):
+    IDLE = "idle"
+    TRANSMITTING = "transmitting"
+    ROUTING = "routing"
 
-        # model one cycle to transmit the header 
-        # 
-        self.size = bytes #  message with flits
-        self.source = source
-        self.destination = destination
-        self.routing_links = routing_links
-        self.current_link = None
-        self.current_node = None
-        self.idx = idx
 
-    def set_current_node(self, node):
-        self.current_node = node
+class Packet:
+    def __init__(self, source_xy: tuple, dest_xy: tuple, source_task_id: int):
+        self.payload_size = 3
+        self.header_size = 1
+        self.header_info = {
+            "source": source_xy,
+            "dest": dest_xy,
+            "routing": [],
+        }
+        self.size = self.payload_size + self.header_size
+        self.source_task_id = source_task_id
 
-    def set_current_link(self, link):
-        self.current_link = link
+        self.status = PacketStatus.IDLE
+        self.flits_transmitted = 0
+        self.current_location = None
 
-    def pop_routing_link(self):
-        return self.routing_links.pop(0)
+    def update_location(self, object):
+        """Update the current location of the packet. 
+            args: object (PE or Router)
+        """
+        self.current_location = object
+        print(f"Packet is now at {object}")
 
-    def has_more_routing_links(self):
-        return len(self.routing_links) > 0
+    def increment_flits(self):
+        """Increment the number of flits transmitted by the packet."""
+        if self.status is PacketStatus.IDLE and self.flits_transmitted == 0:
+            self.flits_transmitted = 1
+            self.status = PacketStatus.TRANSMITTING
+        elif (
+            self.status is PacketStatus.TRANSMITTING
+            and self.flits_transmitted < self.size
+        ):
+            self.flits_transmitted += 1
+        else:
+            return
 
-    def __repr__(self):
-        return f"Packet({self.idx}) from {self.source} to {self.destination} at {self.current_node}"
+    def check_transmission_status(self):
+        """Check if the packet has been transmitted completely."""
+        if (self.status is PacketStatus.TRANSMITTING) and (
+            self.flits_transmitted == self.size
+        ):
+            self.status = PacketStatus.IDLE
+            print(f"{self} has been transmitted")
+            self.flits_transmitted = 0
+            return True, self.source_task_id
+        else:
+            return False, None
+
+    def __str__(self):
+        return (
+            f"Packet: {self.source_task_id} "
+            # f"from {self.current_location},"
+            f"Status: {self.status}, Flits Transmitted: {self.flits_transmitted}/{self.size}"
+        )
+
 
 if __name__ == "__main__":
-
-    from src.mesh_network import MeshNetwork
-    mesh = MeshNetwork()
-    src = mesh.get_processing_element(0, 0)
-    dest = mesh.get_processing_element(1, 1)
-    routing_links = mesh.get_routing_links(src, dest)
-
-    packet = Packet(10, src, dest, routing_links)
-    print(packet.routing_links)
-    print(packet)
+    pass
