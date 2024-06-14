@@ -231,7 +231,7 @@ if __name__ == "__main__":
     2. Single PE recieves packets from multiple PEs                     [x]
         - Check for require type [task_id in packet] 
             and require count 
-    3. Two tasks assigned to one PE in seuquential order                
+    3. Two tasks assigned to one PE in seuquential order                [x]
     4. Two tasks assigned to one PE in parallel order                   [x]
         - Both tasks require packets from the same PE
         - Both tasks require packets from different PEs
