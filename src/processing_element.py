@@ -106,6 +106,13 @@ class ProcessingElement:
             packet.update_location(self)
             self.update_TaskInfo(task_type)
 
+    def reset_received_packet_task(self, compute_task: TaskInfo):
+        """
+        Resets the current processing cycle to 0
+        """
+        for require in compute_task.require_list:
+            require.received_packet_count = 0
+
     def can_start_new_processing(self):
         """
         Checks if all the required packets for a task have been received
@@ -130,14 +137,9 @@ class ProcessingElement:
             if len(readiness_check) == require_list_len:
                 compute_task.status = TaskStatus.PROCESSING
                 self.compute_is_busy = True
-                # maybe i should move reset task here
+                self.reset_received_packet_task(compute_task)
                 print(f"Received all required packets for task {compute_task.task_id} to start computing")
 
-    def reset_task(self, compute_task: TaskInfo):
-        compute_task.current_processing_cycle = 0
-        compute_task.generated_packet_count += 1
-        for require in compute_task.require_list:
-            require.received_packet_count = 0
 
     def update_task_status(self, compute_task: TaskInfo):
         if compute_task.generated_packet_count == compute_task.expected_generated_packets:
@@ -175,9 +177,8 @@ class ProcessingElement:
                     f"Task {compute_task.task_id} is done processing "
                     f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                 )
-                # move reset task to can_start_new_processing, 
-                # when processing starts, reset the task rather than when it's done 
-                self.reset_task(compute_task) 
+                compute_task.generated_packet_count += 1  
+                compute_task.current_processing_cycle = 0 
                 self.update_task_status(compute_task)
                 print(
                     f"Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
