@@ -1,5 +1,5 @@
 from enum import Enum
-from packet import Packet
+from .packet import Packet
 
 
 class TaskStatus(Enum):
@@ -87,7 +87,7 @@ class ProcessingElement:
             for require in compute_task.require_list:
                 if require.require_type_id == task_id:
                     require.received_packet_count += 1
-                    print(f"Task {compute_task.task_id} has received {require.received_packet_count}/{require.required_packets} packets of type {require.require_type_id}")
+                    # print(f"Task {compute_task.task_id} has received {require.received_packet_count}/{require.required_packets} packets of type {require.require_type_id}")
                     break
 
     def recieve_packets(self, packet: Packet):
@@ -99,7 +99,7 @@ class ProcessingElement:
             raise ValueError(f"Packet type {packet.source_task_id} not required in this PE")
 
         packet.increment_flits()
-        print(f"{self} Incrementing flits to {packet.flits_transmitted}/{packet.size}")
+        print(f"{self} Recieving flits (type: {packet.source_task_id}) {packet.flits_transmitted}/{packet.size}")
         is_transmitted, task_type = packet.check_transmission_status()
         
         if is_transmitted:
@@ -129,16 +129,12 @@ class ProcessingElement:
                 if compute_task.status is TaskStatus.PENDING:
                     if require.received_packet_count == require.required_packets:
                         readiness_check.append(True)
-                    print(
-                        f" - Task {compute_task.task_id} type {require.require_type_id} packets "
-                        f"({require.received_packet_count}/{require.required_packets})"
-                    )
 
             if len(readiness_check) == require_list_len:
                 compute_task.status = TaskStatus.PROCESSING
                 self.compute_is_busy = True
                 self.reset_received_packet_task(compute_task)
-                print(f"Received all required packets for task {compute_task.task_id} to start computing")
+                print(f"Task {compute_task.task_id} received all required packets for task {compute_task.task_id} to start computing")
 
 
     def update_task_status(self, compute_task: TaskInfo):
@@ -181,7 +177,7 @@ class ProcessingElement:
                 compute_task.current_processing_cycle = 0 
                 self.update_task_status(compute_task)
                 print(
-                    f"Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
+                    f" -> Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
                     f"packets in task {compute_task.task_id}"
                 )
                 self.check_generate_for_inter_task_dependency(compute_task) # there's an issue here
@@ -204,15 +200,35 @@ class ProcessingElement:
         for compute_task in self.compute_list:
             self.process_compute_task(compute_task)
 
+    def get_packet_count(self):
+        for compute_task in self.compute_list:
+            for require in compute_task.require_list:
+                print(
+                    f" - Task {compute_task.task_id} type {require.require_type_id} packets "
+                    f"({require.received_packet_count}/{require.required_packets})"
+                )
+
     def process(self, packet: Optional[Packet]):
         if packet is not None: 
-            print(f"{self} is recieving packet (Type: {packet.source_task_id}) ")
             self.recieve_packets(packet)
 
         if not self.compute_is_busy:
             self.can_start_new_processing()   # status: pending     -> processing
         if self.compute_is_busy:
             self.increment_processing_cycle() # status: processing  -> done
+
+        self.get_packet_count() 
+
+    def check_task_requirements_met(self):
+        """
+        Checks if all the tasks have generated the expected number of packets
+        Also checks if the status of the task is pending. i.e done 
+        """
+        for compute_task in self.compute_list:
+            if (compute_task.expected_generated_packets != compute_task.generated_packet_count or
+                compute_task.status is not TaskStatus.PENDING):
+                return False
+        return True
 
     def __repr__(self):
         return f"PE({self.xy})"
@@ -282,7 +298,7 @@ if __name__ == "__main__":
     pe_1 = ProcessingElement((0, 0), computing_list)
 
     # The Packet (src and dest does not matter for now)
-    from packet import PacketStatus
+    from .packet import PacketStatus
     import copy 
 
     packet_0 = Packet(

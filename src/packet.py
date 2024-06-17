@@ -24,11 +24,11 @@ class Packet:
         self.current_location = None
 
     def update_location(self, object):
-        """Update the current location of the packet. 
-            args: object (PE or Router)
+        """Update the current location of the packet.
+        args: object (PE or Router)
         """
         self.current_location = object
-        print(f"Packet is now at {object}")
+        print(f" ~ updating packet location to {object}")
 
     def increment_flits(self):
         """Increment the number of flits transmitted by the packet."""
@@ -49,7 +49,7 @@ class Packet:
             self.flits_transmitted == self.size
         ):
             self.status = PacketStatus.IDLE
-            print(f"{self} has been transmitted")
+            # print(f"{self} has been transmitted")
             self.flits_transmitted = 0
             return True, self.source_task_id
         else:
