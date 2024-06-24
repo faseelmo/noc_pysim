@@ -82,7 +82,6 @@ def test_task_sequential_1():
 
 
 def test_task_sequential_2():
-    """Test 2"""
 
     graph = nx.DiGraph()
     graph.add_node(0, type="task", generate=2, processing_time=5)
@@ -92,29 +91,50 @@ def test_task_sequential_2():
     graph.add_node(1, type="task", generate=3, processing_time=4)
     connect_dependecy_node(graph, dependency_id=4, task_id=1, require=5)
 
-    computing_list = graph_to_task_list(graph)
+    graph.add_edge(0, 1, weight=2)
 
-    packet_2_copies = create_packet_copies(packet_source=2, num_copies=3)
-    packet_3_copies = create_packet_copies(packet_source=3, num_copies=2)
-    packet_4_copies = create_packet_copies(packet_source=4, num_copies=5)
+    # Test 1 - Task 0 receives the 5 packets first (from 2 and 3)
+    test_1_computing_list = graph_to_task_list(graph)
+    test_2_computing_list = copy.deepcopy(test_1_computing_list)
 
-    packet_list = [
-        packet_2_copies.pop(0),
-        packet_2_copies.pop(0),
-        packet_3_copies.pop(0),
-        packet_3_copies.pop(0),
-        packet_2_copies.pop(0),
-        *packet_4_copies,
+    test_1_packet_2_copies = create_packet_copies(packet_source=2, num_copies=3)
+    test_1_packet_3_copies = create_packet_copies(packet_source=3, num_copies=2)
+    test_1_packet_4_copies = create_packet_copies(packet_source=4, num_copies=5)
+
+    test_1_packet_list = [
+        test_1_packet_2_copies.pop(0),
+        test_1_packet_2_copies.pop(0),
+        test_1_packet_3_copies.pop(0),
+        test_1_packet_3_copies.pop(0),
+        test_1_packet_2_copies.pop(0),
+        *test_1_packet_4_copies,
     ]
 
-    latency = simulate(computing_list, packet_list)
-    assert latency == 50
+    test_1_latency = simulate(test_1_computing_list, test_1_packet_list)
+    assert test_1_latency == 50
+
+    # Test 2 - Task 1 receives the 5 packets first
+    test_2_packet_2_copies = create_packet_copies(packet_source=2, num_copies=3)
+    test_2_packet_3_copies = create_packet_copies(packet_source=3, num_copies=2)
+    test_2_packet_4_copies = create_packet_copies(packet_source=4, num_copies=5)
+
+    test_2_packet_list = [
+        *test_2_packet_4_copies,
+        test_2_packet_2_copies.pop(0),
+        test_2_packet_2_copies.pop(0),
+        test_2_packet_3_copies.pop(0),
+        test_2_packet_3_copies.pop(0),
+        test_2_packet_2_copies.pop(0),
+    ]
+
+    test_2_latency = simulate(test_2_computing_list, test_2_packet_list)
+    assert test_2_latency == 60
 
 
 def test_task_parallel_3():
     """Test 3"""
 
-    graph = nx.DiGraph()    
+    graph = nx.DiGraph()
     graph.add_node(0, type="task", generate=2, processing_time=7)
     connect_dependecy_node(graph, dependency_id=2, task_id=0, require=1)
     connect_dependecy_node(graph, dependency_id=3, task_id=0, require=1)
@@ -124,7 +144,6 @@ def test_task_parallel_3():
 
     computing_list = graph_to_task_list(graph)
 
-
     packet_2_copies = create_packet_copies(packet_source=2, num_copies=1)
     packet_3_copies = create_packet_copies(packet_source=3, num_copies=1)
     packet_4_copies = create_packet_copies(packet_source=4, num_copies=2)
@@ -133,5 +152,3 @@ def test_task_parallel_3():
 
     latency = simulate(computing_list, packet_list)
     assert latency == 32
-
-
