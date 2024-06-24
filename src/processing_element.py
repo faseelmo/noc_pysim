@@ -317,7 +317,6 @@ if __name__ == "__main__":
     packet_0_2 = copy.deepcopy(packet_0)
     packet_2_1 = copy.deepcopy(packet_2)
 
-
     packet_list = [packet_0, packet_0_1,  packet_2, packet_2_1, packet_0_2,]
     current_packet = packet_list.pop(0)  
 
