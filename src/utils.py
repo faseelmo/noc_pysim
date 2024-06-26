@@ -1,4 +1,5 @@
 import networkx as nx
+import random
 
 
 def graph_to_task_list(graph: nx.DiGraph) -> list: 
@@ -46,3 +47,63 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
                         task.require_list.append(require)
 
     return computing_list
+
+
+def simulate(computing_list: list, packet_list: list):
+
+    from src.processing_element import ProcessingElement
+    from src.processing_element import PacketStatus 
+    
+    MAX_CYCLES = 10000
+
+    pe = ProcessingElement((0, 0), computing_list)
+    current_packet = packet_list.pop(0)
+
+    for cycle in range(MAX_CYCLES):
+        print(f"\n> {cycle}")
+        pe.process(current_packet)
+        if not current_packet is None and current_packet.status is PacketStatus.IDLE:
+            if len(packet_list) > 0:
+                current_packet = packet_list.pop(0)
+            else:
+                current_packet = None
+        if pe.check_task_requirements_met():
+            break
+
+    return cycle
+
+def get_random_packet_list(graph: nx.DiGraph): 
+    
+    from src.processing_element import RequireInfo
+    from src.packet import Packet
+
+    packet_list = []
+    required_packet_type = [] # (type,count)
+
+    for node in graph.nodes:
+        predecessors = list(graph.predecessors(node))
+        successors = list(graph.successors(node))
+        if len(predecessors) == 0:
+            num_packets = 0
+            for successor in successors:
+                edge_data = graph.get_edge_data(node, successor)
+                weight = edge_data["weight"]
+                num_packets += weight
+                
+            require = RequireInfo(
+                require_type_id=node,
+                required_packets=num_packets,
+            )
+            required_packet_type.append(require)
+
+
+    for require in required_packet_type:
+        for i in range(require.required_packets):
+            packet = Packet(source_xy=(0, 0), dest_xy=(1, 1), source_task_id=require.require_type_id)
+            packet_list.append(packet)
+
+    random.shuffle(packet_list)
+
+    return packet_list
+
+

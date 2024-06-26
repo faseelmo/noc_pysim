@@ -1,6 +1,10 @@
-import networkx as nx
 import random
-import json
+import networkx as nx
+from data.utils import (
+    save_graph_to_json, 
+    load_graph_from_json, 
+    visualize_graph
+)
 
 
 def generate_graph(num_nodes: int):
@@ -26,7 +30,7 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
     for node in graph.nodes:
         successors = list(graph.successors(node))
         predecessors = list(graph.predecessors(node))
-        generate = random.randint(*require_generate_range)
+        random_generate = random.randint(*require_generate_range)
         processing_time = random.randint(*require_generate_range)
 
         # If the node has no incoming edges
@@ -34,14 +38,15 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
             graph.nodes[node]["type"] = "dependency"
             for successor in successors:
                 require = random.randint(*require_generate_range)
-                graph.add_edge(node, successor, weight=require)
+                graph[node][successor]["weight"] = require
+                # graph.add_edge(node, successor, weight=require)
 
         # If node has no outgoing edges
         elif len(successors) == 0:
             graph.nodes[node].update(
                 {
                     "type": "task",
-                    "generate": generate,
+                    "generate": random_generate,
                     "processing_time": processing_time,
                 }
             )
@@ -51,16 +56,18 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
             graph.nodes[node].update(
                 {
                     "type": "task",
-                    "generate": generate,
+                    "generate": random_generate,
                     "processing_time": processing_time,
                 }
             )
             for successor in successors:
-                require = random.randint(*require_generate_range)
-                graph.add_edge(node, successor, weight=require)
+                require = random_generate
+                graph[node][successor]["weight"] = require
+                # graph.add_edge(node, successor, weight=require)
             for predecessor in predecessors:
-                require = random.randint(*require_generate_range)
-                graph.add_edge(predecessor, node, weight=require)
+                require = graph.nodes[node]["generate"]
+                graph[predecessor][node]["weight"] = require
+                # graph.add_edge(predecessor, node, weight=require)
 
         else:
             raise ValueError("Dangling node detected")
@@ -68,57 +75,15 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
     return graph
 
 
-def save_graph_to_json(graph: nx.DiGraph, filename: str):
-    data = nx.node_link_data(graph)
-    with open(filename, "w") as file:
-        json.dump(data, file)
-
-
-def load_graph_from_json(filename: str):
-    with open(filename, "r") as file:
-        data = json.load(file)
-    return nx.node_link_graph(data)
-
-
-def visualize_modified_graph(graph: nx.DiGraph):
-    import matplotlib.pyplot as plt
-    import networkx as nx
-
-    color_map = {"dependency": "skyblue", "task": "lightgreen"}
-    node_colors = [
-        color_map.get(graph.nodes[node].get("type", "task"), "lightgreen")
-        for node in graph.nodes
-    ]
-
-    pos = nx.spring_layout(graph)
-    nx.draw(
-        graph,
-        pos,
-        with_labels=False,
-        node_size=700,
-        node_color=node_colors,
-        arrows=True,
-    )
-
-    custom_labels = {
-        node: f"{node}\nG: {graph.nodes[node].get('generate', 'N/A')}"
-        for node in graph.nodes
-    }
-    nx.draw_networkx_labels(graph, pos, labels=custom_labels)
-
-    edge_labels = nx.get_edge_attributes(graph, "weight")
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
-
-    plt.show()
-
 def test_function(num_nodes: int):
     graph = generate_graph(num_nodes)
     modified_graph = modify_graph_to_task_graph(graph)
-    visualize_modified_graph(modified_graph)
+    visualize_graph(modified_graph)
 
-    save_graph_to_json(modified_graph, "test_task_graph.json")
-    loaded_graph = load_graph_from_json("test_task_graph.json")
-    visualize_modified_graph(loaded_graph)
+    save_graph_to_json(modified_graph, "data/test_task_graph.json")
+    loaded_graph = load_graph_from_json("data/test_task_graph.json")
+    visualize_graph(loaded_graph)
+
 
 def generate_n_graphs(count: int): 
     for i in range(count):
@@ -126,7 +91,7 @@ def generate_n_graphs(count: int):
         graph = generate_graph(random_num_nodes)
         modified_graph = modify_graph_to_task_graph(graph)
 
-        save_graph_to_json(modified_graph, f"pe_task_graphs/task_graph_{i}.json")
+        save_graph_to_json(modified_graph, f"data/pe_task_graphs/task_graph_{i}.json")
 
 
 if __name__ == "__main__":
