@@ -78,7 +78,7 @@ def test_task_sequential_1():
     ]
 
     latency = simulate(computing_list, packet_list)
-    assert latency == 40
+    assert latency == 42
 
 
 def test_task_sequential_2():
@@ -111,7 +111,7 @@ def test_task_sequential_2():
     ]
 
     test_1_latency = simulate(test_1_computing_list, test_1_packet_list)
-    assert test_1_latency == 50
+    assert test_1_latency == 51
 
     # Test 2 - Task 1 receives the 5 packets first
     test_2_packet_2_copies = create_packet_copies(packet_source=2, num_copies=3)
@@ -128,7 +128,7 @@ def test_task_sequential_2():
     ]
 
     test_2_latency = simulate(test_2_computing_list, test_2_packet_list)
-    assert test_2_latency == 60
+    assert test_2_latency == 62
 
 
 def test_task_parallel_3():
@@ -151,4 +151,4 @@ def test_task_parallel_3():
     packet_list = [*packet_2_copies, *packet_3_copies, *packet_4_copies]
 
     latency = simulate(computing_list, packet_list)
-    assert latency == 32
+    assert latency == 34

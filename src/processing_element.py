@@ -119,8 +119,6 @@ class ProcessingElement:
             Processing can only start if all required packets (w/ task_id) have been received
             > Room for optimization here
         """
-        if self.compute_is_busy:
-            return
 
         for compute_task in self.compute_list:
             readiness_check = []
@@ -214,6 +212,8 @@ class ProcessingElement:
 
         if not self.compute_is_busy:
             self.can_start_new_processing()   # status: pending     -> processing
+            return 
+
         if self.compute_is_busy:
             self.increment_processing_cycle() # status: processing  -> done
 
