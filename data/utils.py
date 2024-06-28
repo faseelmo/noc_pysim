@@ -34,7 +34,7 @@ def visualize_graph(graph: nx.DiGraph):
     )
 
     custom_labels = {
-        node: f"{node}\nG: {graph.nodes[node].get('generate', 'N/A')}"
+        node: f"id: {node}\nG: {graph.nodes[node].get('generate', 'N/A')}"
         for node in graph.nodes
     }
     nx.draw_networkx_labels(graph, pos, labels=custom_labels)

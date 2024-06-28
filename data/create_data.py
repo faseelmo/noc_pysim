@@ -1,10 +1,7 @@
 import random
 import networkx as nx
-from data.utils import (
-    save_graph_to_json, 
-    load_graph_from_json, 
-    visualize_graph
-)
+import numpy as np
+from data.utils import save_graph_to_json, load_graph_from_json, visualize_graph
 
 
 def generate_graph(num_nodes: int):
@@ -23,53 +20,50 @@ def generate_graph(num_nodes: int):
 
 def modify_graph_to_task_graph(graph: nx.DiGraph):
     """
-    Add Task information as node and edge attributes to the arg "graph"
+    Add Task information as node (generate) and edge attributes (require)
+    to the arg "graph"
     """
-    require_generate_range = (1, 10)
+    generate_range = (1, 10)
 
     for node in graph.nodes:
         successors = list(graph.successors(node))
         predecessors = list(graph.predecessors(node))
-        random_generate = random.randint(*require_generate_range)
-        processing_time = random.randint(*require_generate_range)
 
-        # If the node has no incoming edges
+        # Condition: If the node has no incoming edges (dependency node)
+        # Note: dependency nodes don't have processing time
         if len(predecessors) == 0:
+            random_require_value = random.randint(*generate_range)
             graph.nodes[node]["type"] = "dependency"
-            for successor in successors:
-                require = random.randint(*require_generate_range)
-                graph[node][successor]["weight"] = require
-                # graph.add_edge(node, successor, weight=require)
 
-        # If node has no outgoing edges
-        elif len(successors) == 0:
-            graph.nodes[node].update(
-                {
-                    "type": "task",
-                    "generate": random_generate,
-                    "processing_time": processing_time,
-                }
-            )
-
-        # If node has both incoming and outgoing edges
-        elif len(successors) > 0 and len(predecessors) > 0:
-            graph.nodes[node].update(
-                {
-                    "type": "task",
-                    "generate": random_generate,
-                    "processing_time": processing_time,
-                }
-            )
             for successor in successors:
-                require = random_generate
+                require = random_require_value
+
                 graph[node][successor]["weight"] = require
-                # graph.add_edge(node, successor, weight=require)
-            for predecessor in predecessors:
-                require = graph.nodes[node]["generate"]
-                graph[predecessor][node]["weight"] = require
-                # graph.add_edge(predecessor, node, weight=require)
+                graph.nodes[node]["generate"] = require
 
         else:
+            random_generate_value = random.randint(*generate_range)
+            random_processing_time = random.randint(*generate_range)
+
+            graph.nodes[node]["type"] = "task"
+            graph.nodes[node]["generate"] = random_generate_value
+            graph.nodes[node]["processing_time"] = random_processing_time
+
+            # Assigning require (edge weights) to successors by
+            # splitting the generate value randomly
+            num_of_successors = len(successors)
+            gen_split_values = np.random.multinomial(
+                random_generate_value,
+                np.ones(num_of_successors) / num_of_successors,
+                size=1,
+            )[0]
+
+            for successor, gen_value in zip(successors, gen_split_values):
+
+                require = gen_value
+                graph[node][successor]["weight"] = int(require)
+
+        if len(predecessors) == 0 and len(successors) == 0:
             raise ValueError("Dangling node detected")
 
     return graph
@@ -85,7 +79,7 @@ def test_function(num_nodes: int):
     visualize_graph(loaded_graph)
 
 
-def generate_n_graphs(count: int): 
+def generate_n_graphs(count: int):
     for i in range(count):
         random_num_nodes = random.randint(2, 6)
         graph = generate_graph(random_num_nodes)
@@ -98,6 +92,8 @@ if __name__ == "__main__":
 
     import argparse
 
+    # random.seed(1)
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--num_nodes",
@@ -105,29 +101,19 @@ if __name__ == "__main__":
         default=4,
         help="Number of nodes in the generated graph",
     )
+    parser.add_argument("--test", action="store_true", help="Run the test function")
+    parser.add_argument("--generate", action="store_true", help="Generate")
     parser.add_argument(
-        "--test", 
-        action="store_true",
-        help="Run the test function"
-    )
-    parser.add_argument(
-        "--generate", 
-        action="store_true",
-        help="Generate"
-    )
-    parser.add_argument(
-        "--gen_count", 
-        type=int,
-        default=100,
-        help="Number of graphs to generate"
+        "--gen_count", type=int, default=100, help="Number of graphs to generate"
     )
 
     args = parser.parse_args()
-    print(f"Number of nodes is {args.num_nodes}, testing is {args.test}, generating is {args.generate}, gen_count is {args.gen_count}")
+    print(
+        f"Number of nodes is {args.num_nodes}, testing is {args.test}, generating is {args.generate}, gen_count is {args.gen_count}"
+    )
 
     if args.test:
         test_function(args.num_nodes)
 
     if args.generate:
         generate_n_graphs(args.gen_count)
-
