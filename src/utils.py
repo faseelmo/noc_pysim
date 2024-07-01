@@ -2,16 +2,16 @@ import networkx as nx
 import random
 
 
-def graph_to_task_list(graph: nx.DiGraph) -> list: 
+def graph_to_task_list(graph: nx.DiGraph) -> list:
     """
     Converts a graph to a list of tasks
     Needs graph with nodes having the following attributes:
     1. node_type = "task" or "dependency"
         if node_type = "task":
             generate = int
-            processing_time = int 
+            processing_time = int
 
-    2. Between task and dependency nodes, 
+    2. Between task and dependency nodes,
         there should be an edge with weight = int,
         representing the number of packets required
 
@@ -52,9 +52,9 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
 def simulate(computing_list: list, packet_list: list):
 
     from src.processing_element import ProcessingElement
-    from src.processing_element import PacketStatus 
-    
-    MAX_CYCLES = 10000
+    from src.packet import PacketStatus
+
+    MAX_CYCLES = 1000
 
     pe = ProcessingElement((0, 0), computing_list)
     current_packet = packet_list.pop(0)
@@ -72,13 +72,14 @@ def simulate(computing_list: list, packet_list: list):
 
     return cycle
 
-def get_random_packet_list(graph: nx.DiGraph): 
-    
+
+def get_random_packet_list(graph: nx.DiGraph):
+
     from src.processing_element import RequireInfo
     from src.packet import Packet
 
     packet_list = []
-    required_packet_type = [] # (type,count)
+    required_packet_type = []  # (type,count)
 
     for node in graph.nodes:
         predecessors = list(graph.predecessors(node))
@@ -89,21 +90,20 @@ def get_random_packet_list(graph: nx.DiGraph):
                 edge_data = graph.get_edge_data(node, successor)
                 weight = edge_data["weight"]
                 num_packets += weight
-                
+
             require = RequireInfo(
                 require_type_id=node,
                 required_packets=num_packets,
             )
             required_packet_type.append(require)
 
-
     for require in required_packet_type:
         for i in range(require.required_packets):
-            packet = Packet(source_xy=(0, 0), dest_xy=(1, 1), source_task_id=require.require_type_id)
+            packet = Packet(
+                source_xy=(0, 0), dest_xy=(1, 1), source_task_id=require.require_type_id
+            )
             packet_list.append(packet)
 
     random.shuffle(packet_list)
 
     return packet_list
-
-
