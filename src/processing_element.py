@@ -41,16 +41,22 @@ class ProcessingElement:
     def __init__(
             self, 
             xy: tuple[int, int], 
-            computing_list: list[TaskInfo]
+            computing_list: list[TaskInfo], 
+            debug_mode: bool = False
         ):
 
         self.xy = xy 
         self.compute_list = computing_list
         self.compute_is_busy = False
+        self.debug_mode = debug_mode
         
         self.required_packet_types = self.get_unique_required_packet_type()
         self.dependency_list = self.check_inter_task_dependency()
-        print(f"Dependency list: {self.dependency_list}")
+        self.debug_print(f"Dependency list: {self.dependency_list}")
+
+    def debug_print(self, string: str):
+        if self.debug_mode:
+            print(string)
 
     def get_unique_required_packet_type(self) -> list[int]:
         packet_type_list = []
@@ -58,7 +64,7 @@ class ProcessingElement:
             for require in compute_task.require_list:
                 if require.require_type_id not in packet_type_list:
                     packet_type_list.append(require.require_type_id)
-        print(f"Unique packet types required in this PE: {packet_type_list}")
+        self.debug_print(f"Unique packet types required in this PE: {packet_type_list}")
         return packet_type_list
 
     def check_inter_task_dependency(self) -> list[TASKDependency]:
@@ -104,7 +110,7 @@ class ProcessingElement:
             raise ValueError(f"Packet type {packet.source_task_id} not required in this PE")
 
         packet.increment_flits()
-        print(f"{self} Recieving flits (type: {packet.source_task_id}) {packet.flits_transmitted}/{packet.size}")
+        self.debug_print(f"{self} Recieving flits (type: {packet.source_task_id}) {packet.flits_transmitted}/{packet.size}")
         is_transmitted, recieved_packet_task_id = packet.check_transmission_status()
         
         if is_transmitted:
@@ -139,7 +145,7 @@ class ProcessingElement:
                 compute_task.status = TaskStatus.PROCESSING
                 self.compute_is_busy = True
                 self.reset_received_packet_task(compute_task)
-                print(f"Task {compute_task.task_id} received all required packets for task {compute_task.task_id} to start computing")
+                self.debug_print(f"Task {compute_task.task_id} received all required packets for task {compute_task.task_id} to start computing")
 
 
     def update_task_status(self, compute_task: TaskInfo):
@@ -156,7 +162,7 @@ class ProcessingElement:
             # Incrementing the count of sent generated packets
             #   if the generated packets are required by the same PE
             if dependency.generate_id == current_task.task_id:
-                print(f"Incrementing sent generated packets for task {current_task.task_id}")
+                self.debug_print(f"Incrementing sent generated packets for task {current_task.task_id}")
                 current_task.sent_generated_packets += 1
     
         for task_in_compute_list in self.compute_list:
@@ -166,7 +172,7 @@ class ProcessingElement:
             for require in task_in_compute_list.require_list:
                 if require.require_type_id == current_task.task_id:
                     require.received_packet_count += 1
-                    print(
+                    self.debug_print(
                         f"Task {task_in_compute_list.task_id} has received {require.received_packet_count}/{require.required_packets} "
                         f"packets of type {require.require_type_id}")
 
@@ -174,20 +180,20 @@ class ProcessingElement:
         if compute_task.status is TaskStatus.PROCESSING:
             compute_task.current_processing_cycle += 1  
             if compute_task.current_processing_cycle == compute_task.processing_cycles:
-                print(
+                self.debug_print(
                     f"Task {compute_task.task_id} is done processing "
                     f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                 )
                 compute_task.generated_packet_count += 1  
                 compute_task.current_processing_cycle = 0 
                 self.update_task_status(compute_task)
-                print(
+                self.debug_print(
                     f" -> Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
                     f"packets in task {compute_task.task_id}"
                 )
                 self.check_generate_for_inter_task_dependency(compute_task) # there's an issue here
             else :
-                print(
+                self.debug_print(
                     f"Task {compute_task.task_id} is processing at cycle "
                     f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                 )
@@ -208,7 +214,7 @@ class ProcessingElement:
     def get_packet_count(self):
         for compute_task in self.compute_list:
             for require in compute_task.require_list:
-                print(
+                self.debug_print(
                     f" - Task {compute_task.task_id} type {require.require_type_id} packets "
                     f"({require.received_packet_count}/{require.required_packets})"
                 )

@@ -37,7 +37,7 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
         if graph.nodes[node]["type"] == "task":
             predecessors = list(graph.predecessors(node))
             for predecessor in predecessors:
-                print(f"Node {node} has predecessor {predecessor}")
+                # print(f"Node {node} has predecessor {predecessor}")
                 for task in computing_list:
                     if task.task_id == node:
                         require = RequireInfo(
@@ -49,18 +49,19 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
     return computing_list
 
 
-def simulate(computing_list: list, packet_list: list):
+def simulate(computing_list: list, packet_list: list, debug_mode=False):
 
     from src.processing_element import ProcessingElement
     from src.packet import PacketStatus
 
     MAX_CYCLES = 1000
 
-    pe = ProcessingElement((0, 0), computing_list)
+    pe = ProcessingElement((0, 0), computing_list, debug_mode=debug_mode)
     current_packet = packet_list.pop(0)
 
     for cycle in range(MAX_CYCLES):
-        print(f"\n> {cycle}")
+        if debug_mode: 
+            print(f"\n> {cycle}")
         pe.process(current_packet)
         if not current_packet is None and current_packet.status is PacketStatus.IDLE:
             if len(packet_list) > 0:

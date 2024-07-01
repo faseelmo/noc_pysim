@@ -95,13 +95,13 @@ if __name__ == "__main__":
     # random.seed(1)
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--test", action="store_true", help="Run the test function")
     parser.add_argument(
         "--num_nodes",
         type=int,
         default=4,
-        help="Number of nodes in the generated graph",
+        help="Number of nodes in the test generated graph",
     )
-    parser.add_argument("--test", action="store_true", help="Run the test function")
     parser.add_argument("--generate", action="store_true", help="Generate")
     parser.add_argument(
         "--gen_count", type=int, default=100, help="Number of graphs to generate"

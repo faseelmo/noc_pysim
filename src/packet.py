@@ -28,7 +28,7 @@ class Packet:
         args: object (PE or Router)
         """
         self.current_location = object
-        print(f" ~ updating packet location to {object}")
+        # print(f" ~ updating packet location to {object}")
 
     def increment_flits(self):
         """Increment the number of flits transmitted by the packet."""
