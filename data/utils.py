@@ -1,6 +1,7 @@
 import networkx as nx
 import json
 
+
 def save_graph_to_json(graph: nx.DiGraph, filename: str):
     data = nx.node_link_data(graph)
     with open(filename, "w") as file:
@@ -28,15 +29,21 @@ def visualize_graph(graph: nx.DiGraph):
         graph,
         pos,
         with_labels=False,
-        node_size=700,
+        node_size=900,
         node_color=node_colors,
         arrows=True,
     )
 
-    custom_labels = {
-        node: f"id: {node}\nG: {graph.nodes[node].get('generate', 'N/A')}"
-        for node in graph.nodes
-    }
+    custom_labels = {}
+    for node in graph.nodes:
+        label_parts = [f"id: {node}"]
+        if "processing_time" in graph.nodes[node]:
+            label_parts.append(f"P: {graph.nodes[node]['processing_time']}")
+        if "generate" in graph.nodes[node]:
+            label_parts.append(f"G: {graph.nodes[node]['generate']}")
+        custom_labels[node] = "\n".join(label_parts)
+
+
     nx.draw_networkx_labels(graph, pos, labels=custom_labels)
 
     edge_labels = nx.get_edge_attributes(graph, "weight")

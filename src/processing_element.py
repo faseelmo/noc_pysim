@@ -4,6 +4,7 @@ from .packet import Packet
 
 class TaskStatus(Enum):
     PENDING     =   "pending"      # require pending
+    READY      =   "ready"        # ready to process
     PROCESSING  =   "processing"   # computing
     # DONE        =   "done"         # done processing
 
@@ -65,7 +66,9 @@ class ProcessingElement:
                 if require.require_type_id not in packet_type_list:
                     packet_type_list.append(require.require_type_id)
         self.debug_print(f"Unique packet types required in this PE: {packet_type_list}")
+
         return packet_type_list
+
 
     def check_inter_task_dependency(self) -> list[TASKDependency]:
         """
@@ -134,10 +137,9 @@ class ProcessingElement:
         for compute_task in self.compute_list:
             readiness_check = []
             require_list_len = len(compute_task.require_list)
-            # print(f"Checking if task {compute_task.task_id} can start processing")
+
             for require in compute_task.require_list:
                 if compute_task.status is TaskStatus.PENDING:
-                    # print(f"For task {compute_task.task_id} require type {require.require_type_id},  {require.received_packet_count}/{require.required_packets}")
                     if require.received_packet_count == require.required_packets:
                         readiness_check.append(True)
 
@@ -146,6 +148,7 @@ class ProcessingElement:
                 self.compute_is_busy = True
                 self.reset_received_packet_task(compute_task)
                 self.debug_print(f"Task {compute_task.task_id} received all required packets for task {compute_task.task_id} to start computing")
+                return 
 
 
     def update_task_status(self, compute_task: TaskInfo):
@@ -164,17 +167,23 @@ class ProcessingElement:
             if dependency.generate_id == current_task.task_id:
                 self.debug_print(f"Incrementing sent generated packets for task {current_task.task_id}")
                 current_task.sent_generated_packets += 1
+                break
     
         for task_in_compute_list in self.compute_list:
             # Incrementing the count of received packets 
             #   if the generated packets are required by a 
             #   different Task in the same PE
             for require in task_in_compute_list.require_list:
+
+                if require.required_packets == require.received_packet_count:
+                    continue
+
                 if require.require_type_id == current_task.task_id:
                     require.received_packet_count += 1
                     self.debug_print(
                         f"Task {task_in_compute_list.task_id} has received {require.received_packet_count}/{require.required_packets} "
                         f"packets of type {require.require_type_id}")
+                    return 
 
     def process_compute_task(self, compute_task: TaskInfo):
         if compute_task.status is TaskStatus.PROCESSING:
@@ -238,6 +247,7 @@ class ProcessingElement:
         Also checks if the status of the task is pending. i.e done 
         This is useful in the simulate function to get the total cycle count required
         """
+
         for compute_task in self.compute_list:
             if (compute_task.expected_generated_packets != compute_task.generated_packet_count or
                 compute_task.status is not TaskStatus.PENDING):

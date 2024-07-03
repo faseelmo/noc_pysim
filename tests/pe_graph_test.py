@@ -1,10 +1,13 @@
+import copy
+import random
+import networkx as nx
+
 from src.processing_element import ProcessingElement, TaskInfo, RequireInfo
 from src.packet import PacketStatus, Packet
-from src.utils import graph_to_task_list
-import networkx as nx
-import copy
+from src.utils import graph_to_task_list, get_random_packet_list
+from data.utils import load_graph_from_json 
 
-MAX_CYCLES = 100
+MAX_CYCLES = 1000
 
 
 def pe_status_string(compute_is_busy: bool):
@@ -24,9 +27,9 @@ def create_packet_copies(num_copies, packet_source):
     return [copy.deepcopy(packet) for _ in range(num_copies)]
 
 
-def simulate(computing_list: list, packet_list: list):
+def simulate(computing_list: list, packet_list: list, debug_mode=False):
 
-    pe = ProcessingElement((0, 0), computing_list)
+    pe = ProcessingElement((0, 0), computing_list, debug_mode=debug_mode)
     current_packet = packet_list.pop(0)
 
     for cycle in range(MAX_CYCLES):
@@ -152,3 +155,34 @@ def test_task_parallel_3():
 
     latency = simulate(computing_list, packet_list)
     assert latency == 34
+
+
+def test_task_random_graph_1(): 
+
+    def get_graph_latency(graph_dir):
+        graph = load_graph_from_json(graph_dir)
+        random.seed(0)
+        packet_list = get_random_packet_list(graph)
+
+        packet_list_copy = copy.deepcopy(packet_list)
+
+        computing_list = graph_to_task_list(graph)
+        latency = simulate(computing_list, packet_list, debug_mode=True)
+
+        print(f"PAcket ")
+        for packet in packet_list_copy: 
+            print(packet)
+
+        return latency
+
+    graph_dir_1 = "tests/test_graphs/task_graph_0.json"
+    latency_1 = get_graph_latency(graph_dir_1)
+    assert latency_1 == 179
+
+    graph_dir_1 = "tests/test_graphs/task_graph_1.json"
+    latency_1 = get_graph_latency(graph_dir_1)
+    assert latency_1 == 119
+
+
+
+

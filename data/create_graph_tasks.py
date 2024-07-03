@@ -23,27 +23,32 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
     Add Task information as node (generate) and edge attributes (require)
     to the arg "graph"
     """
-    generate_range = (1, 10)
+    max_generate = 10
+    processing_time_range = (1, 10)
 
     for node in graph.nodes:
         successors = list(graph.successors(node))
         predecessors = list(graph.predecessors(node))
+        num_of_successors = len(successors)
+
+        generate_range = (num_of_successors, max_generate)
+        random_generate_value = random.randint(*generate_range)
+
+        gen_split_values = get_split_value(random_generate_value, num_of_successors)
 
         # Condition: If the node has no incoming edges (dependency node)
         # Note: dependency nodes don't have processing time
         if len(predecessors) == 0:
-            random_require_value = random.randint(*generate_range)
+
             graph.nodes[node]["type"] = "dependency"
+            graph.nodes[node]["generate"] = random_generate_value
 
-            for successor in successors:
-                require = random_require_value
-
-                graph[node][successor]["weight"] = require
-                graph.nodes[node]["generate"] = require
+            for successor, gen_value in zip(successors, gen_split_values):
+                graph[node][successor]["weight"] = gen_value
 
         else:
-            random_generate_value = random.randint(*generate_range)
-            random_processing_time = random.randint(*generate_range)
+
+            random_processing_time = random.randint(*processing_time_range)
 
             graph.nodes[node]["type"] = "task"
             graph.nodes[node]["generate"] = random_generate_value
@@ -51,12 +56,8 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
 
             # Assigning require (edge weights) to successors by
             # splitting the generate value randomly
-            num_of_successors = len(successors)
-            gen_split_values = np.random.multinomial(
-                random_generate_value,
-                np.ones(num_of_successors) / num_of_successors,
-                size=1,
-            )[0]
+
+            gen_split_values = get_split_value(random_generate_value, num_of_successors)
 
             for successor, gen_value in zip(successors, gen_split_values):
 
@@ -67,6 +68,27 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
             raise ValueError("Dangling node detected")
 
     return graph
+
+
+def get_split_value(generate_value: int, num_of_successors: int):
+    assert (
+        generate_value >= num_of_successors
+    ), "generate_value must be at least as large as num_of_successors"
+
+    base_values = np.ones(num_of_successors, dtype=int) # assign 1 to each successor
+    remaining_value = generate_value - num_of_successors 
+
+    additional_values = np.random.multinomial(
+        remaining_value, np.ones(num_of_successors) / num_of_successors
+    )
+
+    gen_split_values = base_values + additional_values
+    gen_split_values = gen_split_values.tolist() # Converts to list for json serialization
+
+    for value in gen_split_values:
+        assert value > 0, f"Generate split value is {value}"
+
+    return gen_split_values
 
 
 def test_function(num_nodes: int):
@@ -92,7 +114,7 @@ if __name__ == "__main__":
 
     import argparse
 
-    # random.seed(1)
+    random.seed(0)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--test", action="store_true", help="Run the test function")
@@ -100,7 +122,7 @@ if __name__ == "__main__":
         "--num_nodes",
         type=int,
         default=4,
-        help="Number of nodes in the test generated graph",
+        help="Number of nodes in the \"test\" generated graph",
     )
     parser.add_argument("--generate", action="store_true", help="Generate")
     parser.add_argument(
