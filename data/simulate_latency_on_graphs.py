@@ -34,8 +34,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.test:
-        graph = load_graph_from_json("data/test_task_graph.json")
-        # graph = load_graph_from_json("data/pe_task_graphs/task_graph_230.json")
+        # graph = load_graph_from_json("data/test_task_graph.json")
+        graph = load_graph_from_json("data/pe_task_graphs/task_graph_0.json")
         visualize_graph(graph)
         latency = simlate_latency_from_graph(graph, debug_mode=True)
         print(f"\nLatency of the test graph in /data/test_task_graph.json is {latency}")

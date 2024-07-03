@@ -4,7 +4,7 @@ from .packet import Packet
 
 class TaskStatus(Enum):
     PENDING     =   "pending"      # require pending
-    READY      =   "ready"        # ready to process
+    READY       =   "ready"        # ready to process
     PROCESSING  =   "processing"   # computing
     # DONE        =   "done"         # done processing
 
@@ -92,6 +92,9 @@ class ProcessingElement:
         return dependency_list
 
     def update_TaskInfo(self, task_id: int):
+        # - Increment received_packet_count for all the tasks that require the packet
+        # - If this behavior is not desired, the function can be modified by returning 
+        #   after the first increment.
 
         for compute_task in self.compute_list:
             for require in compute_task.require_list:
@@ -102,7 +105,7 @@ class ProcessingElement:
 
                 if require.require_type_id == task_id:
                     require.received_packet_count += 1
-                    return
+                    # return
 
     def recieve_packets(self, packet: Packet):
         """

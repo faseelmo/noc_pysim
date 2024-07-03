@@ -2,7 +2,7 @@ import copy
 import random
 import networkx as nx
 
-from src.processing_element import ProcessingElement, TaskInfo, RequireInfo
+from src.processing_element import ProcessingElement
 from src.packet import PacketStatus, Packet
 from src.utils import graph_to_task_list, get_random_packet_list
 from data.utils import load_graph_from_json 
@@ -177,7 +177,7 @@ def test_task_random_graph_1():
 
     graph_dir_1 = "tests/test_graphs/task_graph_0.json"
     latency_1 = get_graph_latency(graph_dir_1)
-    assert latency_1 == 179
+    assert latency_1 == 163
 
     graph_dir_1 = "tests/test_graphs/task_graph_1.json"
     latency_1 = get_graph_latency(graph_dir_1)
