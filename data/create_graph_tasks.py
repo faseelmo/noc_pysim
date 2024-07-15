@@ -42,6 +42,7 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
 
             graph.nodes[node]["type"] = "dependency"
             graph.nodes[node]["generate"] = random_generate_value
+            graph.nodes[node]["processing_time"] = 0
 
             for successor, gen_value in zip(successors, gen_split_values):
                 graph[node][successor]["weight"] = gen_value
