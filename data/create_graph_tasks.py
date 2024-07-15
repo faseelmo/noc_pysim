@@ -31,7 +31,7 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
         predecessors = list(graph.predecessors(node))
         num_of_successors = len(successors)
 
-        generate_range = (num_of_successors, max_generate)
+        generate_range = (num_of_successors + 1, max_generate)
         random_generate_value = random.randint(*generate_range)
 
         gen_split_values = get_split_value(random_generate_value, num_of_successors)
@@ -124,7 +124,7 @@ if __name__ == "__main__":
         default=4,
         help="Number of nodes in the \"test\" generated graph",
     )
-    parser.add_argument("--generate", action="store_true", help="Generate")
+    parser.add_argument("--generate", action="store_true", help="Generate flag")
     parser.add_argument(
         "--gen_count", type=int, default=100, help="Number of graphs to generate"
     )

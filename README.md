@@ -12,8 +12,13 @@ python3 -m pytest tests
   
 #### Generate Graphs using   
 ```
-python3 -m data.create_data --help # To see the arg list
-python3 -m data.create_data   
+python3 -m data.create_graph_tasks --help # To see the arg list
+python3 -m data.create_graph_tasks   
+```
+
+#### Find Latency on generated graphs
+```
+python3 -m data.simulate_latency_on_graphs
 ```
 
 

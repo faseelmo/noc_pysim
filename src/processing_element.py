@@ -34,7 +34,7 @@ class TaskInfo:
     require_list : list[RequireInfo]
     current_processing_cycle: int = 0   
     generated_packet_count: int = 0
-    sent_generated_packets: int = 0
+    sent_generated_packets: int = 0 # for packets required by other task in the same PE
     status: TaskStatus = TaskStatus.PENDING
 
 
@@ -140,6 +140,13 @@ class ProcessingElement:
         for compute_task in self.compute_list:
             readiness_check = []
             require_list_len = len(compute_task.require_list)
+
+
+            if compute_task.expected_generated_packets == compute_task.sent_generated_packets:
+                # if task has generated all the packets required for 
+                # other tasks in the same PE skip that particular 
+                # compute task  
+                continue
 
             for require in compute_task.require_list:
                 if compute_task.status is TaskStatus.PENDING:

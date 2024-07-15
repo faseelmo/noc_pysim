@@ -49,17 +49,16 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
     return computing_list
 
 
-def simulate(computing_list: list, packet_list: list, debug_mode=False):
+def simulate(computing_list: list, packet_list: list, debug_mode=False, max_cycles=1000):
 
     from src.processing_element import ProcessingElement
     from src.packet import PacketStatus
 
-    MAX_CYCLES = 1000
 
     pe = ProcessingElement((0, 0), computing_list, debug_mode=debug_mode)
     current_packet = packet_list.pop(0)
 
-    for cycle in range(MAX_CYCLES):
+    for cycle in range(max_cycles):
         if debug_mode: 
             print(f"\n> {cycle}")
         pe.process(current_packet)
@@ -86,11 +85,16 @@ def get_random_packet_list(graph: nx.DiGraph):
         predecessors = list(graph.predecessors(node))
         successors = list(graph.successors(node))
         if len(predecessors) == 0:
-            num_packets = 0
+            # for dependency nodes
+            successor_require = []
             for successor in successors:
                 edge_data = graph.get_edge_data(node, successor)
                 weight = edge_data["weight"]
-                num_packets += weight
+                successor_require.append(weight)
+
+            # We take the max from all the requirements
+            # since we have cache now to copy 
+            num_packets = max(successor_require)
 
             require = RequireInfo(
                 require_type_id=node,

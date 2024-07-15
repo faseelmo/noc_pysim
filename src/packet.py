@@ -59,7 +59,7 @@ class Packet:
         return (
             f"Packet: {self.source_task_id} "
             # f"from {self.current_location},"
-            f"Status: {self.status}, Flits Transmitted: {self.flits_transmitted}/{self.size}"
+            # f"Status: {self.status}, Flits Transmitted: {self.flits_transmitted}/{self.size}"
         )
 
 

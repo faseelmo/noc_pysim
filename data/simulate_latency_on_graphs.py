@@ -1,18 +1,24 @@
 import os
-from natsort import natsorted
+import random
 import networkx as nx
+from natsort import natsorted
 
+from src.utils import simulate
 from src.utils import graph_to_task_list
 from src.utils import get_random_packet_list
-from src.utils import simulate
 
 from data.utils import load_graph_from_json, visualize_graph
 
 
-def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool):
+def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycles: int):
+    random.seed(0)
     computing_list = graph_to_task_list(nx_graph)
     packet_list = get_random_packet_list(nx_graph)
-    latency = simulate(computing_list, packet_list, debug_mode=debug_mode)
+    if debug_mode:
+        print(*packet_list)
+    latency = simulate(
+        computing_list, packet_list, debug_mode=debug_mode, max_cycles=max_cycles
+    )
     return latency
 
 
@@ -27,18 +33,31 @@ if __name__ == "__main__":
         help="Get latency of test graph in /data/test_task_graph.json",
     )
     parser.add_argument(
+        "--max_cycle",
+        type=int,
+        help="Max cycles to run the simulation for in test mode",
+        default=1000,
+    )
+    parser.add_argument(
         "--sim",
         action="store_true",
         help="Get latency of all the graphs in data/pe_task_graphs/",
     )
     args = parser.parse_args()
 
+    if not args.test and not args.sim:
+        print("Please specify --test or --sim")
+        exit()
+
     if args.test:
         # graph = load_graph_from_json("data/test_task_graph.json")
-        graph = load_graph_from_json("data/pe_task_graphs/task_graph_0.json")
+        graph_path = "data/pe_task_graphs/task_graph_13.json"
+        graph = load_graph_from_json(graph_path)
         visualize_graph(graph)
-        latency = simlate_latency_from_graph(graph, debug_mode=True)
-        print(f"\nLatency of the test graph in /data/test_task_graph.json is {latency}")
+        latency = simlate_latency_from_graph(
+            graph, debug_mode=True, max_cycles=args.max_cycle
+        )
+        print(f"\nLatency of the test graph in {graph_path} is {latency}")
 
     if args.sim:
         list_of_files = [
@@ -49,9 +68,10 @@ if __name__ == "__main__":
         for file in list_of_files:
 
             graph = load_graph_from_json(f"data/pe_task_graphs/{file}")
-            latency = simlate_latency_from_graph(graph, debug_mode=False)
-            if latency == 999:
-                print("Graph is not schedulable")
-
+            latency = simlate_latency_from_graph(
+                graph, debug_mode=False, max_cycles=1000
+            )
+            if latency == 999 or latency == 0:
+                print(f"Graph is not schedulable latency is {latency}")
                 break
             print(f"Latency of the graph {file} is {latency}")
