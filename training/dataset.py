@@ -41,19 +41,19 @@ class CustomDataset(Dataset):
         data = from_networkx(graph)
         
         # data.x should contain all the node features with shape [num_nodes, num_node_features]
-        data.x = torch.stack((data.generate, data.processing_time), dim=1)
+        data.x = torch.stack((data.generate, data.processing_time), dim=1).float()
         del data.generate
         del data.processing_time
 
         # data.edge_attr should contain all the edge features with shape [num_edges, num_edge_features]
-        data.edge_attr = torch.stack((data.weight,), dim=1)
+        data.edge_attr = torch.stack((data.weight,), dim=1).float()
         del data.weight
 
         # delete type for now
         del data.type
         
         # target 
-        data.y = target_data["latency"]
+        data.y = float(target_data["latency"])
 
         return data
 
