@@ -107,7 +107,7 @@ def generate_n_graphs(count: int):
         graph = generate_graph(random_num_nodes)
         modified_graph = modify_graph_to_task_graph(graph)
 
-        save_graph_to_json(modified_graph, f"data/pe_task_graphs/task_graph_{i}.json")
+        save_graph_to_json(modified_graph, f"data/training_data/input/task_graph_{i}.json")
 
 
 if __name__ == "__main__":

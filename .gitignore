@@ -2,3 +2,5 @@ __pycache__/
 .pytest_cache/
 .vscode/
 *.json
+training_datat/input/
+training_datat/target/
