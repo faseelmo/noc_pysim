@@ -14,7 +14,7 @@ def load_graph_from_json(filename: str):
     return nx.node_link_graph(data)
 
 
-def visualize_graph(graph: nx.DiGraph):
+def visualize_graph(graph: nx.DiGraph, latency_value=None):
     import matplotlib.pyplot as plt
     import networkx as nx
 
@@ -43,10 +43,20 @@ def visualize_graph(graph: nx.DiGraph):
             label_parts.append(f"G: {graph.nodes[node]['generate']}")
         custom_labels[node] = "\n".join(label_parts)
 
-
     nx.draw_networkx_labels(graph, pos, labels=custom_labels)
 
     edge_labels = nx.get_edge_attributes(graph, "weight")
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
+
+    if latency_value is not None:
+        plt.title(f"Latency: {latency_value}")
+        plt.text(
+            0.5,
+            0.01,
+            f"Latency: {latency_value}",
+            ha="center",
+            va="bottom",
+            transform=plt.gca().transAxes,
+        )
 
     plt.show()
