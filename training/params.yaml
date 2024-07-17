@@ -1,0 +1,17 @@
+# Hyperparameters 
+EPOCHS          : 10000 
+WEIGHT_DECAY    : 0
+BATCH_SIZE      : 32
+INPUT_FEATURES  : 2
+
+# Load pre-trained model
+LOAD_MODEL      : False
+MODEL_PATH      : null
+
+# Data Path
+DATA_DIR        : 'data/training_data'
+
+# Results directory 
+RESULTS_DIR     : 'training/results' 
+
+
