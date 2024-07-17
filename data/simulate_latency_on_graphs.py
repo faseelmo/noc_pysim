@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     if args.test:
         # graph = load_graph_from_json("data/test_task_graph.json")
-        graph_path = "data/training_data/input/task_graph_13.json"
+        graph_path = "data/training_data/input/task_graph_0.json"
         graph = load_graph_from_json(graph_path)
         visualize_graph(graph)
         latency = simlate_latency_from_graph(

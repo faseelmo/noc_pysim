@@ -104,7 +104,8 @@ def test_function(num_nodes: int):
 
 def generate_n_graphs(count: int):
     for i in range(count):
-        random_num_nodes = random.randint(2, 6)
+        # random_num_nodes = random.randint(2, 3)
+        random_num_nodes = 2
         graph = generate_graph(random_num_nodes)
         modified_graph = modify_graph_to_task_graph(graph)
 

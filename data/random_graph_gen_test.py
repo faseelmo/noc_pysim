@@ -6,7 +6,7 @@ useable graph from nx
 https://networkx.org/documentation/stable/reference/generators.html#module-networkx.generators.directed
 """
 
-num_nodes = 7  # Example number of nodes
+num_nodes = 2  # Example number of nodes
 
 fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(12, 18))
 plt.subplots_adjust(hspace=0.5)
@@ -18,7 +18,7 @@ nx.draw(graph, pos, with_labels=True, node_size=300, node_color="skyblue", arrow
 axes[0, 0].set_title("GN Graph")
 
 # GNR Graph
-graph = nx.gnr_graph(num_nodes, 0.3, seed=42)
+graph = nx.gnr_graph(num_nodes, 1, seed=42)
 pos = nx.spring_layout(graph)
 nx.draw(graph, pos, with_labels=True, node_size=300, node_color="skyblue", arrows=True, ax=axes[0, 1])
 axes[0, 1].set_title("GNR Graph")

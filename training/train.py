@@ -7,12 +7,9 @@ from training.dataset import load_data
 from training.utils import does_path_exist, copy_model_to_results, plot_and_save_loss
 
 import time
-import pickle
-import sys
 import math
 import yaml
 import argparse
-import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
@@ -84,7 +81,7 @@ def main():
 
     train_loader, test_loader = load_data(DATA_DIR, BATCH_SIZE)
 
-    model = GNN(num_features=INPUT_FEATURES, hidden_channels=512).to(DEVICE)
+    model = GNN(num_features=INPUT_FEATURES, hidden_channels=8).to(DEVICE)
     print(
         f"Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}"
     )
