@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from scipy.stats import kendalltau
+
 from training.model import GNN, LinearModel
 from training.dataset import load_data
 from training.utils import does_path_exist, copy_model_to_results, plot_and_save_loss
@@ -75,7 +77,24 @@ def validation_fn(test_loader, model, loss_fn, epoch):
     return validation_set_loss
 
 
-def main():
+def test_fn(test_loader, model):
+    ground_truth_latency_list = []
+    predicted_latency_list = []
+
+    for data in test_loader:
+        data = data.to(DEVICE)
+
+        output = model(data.x, data.edge_index, data.edge_attr, data.batch).squeeze(1)
+
+        ground_truth_latency_list.append(data.y.item())
+        predicted_latency_list.append(output.item())
+
+    # Calculate Kendall's tau
+    tau, p_value = kendalltau(ground_truth_latency_list, predicted_latency_list)
+    return tau
+
+
+if __name__ == "__main__":
     EPOCHS = TRAINING_PARAMS["EPOCHS"]
     DATA_DIR = TRAINING_PARAMS["DATA_DIR"]
     BATCH_SIZE = TRAINING_PARAMS["BATCH_SIZE"]
@@ -88,6 +107,8 @@ def main():
     start_time = time.time()
 
     train_loader, test_loader = load_data(DATA_DIR, BATCH_SIZE)
+
+    test_loader, _ = load_data(f"{DATA_DIR}/test", batch_size=1, validation_split=0.0)
 
     # model = LinearModel(3).to(DEVICE)
     model = GNN(num_features=INPUT_FEATURES, hidden_channels=3).to(DEVICE)
@@ -107,17 +128,20 @@ def main():
     )
 
     loss_fn = nn.MSELoss().to(DEVICE)
-    # loss_fn = nn.L1Loss().to(DEVICE)
 
     valid_loss_list = []
     train_loss_list = []
+    test_metric_list = []
     for epoch in range(EPOCHS):
         train_loss = train_fn(train_loader, model, optimizer, loss_fn)
         valid_loss = validation_fn(test_loader, model, loss_fn, epoch)
 
+        test_metric = test_fn(test_loader, model)
+
         train_loss_list.append(train_loss)
         valid_loss_list.append(valid_loss)
-        plot_and_save_loss(train_loss_list, valid_loss_list, args.name)
+        test_metric_list.append(test_metric)
+        plot_and_save_loss(train_loss_list, valid_loss_list, test_metric_list, args.name)
 
         if (epoch + 1) % 50 == 0 or (epoch + 1) == 1:
             torch.save(model, f"{SAVE_RESULTS}/LatNet_{epoch+1}.pth")
@@ -132,8 +156,5 @@ def main():
     torch.save(model, f"{SAVE_RESULTS}/LatNet_final.pth")
     end_time = time.time()
     time_elapsed = (end_time - start_time) / 60
+
     print(f"\nFinal Training Time: {time_elapsed} minutes\n")
-
-
-if __name__ == "__main__":
-    main()

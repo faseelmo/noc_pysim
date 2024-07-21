@@ -57,9 +57,9 @@ class CustomDataset(Dataset):
 
         return data
 
-def load_data(training_data_dir, batch_size=32):
+def load_data(training_data_dir, batch_size=32, validation_split=0.1):
     dataset = CustomDataset(training_data_dir)
-    validation_size = int(0.1 * len(dataset))
+    validation_size = int(validation_split * len(dataset))
 
     train_dataset, val_dataset = random_split(
         dataset, [len(dataset) - validation_size, validation_size]

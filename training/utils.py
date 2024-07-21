@@ -24,24 +24,40 @@ def copy_model_to_results(model_name):
     print(f"model.py copied to {path}")
 
 
-def plot_and_save_loss(train_loss, valid_loss, model_name):
+def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
     import matplotlib.pyplot as plt
     import pickle
 
     epochs = range(1, len(train_loss) + 1)
-    plt.yscale("log")
-    plt.plot(epochs, train_loss, label="Training Loss")
-    plt.plot(epochs, valid_loss, label="Validation Loss")
-    plt.title("Training and Validation Loss (Log Scale)")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss (Log Scale)")
-    plt.legend()
-    plt.savefig(f"training/results/{model_name}/validation_plot_log.png")
+
+    fig, ax1 = plt.subplots()
+
+    ax1.set_yscale("log")
+    ax1.plot(epochs, train_loss, label="Training Loss")
+    ax1.plot(epochs, valid_loss, label="Validation Loss")
+    ax1.set_xlabel("Epoch")
+    ax1.set_ylabel("Loss (Log Scale)")
+    ax1.tick_params(axis="y")
+
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    ax2.plot(epochs, test_metric, "g-", label="Kendall's Tau")
+    ax2.set_ylabel("Kendall's Tau")
+    ax2.tick_params(axis="y")
+
+    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+    fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.9))
+    plt.title("Training and Validation Loss (Log Scale) with Kendall's Tau")
+    plt.savefig(
+        f"training/results/{model_name}/validation_plot_log_with_kendalls_tau.png"
+    )
     plt.clf()
 
     loss_dict = {
         "train_loss": train_loss,
         "valid_loss": valid_loss,
+        "kendalls_tau": test_metric,
     }
-    with open(f"training/results/{model_name}/loss_dict.pkl", "wb") as file:
+    with open(
+        f"training/results/{model_name}/loss_dict_with_kendalls_tau.pkl", "wb"
+    ) as file:
         pickle.dump(loss_dict, file)
