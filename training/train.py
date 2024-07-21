@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from training.model import GNN
+from training.model import GNN, LinearModel
 from training.dataset import load_data
 from training.utils import does_path_exist, copy_model_to_results, plot_and_save_loss
 
@@ -38,7 +38,11 @@ def train_fn(train_loader, model, optimizer, loss_fn):
     mean_loss = []
     for batch_idx, data in enumerate(loop):
         data = data.to(DEVICE)
-        output = model(data.x, data.edge_index, data.edge_attr, data.batch)
+
+        # input_data = torch.flatten(data.x)[:-1]
+        # output = model(input_data)
+
+        output = model(data.x, data.edge_index, data.edge_attr, data.batch).squeeze(1)
         loss = loss_fn(output, data.y)
 
         optimizer.zero_grad()
@@ -56,7 +60,11 @@ def validation_fn(test_loader, model, loss_fn, epoch):
     mean_loss = []
     for data in test_loader:
         data = data.to(DEVICE)
-        output = model(data.x, data.edge_index, data.edge_attr, data.batch)
+
+        # input_data = torch.flatten(data.x)[:-1]
+        # output = model(input_data)
+
+        output = model(data.x, data.edge_index, data.edge_attr, data.batch).squeeze(1)
         loss = loss_fn(output, data.y)
         mean_loss.append(loss.item())
 
@@ -81,7 +89,8 @@ def main():
 
     train_loader, test_loader = load_data(DATA_DIR, BATCH_SIZE)
 
-    model = GNN(num_features=INPUT_FEATURES, hidden_channels=8).to(DEVICE)
+    # model = LinearModel(3).to(DEVICE)
+    model = GNN(num_features=INPUT_FEATURES, hidden_channels=3).to(DEVICE)
     print(
         f"Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}"
     )

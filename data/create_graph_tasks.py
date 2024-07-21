@@ -1,7 +1,12 @@
 import random
 import networkx as nx
 import numpy as np
-from data.utils import save_graph_to_json, load_graph_from_json, visualize_graph
+from data.utils import (
+    save_graph_to_json, 
+    load_graph_from_json, 
+    visualize_graph, 
+    does_path_contains_files
+)
 
 
 def generate_graph(num_nodes: int):
@@ -103,13 +108,20 @@ def test_function(num_nodes: int):
 
 
 def generate_n_graphs(count: int):
+    path = "data/training_data/input"
+
+    print(f"\nCreating Graphs in {path}")
+    does_path_contains_files(path)
+
     for i in range(count):
-        # random_num_nodes = random.randint(2, 3)
         random_num_nodes = 2
         graph = generate_graph(random_num_nodes)
         modified_graph = modify_graph_to_task_graph(graph)
 
+
         save_graph_to_json(modified_graph, f"data/training_data/input/task_graph_{i}.json")
+
+    print(f"{count} graphs generated")
 
 
 if __name__ == "__main__":
@@ -141,3 +153,6 @@ if __name__ == "__main__":
 
     if args.generate:
         generate_n_graphs(args.gen_count)
+
+
+    

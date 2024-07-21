@@ -60,3 +60,20 @@ def visualize_graph(graph: nx.DiGraph, latency_value=None):
         )
 
     plt.show()
+
+
+def does_path_contains_files(path: str):
+    import os
+
+    files = os.listdir(path)
+
+    if len(files) > 0:
+        delete_prompt = input(
+            f"Path '{path}' already contains files. Do you want to delete them? (yes/no): "
+        )
+        if delete_prompt.lower() == "yes":
+            for file in files:
+                os.remove(os.path.join(path, file))
+            print(f"Files in '{path}' deleted.")
+        else:
+            print(f"Files in '{path}' not deleted. Appending new files.")

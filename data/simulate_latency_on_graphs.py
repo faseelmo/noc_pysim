@@ -8,7 +8,7 @@ from src.utils import simulate
 from src.utils import graph_to_task_list
 from src.utils import get_random_packet_list
 
-from data.utils import load_graph_from_json, visualize_graph
+from data.utils import load_graph_from_json, visualize_graph, does_path_contains_files
 
 
 def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycles: int):
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_cycle",
         type=int,
-        help="Max cycles to run the simulation for in test mode",
+        help="Max cycles to run the simulation for in test mode. Default is 1000",
         default=1000,
     )
     parser.add_argument(
@@ -64,6 +64,9 @@ if __name__ == "__main__":
 
         INPUT_DATA_DIR = "data/training_data/input"
         TARGET_DATA_DIR = "data/training_data/target"
+
+        print(f"\nCreating Latency data (using noc_pysim) in {TARGET_DATA_DIR}")
+        does_path_contains_files(TARGET_DATA_DIR)
 
         list_of_files = [f for f in os.listdir(INPUT_DATA_DIR) if f.endswith(".json")]
         list_of_files = natsorted(list_of_files)
