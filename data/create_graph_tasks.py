@@ -131,7 +131,7 @@ if __name__ == "__main__":
     random.seed(0)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--test", action="store_true", help="Run the test function")
+    parser.add_argument("--test", action="store_true", help="Generates one graph and stores it in data/test_task_graph.json")
     parser.add_argument(
         "--num_nodes",
         type=int,
