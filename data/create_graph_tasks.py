@@ -107,14 +107,14 @@ def test_function(num_nodes: int):
     visualize_graph(loaded_graph)
 
 
-def generate_n_graphs(count: int):
+def generate_n_graphs(count: int, num_nodes: int):
     path = "data/training_data/input"
 
     print(f"\nCreating Graphs in {path}")
     does_path_contains_files(path)
 
     for i in range(count):
-        random_num_nodes = 2
+        random_num_nodes = random.randint(2, num_nodes)
         graph = generate_graph(random_num_nodes)
         modified_graph = modify_graph_to_task_graph(graph)
 
@@ -136,7 +136,7 @@ if __name__ == "__main__":
         "--num_nodes",
         type=int,
         default=4,
-        help="Number of nodes in the \"test\" generated graph",
+        help="Number of nodes in the \"test\" generated graph. Or max number of nodes in the automated generated graphs",
     )
     parser.add_argument("--generate", action="store_true", help="Generate flag")
     parser.add_argument(
@@ -152,7 +152,7 @@ if __name__ == "__main__":
         test_function(args.num_nodes)
 
     if args.generate:
-        generate_n_graphs(args.gen_count)
+        generate_n_graphs(args.gen_count, args.num_nodes)
 
 
     

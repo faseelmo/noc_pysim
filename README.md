@@ -11,25 +11,31 @@ python3 -m pytest tests
 
 ### Training Data Generation 
 #### Automated Approach
-To create random graphs, to run those graphs through a simulator and to split training and test dataset. 
+To create random graphs, to run those graphs through a simulator and to split training and test dataset
 ```
 source data/create_training_data.sh 
 ```
+> Note: Max number of nodes of the generated graph can be changed in the bash script above
   
 Alternatively, the above data generation pipeline can also be done individually
-#### Graph Generation 
+##### Graph Generation 
 ```
 python3 -m data.create_graph_tasks --help # To see the arg list
 ```
 
-#### Find Latency on generated graphs
+##### Find Latency on generated graphs
 ```
 python3 -m data.simulate_latency_on_graphs --help # To see the arg list 
 ```
 
-#### Splitting train and test data
+##### Splitting train and test data
 ```
 python3 -m data.create_test_data
+```
+
+#### Inspect Generated Data 
+```
+python3 -m data.inspect_data
 ```
 
 
