@@ -18,17 +18,18 @@ source data/create_training_data.sh
 > Note: Max number of nodes of the generated graph can be changed in the bash script above
   
 Alternatively, the above data generation pipeline can also be done individually
-##### Graph Generation 
+##### &emsp;1. Generating Graphs  
 ```
 python3 -m data.create_graph_tasks --help # To see the arg list
+# refer data/create_training_data.sh for usage
 ```
 
-##### Find Latency on generated graphs
+##### &emsp;2. Finding Latency on generated graphs
 ```
 python3 -m data.simulate_latency_on_graphs --help # To see the arg list 
 ```
 
-##### Splitting train and test data
+##### &emsp;3. Splitting train and test data
 ```
 python3 -m data.create_test_data
 ```
@@ -37,6 +38,15 @@ python3 -m data.create_test_data
 ```
 python3 -m data.inspect_data
 ```
+
+#### Training 
+Training parameters can be modified in training/params.yaml  
+Start the training using  
+```
+python3 -m training.train name_of_results_save_directory
+```
+
+
 
 
 
