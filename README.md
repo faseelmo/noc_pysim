@@ -9,7 +9,7 @@ tasks. Assumption here is that the cache is big enough to store the packet.
 python3 -m pytest tests
 ```  
 
-### Data Generation 
+### 1. Data Generation 
 #### Automated Approach
 To create random graphs, to run those graphs through a simulator and to split training and test dataset
 ```
@@ -39,8 +39,8 @@ python3 -m data.create_test_data
 python3 -m data.inspect_data
 ```
 
-### Training  
-Training parameters can be modified in training/params.yaml  
+### 2. Training  
+Parameters for training can be modified in training/params.yaml  
 Start the training using  
 ```
 python3 -m training.train name_of_results_save_directory

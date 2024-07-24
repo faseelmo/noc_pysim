@@ -2,10 +2,10 @@ import random
 import networkx as nx
 import numpy as np
 from data.utils import (
-    save_graph_to_json, 
-    load_graph_from_json, 
-    visualize_graph, 
-    does_path_contains_files
+    save_graph_to_json,
+    load_graph_from_json,
+    visualize_graph,
+    does_path_contains_files,
 )
 
 
@@ -81,15 +81,17 @@ def get_split_value(generate_value: int, num_of_successors: int):
         generate_value >= num_of_successors
     ), "generate_value must be at least as large as num_of_successors"
 
-    base_values = np.ones(num_of_successors, dtype=int) # assign 1 to each successor
-    remaining_value = generate_value - num_of_successors 
+    base_values = np.ones(num_of_successors, dtype=int)  # assign 1 to each successor
+    remaining_value = generate_value - num_of_successors
 
     additional_values = np.random.multinomial(
         remaining_value, np.ones(num_of_successors) / num_of_successors
     )
 
     gen_split_values = base_values + additional_values
-    gen_split_values = gen_split_values.tolist() # Converts to list for json serialization
+    gen_split_values = (
+        gen_split_values.tolist()
+    )  # Converts to list for json serialization
 
     for value in gen_split_values:
         assert value > 0, f"Generate split value is {value}"
@@ -118,8 +120,9 @@ def generate_n_graphs(count: int, num_nodes: int):
         graph = generate_graph(random_num_nodes)
         modified_graph = modify_graph_to_task_graph(graph)
 
-
-        save_graph_to_json(modified_graph, f"data/training_data/input/task_graph_{i}.json")
+        save_graph_to_json(
+            modified_graph, f"data/training_data/input/task_graph_{i}.json"
+        )
 
     print(f"{count} graphs generated")
 
@@ -131,12 +134,16 @@ if __name__ == "__main__":
     random.seed(0)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--test", action="store_true", help="Generates one graph and stores it in data/test_task_graph.json")
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Generates one graph and stores it in data/test_task_graph.json",
+    )
     parser.add_argument(
         "--num_nodes",
         type=int,
         default=4,
-        help="Number of nodes in the \"test\" generated graph. Or max number of nodes in the automated generated graphs",
+        help='Number of nodes in the "test" generated graph. Or max number of nodes in the automated generated graphs',
     )
     parser.add_argument("--generate", action="store_true", help="Generate flag")
     parser.add_argument(
@@ -153,6 +160,3 @@ if __name__ == "__main__":
 
     if args.generate:
         generate_n_graphs(args.gen_count, args.num_nodes)
-
-
-    
