@@ -73,7 +73,7 @@ def simulate(computing_list: list, packet_list: list, debug_mode=False, max_cycl
     return cycle
 
 
-def get_random_packet_list(graph: nx.DiGraph):
+def get_random_packet_list(graph: nx.DiGraph, shuffle=False):
 
     from src.processing_element import RequireInfo
     from src.packet import Packet
@@ -109,6 +109,7 @@ def get_random_packet_list(graph: nx.DiGraph):
             )
             packet_list.append(packet)
 
-    random.shuffle(packet_list)
+    if shuffle:
+        random.shuffle(packet_list)
 
     return packet_list
