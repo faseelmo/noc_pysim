@@ -37,6 +37,8 @@ python3 -m data.create_test_data
 #### Inspect Generated Data 
 ```
 python3 -m data.inspect_data
+python3 -m data.histogram_data # To see the frequency of number  
+                               # of nodes in test and training data
 ```
 
 ### 2. Training  

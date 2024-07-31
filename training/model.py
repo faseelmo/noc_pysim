@@ -10,9 +10,9 @@ class GNN(torch.nn.Module):
     def __init__(self, num_features, hidden_channels):
         super(GNN, self).__init__()
         torch.manual_seed(1)
-        self.conv1 = DirSageConv(num_features, hidden_channels, alpha=1)
-        self.conv2 = DirSageConv(hidden_channels, hidden_channels, alpha=0)
-        self.conv3 = DirSageConv(num_features, hidden_channels, alpha=1)
+        self.conv1 = DirSageConv(num_features, hidden_channels, alpha=0.5)
+        self.conv2 = DirSageConv(hidden_channels, hidden_channels, alpha=0.5)
+        self.conv3 = DirSageConv(num_features, hidden_channels, alpha=0.5)
         self.lin1 = torch.nn.Linear(hidden_channels, 5)
         self.lin2 = torch.nn.Linear(5, 1)
 

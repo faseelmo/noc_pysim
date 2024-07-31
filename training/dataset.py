@@ -41,7 +41,7 @@ class CustomDataset(Dataset):
         data = from_networkx(graph)
         
         # data.x should contain all the node features with shape [num_nodes, num_node_features]
-        data.x = torch.stack((data.generate, data.processing_time), dim=1).float()
+        data.x = torch.stack((data.generate, data.processing_time), dim=1).float() / 10
         del data.generate
         del data.processing_time
 
