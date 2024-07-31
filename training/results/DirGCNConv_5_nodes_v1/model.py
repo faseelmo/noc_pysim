@@ -22,11 +22,11 @@ class GNN(torch.nn.Module):
         # print(f"Initial shape of x: {x.shape}")
         # print(f"Initial shape of batch: {batch.shape}")
         # print(f"Edge index: {edge_index}")
-    
+
         x = self.conv1(x, edge_index)
         x = F.relu(x)
         # print(f"Shape of x after conv1: {x.shape}")
-    
+
         x = self.conv2(x, edge_index)
         x = F.relu(x)
         # print(f"Shape of x after conv2: {x.shape}")
@@ -34,24 +34,23 @@ class GNN(torch.nn.Module):
         x = self.conv3(x, edge_index)
         x = F.relu(x)
         # print(f"Shape of x after conv3: {x.shape}")
-    
+
         # Ensure batch tensor is correctly sized
         # print(f"Shape of batch before global_max_pool: {batch.shape}")
         # print(f"Batch tensor: {batch}")
-    
+
         x = global_max_pool(x, batch)
         # print(f"Shape of x after global_max_pool: {x.shape}")
-    
+
         x = F.relu(self.lin1(x))
         # print(f"Shape of x after lin1: {x.shape}")
-    
+
         x = self.lin2(x)
         # print(f"x is {x}")
         # print(f"Shape of x after lin2: {x.shape}")
         # exit()
 
         return x
-
 
 
 class LinearModel(nn.Module):
@@ -92,7 +91,7 @@ class DirGCNConv(torch.nn.Module):
         adj_t = SparseTensor(row=col, col=row, sparse_sizes=(num_nodes, num_nodes))
         self.adj_t_norm = get_norm_adj(adj_t, norm="dir")
 
-        # else: 
+        # else:
         #     print(f"Adjacency matrices already calculated for {self}")
 
         adj_norm_x = self.adj_norm @ x
@@ -101,7 +100,9 @@ class DirGCNConv(torch.nn.Module):
         # print(f"adj_norm @ x shape: {adj_norm_x.shape}")
         # print(f"adj_t_norm @ x shape: {adj_t_norm_x.shape}")
 
-        out = self.alpha * self.lin_src_to_dst(adj_norm_x) + (1 - self.alpha) * self.lin_dst_to_src(adj_t_norm_x)
+        out = self.alpha * self.lin_src_to_dst(adj_norm_x) + (
+            1 - self.alpha
+        ) * self.lin_dst_to_src(adj_t_norm_x)
         # print(f"Output shape: {out.shape}")
 
         # exit()
@@ -135,9 +136,10 @@ class DirSageConv(torch.nn.Module):
 
 if __name__ == "__main__":
 
-    from training.dataset import load_data
+    from training.dataset import load_data, HomogenousGraph
 
-    train_loader, val_loader = load_data("data/training_data", batch_size=64)
+    train_dataset = HomogenousGraph("data/training_data")
+    train_loader, val_loader = load_data(train_dataset, batch_size=64)
     model = GNN(2, 32)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     criterion = torch.nn.MSELoss()

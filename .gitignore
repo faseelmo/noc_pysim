@@ -4,5 +4,6 @@ __pycache__/
 *.json
 *.pth 
 *.pkl
-training_datat/input/
-training_datat/target/
+data/training_data/input/
+data/training_data/target/
+training/results/test

@@ -94,9 +94,10 @@ class DirSageConv(torch.nn.Module):
 
 if __name__ == "__main__":
 
-    from training.dataset import load_data
+    from training.dataset import load_data, HomogenousGraph
 
-    train_loader, val_loader = load_data("data/training_data", batch_size=64)
+    homogenous_dataset = HomogenousGraph("data/training_data")
+    train_loader, val_loader = load_data(homogenous_dataset, batch_size=64)
     model = GNN(2, 32)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     criterion = torch.nn.MSELoss()
@@ -110,7 +111,7 @@ if __name__ == "__main__":
         for idx, data in enumerate(loop):
             optimizer.zero_grad()
 
-            out = model(data.x, data.edge_index, data.edge_attr, data.batch)
+            out = model(data.x, data.edge_index, data.batch)
             loss = criterion(out, data.y)
 
             loss.backward()
@@ -123,7 +124,7 @@ if __name__ == "__main__":
         total_loss = 0
         with torch.no_grad():
             for data in loader:
-                out = model(data.x, data.edge_index, data.edge_attr, data.batch)
+                out = model(data.x, data.edge_index,  data.batch)
                 loss = criterion(out, data.y)
                 total_loss += loss.item()
 

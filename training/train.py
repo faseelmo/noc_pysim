@@ -5,7 +5,7 @@ import torch.optim as optim
 from scipy.stats import kendalltau
 
 from training.model import GNN
-from training.dataset import load_data
+from training.dataset import load_data, HomogenousGraph
 from training.utils import does_path_exist, copy_model_to_results, plot_and_save_loss
 
 import time
@@ -100,9 +100,11 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
-    train_loader, test_loader = load_data(DATA_DIR, BATCH_SIZE)
+    train_dataset = HomogenousGraph(DATA_DIR)
+    train_loader, test_loader = load_data(train_dataset, BATCH_SIZE)
 
-    test_loader, _ = load_data(f"{DATA_DIR}/test", batch_size=1, validation_split=0.0)
+    test_dataset = HomogenousGraph(f"{DATA_DIR}/test")
+    test_loader, _ = load_data(test_dataset, batch_size=1, validation_split=0.0)
 
     model = GNN(num_features=INPUT_FEATURES, hidden_channels=3).to(DEVICE)
     print(
