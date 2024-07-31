@@ -16,15 +16,19 @@ if __name__ == "__main__":
     if args.test:
         input_path = os.path.join("data", "training_data", "test", "input")
         target_path = os.path.join("data", "training_data", "test", "target")
+        packet_list_path = os.path.join("data", "training_data", "test", "packet_list")
 
     else:
         input_path = os.path.join("data", "training_data", "input")
         target_path = os.path.join("data", "training_data", "target")
+        packet_list_path = os.path.join("data", "training_data", "packet_list")
 
     input_files = natsorted(os.listdir(input_path))
     target_files = natsorted(os.listdir(target_path))
+    packet_list_files = natsorted(os.listdir(packet_list_path))
 
-    for input, target in zip(input_files, target_files):
-        graph = load_graph_from_json(os.path.join(input_path, input))
-        latency = json.load(open(os.path.join(target_path, target)))["latency"]
-        visualize_graph(graph, latency)
+    for input_idx, target_idx, packet_list_idx in zip(input_files, target_files, packet_list_files):
+        graph = load_graph_from_json(os.path.join(input_path, input_idx))
+        latency = json.load(open(os.path.join(target_path, target_idx)))["latency"]
+        packet_list = json.load(open(os.path.join(packet_list_path, packet_list_idx)))
+        visualize_graph(graph, latency, packet_list)

@@ -73,6 +73,16 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
         if len(predecessors) == 0 and len(successors) == 0:
             raise ValueError("Dangling node detected")
 
+    for node in graph.nodes:
+        # Assigning Generate of the dependency nodes to the max
+        # of the weights of its successors
+        if graph.nodes[node]["type"] != "dependency":
+            continue
+
+        successors = list(graph.successors(node))
+        max_weight = max([graph[node][successor]["weight"] for successor in successors])
+        graph.nodes[node]["generate"] = max_weight
+
     return graph
 
 

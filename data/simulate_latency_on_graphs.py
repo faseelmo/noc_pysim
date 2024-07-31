@@ -15,12 +15,18 @@ def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycle
     random.seed(0)
     computing_list = graph_to_task_list(nx_graph)
     packet_list = get_random_packet_list(nx_graph)
+
+    packet_list_copy = []
+    for packet in packet_list:
+        packet_list_copy.append(packet.source_task_id)
+
+
     if debug_mode:
         print(*packet_list)
     latency = simulate(
         computing_list, packet_list, debug_mode=debug_mode, max_cycles=max_cycles
     )
-    return latency
+    return latency, packet_list_copy
 
 
 if __name__ == "__main__":
@@ -55,15 +61,17 @@ if __name__ == "__main__":
         graph_path = "data/test_task_graph.json"
         graph = load_graph_from_json(graph_path)
         visualize_graph(graph)
-        latency = simlate_latency_from_graph(
+        latency, packet_list = simlate_latency_from_graph(
             graph, debug_mode=True, max_cycles=args.max_cycle
         )
         print(f"\nLatency of the test graph in {graph_path} is {latency}")
+        print(f"Packet list: {packet_list}")
 
     if args.sim:
 
         INPUT_DATA_DIR = "data/training_data/input"
         TARGET_DATA_DIR = "data/training_data/target"
+        PACKET_LIST_DIR = "data/training_data/packet_list"
 
         print(f"\nCreating Latency data (using noc_pysim) in {TARGET_DATA_DIR}")
         does_path_contains_files(TARGET_DATA_DIR)
@@ -74,7 +82,7 @@ if __name__ == "__main__":
         for file in list_of_files:
 
             graph = load_graph_from_json(f"{INPUT_DATA_DIR}/{file}")
-            latency = simlate_latency_from_graph(
+            latency, packet_list = simlate_latency_from_graph(
                 graph, debug_mode=False, max_cycles=1000
             )
 
@@ -83,8 +91,12 @@ if __name__ == "__main__":
             ), f"Graph task {file} is not schedulable. Latency is {latency}"
 
             latency_json = {"latency": latency}
+            packet_list_json = json.dumps(packet_list)
 
             with open(f"{TARGET_DATA_DIR}/{file}", "w") as f:
                 f.write(json.dumps(latency_json))
+
+            with open(f"{PACKET_LIST_DIR}/{file}", "w") as f:
+                f.write(packet_list_json)
 
             print(f"Latency of the graph {file} is {latency}")
