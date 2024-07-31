@@ -4,7 +4,7 @@ import torch.optim as optim
 
 from scipy.stats import kendalltau
 
-from training.model import GNN, LinearModel
+from training.model import GNN
 from training.dataset import load_data
 from training.utils import does_path_exist, copy_model_to_results, plot_and_save_loss
 
@@ -41,10 +41,7 @@ def train_fn(train_loader, model, optimizer, loss_fn):
     for batch_idx, data in enumerate(loop):
         data = data.to(DEVICE)
 
-        # input_data = torch.flatten(data.x)[:-1]
-        # output = model(input_data)
-
-        output = model(data.x, data.edge_index, data.edge_attr, data.batch).squeeze(1)
+        output = model(data.x, data.edge_index, data.batch).squeeze(1)
         loss = loss_fn(output, data.y)
 
         optimizer.zero_grad()
@@ -63,10 +60,7 @@ def validation_fn(test_loader, model, loss_fn, epoch):
     for data in test_loader:
         data = data.to(DEVICE)
 
-        # input_data = torch.flatten(data.x)[:-1]
-        # output = model(input_data)
-
-        output = model(data.x, data.edge_index, data.edge_attr, data.batch).squeeze(1)
+        output = model(data.x, data.edge_index, data.batch).squeeze(1)
         loss = loss_fn(output, data.y)
         mean_loss.append(loss.item())
 
@@ -84,13 +78,13 @@ def test_fn(test_loader, model):
     for data in test_loader:
         data = data.to(DEVICE)
 
-        output = model(data.x, data.edge_index, data.edge_attr, data.batch).squeeze(1)
+        output = model(data.x, data.edge_index, data.batch).squeeze(1)
 
         ground_truth_latency_list.append(data.y.item())
         predicted_latency_list.append(output.item())
 
     # Calculate Kendall's tau
-    tau, p_value = kendalltau(ground_truth_latency_list, predicted_latency_list)
+    tau, _ = kendalltau(ground_truth_latency_list, predicted_latency_list)
     return tau
 
 
@@ -110,7 +104,6 @@ if __name__ == "__main__":
 
     test_loader, _ = load_data(f"{DATA_DIR}/test", batch_size=1, validation_split=0.0)
 
-    # model = LinearModel(3).to(DEVICE)
     model = GNN(num_features=INPUT_FEATURES, hidden_channels=3).to(DEVICE)
     print(
         f"Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}"
@@ -141,7 +134,9 @@ if __name__ == "__main__":
         train_loss_list.append(train_loss)
         valid_loss_list.append(valid_loss)
         test_metric_list.append(test_metric)
-        plot_and_save_loss(train_loss_list, valid_loss_list, test_metric_list, args.name)
+        plot_and_save_loss(
+            train_loss_list, valid_loss_list, test_metric_list, args.name
+        )
 
         if (epoch + 1) % 50 == 0 or (epoch + 1) == 1:
             torch.save(model, f"{SAVE_RESULTS}/LatNet_{epoch+1}.pth")
