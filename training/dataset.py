@@ -81,10 +81,8 @@ class CustomDataset(Dataset):
         global_to_local = {'task': {}, 'dependency': {}}
         task_feature = []
         dependency_feature = []
-        for global_node_idx, node_data in graph.nodes(data=True):
+        for node_idx, node_data in graph.nodes(data=True):
             node_type = node_data["type"]
-            local_index = len(global_to_local[node_type]) # next index
-            global_to_local[node_type][global_node_idx] = local_index
 
             if node_type not in hetero_data:
                 hetero_data[node_type].x = []
@@ -105,6 +103,28 @@ class CustomDataset(Dataset):
             dependency_feature, dtype=torch.float
         )
 
+        global_to_local_indexing = {}
+
+        for edge in graph.edges(data=True):
+            src, dst, edge_data = edge
+            src_type = graph.nodes[src]["type"]
+            dst_type = graph.nodes[dst]["type"]
+
+            edge_type = f"{src_type}_to_{dst_type}"
+            if edge_type not in global_to_local_indexing:
+                global_to_local_indexing[edge_type] = {}
+
+            if src not in global_to_local_indexing[edge_type]:
+                global_to_local_indexing[edge_type][src] = len(global_to_local_indexing[edge_type])
+
+            if dst not in global_to_local_indexing[edge_type]:
+                global_to_local_indexing[edge_type][dst] = len(global_to_local_indexing[edge_type])
+
+
+        print(f"global_to_local_indexing: {global_to_local_indexing}")
+
+
+
         for edge in graph.edges(data=True):
             src, dst, edge_data = edge
             src_type = graph.nodes[src]["type"]
@@ -114,13 +134,15 @@ class CustomDataset(Dataset):
                 edge_type = "no_delay"
             elif src_type == "dependency" and dst_type == "task":
                 edge_type = "delay"
+            else:
+                raise ValueError(f"Unknown edge type from {src_type} to {dst_type}")
 
             if (src_type, edge_type, dst_type) not in hetero_data.edge_types:
                 hetero_data[src_type, edge_type, dst_type].edge_index = [[], []]
 
-            # hetero_data[src_type, edge_type, dst_type].edge_index[0].append(global_to_local[src_type][src])
+            edge_type_str = f"{src_type}_to_{dst_type}"
+
             hetero_data[src_type, edge_type, dst_type].edge_index[0].append(src)
-            # hetero_data[src_type, edge_type, dst_type].edge_index[1].append(global_to_local[dst_type][dst])
             hetero_data[src_type, edge_type, dst_type].edge_index[1].append(dst)
 
         for edge_type in hetero_data.edge_types:
