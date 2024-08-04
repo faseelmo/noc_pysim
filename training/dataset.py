@@ -6,8 +6,6 @@ import networkx as nx
 
 from natsort import natsorted
 
-from data.utils import visualize_graph
-
 from torch_geometric.utils import from_networkx
 from torch.utils.data import Dataset, random_split
 from torch_geometric.loader import DataLoader
@@ -55,7 +53,6 @@ class CustomDataset(Dataset):
         return data
 
     def _homogenous_data(self, graph, target_data):
-
         data = from_networkx(graph)
 
         # data.x should contain all the node features with shape [num_nodes, num_node_features]
@@ -66,21 +63,21 @@ class CustomDataset(Dataset):
         # data.edge_attr should contain all the edge features with shape [num_edges, num_edge_features]
         data.edge_attr = torch.stack((data.weight,), dim=1).float()
         del data.weight
-
-        # delete type for now
         del data.type
 
-        # target
         data.y = float(target_data["latency"])
+        self._do_checks(data)
 
         return data
 
     def _heterogenous_data(self, graph, target_data):
         hetero_data = HeteroData()
 
-        global_to_local = {'task': {}, 'dependency': {}}
         task_feature = []
         dependency_feature = []
+
+        global_to_local_indexing = {"task": {}, "dependency": {}}
+
         for node_idx, node_data in graph.nodes(data=True):
             node_type = node_data["type"]
 
@@ -98,65 +95,48 @@ class CustomDataset(Dataset):
                 generate = node_data["generate"] / self.max_generate
                 dependency_feature.append([generate])
 
+            global_to_local_indexing[node_type][node_idx] = len(
+                global_to_local_indexing[node_type]
+            )
+
         hetero_data["task"].x = torch.tensor(task_feature, dtype=torch.float)
         hetero_data["dependency"].x = torch.tensor(
             dependency_feature, dtype=torch.float
         )
 
-        global_to_local_indexing = {}
-
         for edge in graph.edges(data=True):
-            src, dst, edge_data = edge
+
+            src, dst, _ = edge
             src_type = graph.nodes[src]["type"]
             dst_type = graph.nodes[dst]["type"]
 
-            edge_type = f"{src_type}_to_{dst_type}"
-            if edge_type not in global_to_local_indexing:
-                global_to_local_indexing[edge_type] = {}
-
-            if src not in global_to_local_indexing[edge_type]:
-                global_to_local_indexing[edge_type][src] = len(global_to_local_indexing[edge_type])
-
-            if dst not in global_to_local_indexing[edge_type]:
-                global_to_local_indexing[edge_type][dst] = len(global_to_local_indexing[edge_type])
-
-
-        print(f"global_to_local_indexing: {global_to_local_indexing}")
-
-
-
-        for edge in graph.edges(data=True):
-            src, dst, edge_data = edge
-            src_type = graph.nodes[src]["type"]
-            dst_type = graph.nodes[dst]["type"]
-
-            if src_type == "task" and dst_type == "task":
-                edge_type = "no_delay"
-            elif src_type == "dependency" and dst_type == "task":
-                edge_type = "delay"
-            else:
-                raise ValueError(f"Unknown edge type from {src_type} to {dst_type}")
+            edge_type = "depends_on"
 
             if (src_type, edge_type, dst_type) not in hetero_data.edge_types:
                 hetero_data[src_type, edge_type, dst_type].edge_index = [[], []]
 
-            edge_type_str = f"{src_type}_to_{dst_type}"
-
-            hetero_data[src_type, edge_type, dst_type].edge_index[0].append(src)
-            hetero_data[src_type, edge_type, dst_type].edge_index[1].append(dst)
-
-        for edge_type in hetero_data.edge_types:
-            hetero_data[edge_type].edge_index = (
-                torch.tensor(hetero_data[edge_type].edge_index, dtype=torch.long)
-                # .t()
-                .contiguous()
+            hetero_data[src_type, edge_type, dst_type].edge_index[0].append(
+                global_to_local_indexing[src_type][src]
+            )
+            hetero_data[src_type, edge_type, dst_type].edge_index[1].append(
+                global_to_local_indexing[dst_type][dst]
             )
 
-        print(f"Global to local {global_to_local}")
+        for edge_type in hetero_data.edge_types:
+            hetero_data[edge_type].edge_index = torch.tensor(
+                hetero_data[edge_type].edge_index, dtype=torch.long
+            ).contiguous()
 
         hetero_data.y = float(target_data["latency"])
+        self._do_checks(hetero_data)
 
         return hetero_data
+
+    def _do_checks(self, data):
+        assert data.validate() is True, "Data is invalid"
+        assert data.has_isolated_nodes() is False, "Data contains isolated nodes"
+        assert data.has_self_loops() is False, "Data contains self loops"
+        assert data.is_directed() is True, "Data is not directed"
 
 
 def load_data(training_data_dir, is_hetero, batch_size=32, validation_split=0.1):
@@ -175,47 +155,27 @@ def load_data(training_data_dir, is_hetero, batch_size=32, validation_split=0.1)
 
 if __name__ == "__main__":
 
-    data_index = 2
-    is_hetero = False
-    homogenous_dataset = CustomDataset("data/training_data", is_hetero=False)
-    data = homogenous_dataset[data_index]
+    from data.utils import visualize_graph
+    from torch_geometric.utils import to_networkx
 
-    # nx_graph_path = f"data/training_data/input/task_graph_{data_index}.json"
-    # nx_graph = nx.node_link_graph(json.load(open(nx_graph_path)))
+    DATA_INDEX = 2
+    DATASET_DIR = "data/training_data"
 
-    # Testing Custom Dataset
     print(f"\n\n----------------------Homogenous Graph----------------------")
+    is_hetero = False
+    homogenous_dataset = CustomDataset(DATASET_DIR, is_hetero=False)
+    data = homogenous_dataset[DATA_INDEX]
     print(f"Data is {data}")
     print(f"Feature matrix \n{data.x}\n")
     print(f"\nedge_index \n{data.edge_index}\n")
     print(f"edge_attr \n{data.edge_attr}\n")
-    print(f"data is valid: {data.validate(raise_on_error=True)}")
-    print(f"is directed graph: {data.is_directed()}")
-
-    # from data.utils import visualize_graph
-    # visualize_graph(nx_graph)
-
-    # Testing DataLoader
-    # train_loader, val_loader = load_data(homogenous_dataset, batch_size=32)
-
-    # print(f"\nData loader information")
-    # print(f"Number of training batches: {len(train_loader)}")
-    # print(f"Batch size: {train_loader.batch_size}")
-    # print(
-    #     f"Total number of training samples {len(train_loader) * train_loader.batch_size}"
-    # )
-
-    # print(f"Number of validation batches: {len(val_loader)}")
-
-    """Testing for Heterogenous Graph"""
-
-    is_hetero = True
-    heterogenous_dataset = CustomDataset("data/training_data", is_hetero=True)
-    hetero_data = heterogenous_dataset[data_index]
 
     print(f"\n\n----------------------Heterogenous Graph----------------------")
+    is_hetero = True
+    heterogenous_dataset = CustomDataset(DATASET_DIR, is_hetero=True)
+    hetero_data = heterogenous_dataset[DATA_INDEX]
     print(f"\nHeteroData is {hetero_data}")
-    print(f"y is {hetero_data.y}")
+    print(f"Latency is {hetero_data.y}")
     print(f"\nNode types are {hetero_data.node_types}")
     print(f"Edge types are {hetero_data.edge_types}")
 
@@ -228,6 +188,29 @@ if __name__ == "__main__":
             f"Edge type {edge_type} has edge index \n{hetero_data[edge_type].edge_index}\n"
         )
 
-    print(f"data is valid: {hetero_data.validate(raise_on_error=True)}")
-    print(f"has self loops: {hetero_data.has_self_loops()}")
-    print(f"is directed graph: {hetero_data.is_directed()}")
+    homogenous_data = hetero_data.to_homogeneous()
+    homogenous_data_graph = to_networkx(homogenous_data)
+    visualize_graph(homogenous_data_graph, latency_value=hetero_data.y)
+
+    print(f"\n\n----------------------DataLoader Test----------------------")
+    homo_train_loader, val_loader = load_data(
+        DATASET_DIR, is_hetero=False, batch_size=32
+    )
+    print(f"\n For homogenous graph")
+    print(f"\nData loader information")
+    print(f"Number of training batches: {len(homo_train_loader)}")
+    print(f"Batch size: {homo_train_loader.batch_size}")
+    print(f"Training samples {len(homo_train_loader) * homo_train_loader.batch_size}")
+    print(f"Number of validation batches: {len(val_loader)}")
+
+    hetero_train_loader, hetero_val_loader = load_data(
+        DATASET_DIR, is_hetero=True, batch_size=32
+    )
+    print(f"\n For homogenous graph")
+    print(f"\nData loader information")
+    print(f"Number of training batches: {len(hetero_train_loader)}")
+    print(f"Batch size: {hetero_train_loader.batch_size}")
+    print(
+        f"Training samples {len(hetero_train_loader) * hetero_train_loader.batch_size}"
+    )
+    print(f"Number of validation batches: {len(hetero_val_loader )}")
