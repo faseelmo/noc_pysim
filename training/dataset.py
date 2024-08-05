@@ -78,6 +78,7 @@ class CustomDataset(Dataset):
 
         global_to_local_indexing = {"task": {}, "dependency": {}}
 
+        # Creating node features + global to local indexing
         for node_idx, node_data in graph.nodes(data=True):
             node_type = node_data["type"]
 
@@ -99,13 +100,14 @@ class CustomDataset(Dataset):
                 global_to_local_indexing[node_type]
             )
 
+        # Converting list of features to tensor
         hetero_data["task"].x = torch.tensor(task_feature, dtype=torch.float)
         hetero_data["dependency"].x = torch.tensor(
             dependency_feature, dtype=torch.float
         )
 
+        # Creating edge indices
         for edge in graph.edges(data=True):
-
             src, dst, _ = edge
             src_type = graph.nodes[src]["type"]
             dst_type = graph.nodes[dst]["type"]
@@ -122,6 +124,7 @@ class CustomDataset(Dataset):
                 global_to_local_indexing[dst_type][dst]
             )
 
+        # Converting edge indices [list] to tensors
         for edge_type in hetero_data.edge_types:
             hetero_data[edge_type].edge_index = torch.tensor(
                 hetero_data[edge_type].edge_index, dtype=torch.long
@@ -178,6 +181,7 @@ if __name__ == "__main__":
     print(f"Latency is {hetero_data.y}")
     print(f"\nNode types are {hetero_data.node_types}")
     print(f"Edge types are {hetero_data.edge_types}")
+    print(f"Meta information is {hetero_data.metadata}")
 
     for node_type in hetero_data.node_types:
         print(
