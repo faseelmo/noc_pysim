@@ -1,6 +1,6 @@
 import os
 import json
-import torch 
+import torch
 import networkx as nx
 
 from natsort import natsorted
@@ -21,7 +21,7 @@ class CustomDataset(Dataset):
 
         assert len(self.input_files) == len(
             self.output_files
-        ), "Number of input files and output files must be the same"
+        ), f"Number of input files and output files must be the same. {len(self.input_files)} != {len(self.output_files)}"
 
     def __len__(self):
         return len(self.input_files)
@@ -39,7 +39,7 @@ class CustomDataset(Dataset):
         graph = nx.node_link_graph(input_data)
 
         data = from_networkx(graph)
-        
+
         # data.x should contain all the node features with shape [num_nodes, num_node_features]
         data.x = torch.stack((data.generate, data.processing_time), dim=1).float() / 10
         del data.generate
@@ -51,11 +51,12 @@ class CustomDataset(Dataset):
 
         # delete type for now
         del data.type
-        
-        # target 
+
+        # target
         data.y = float(target_data["latency"])
 
         return data
+
 
 def load_data(training_data_dir, batch_size=32, validation_split=0.1):
     dataset = CustomDataset(training_data_dir)
@@ -65,8 +66,12 @@ def load_data(training_data_dir, batch_size=32, validation_split=0.1):
         dataset, [len(dataset) - validation_size, validation_size]
     )
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_dataset = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, drop_last=True
+    )
+    val_dataset = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=False, drop_last=True
+    )
 
     return train_loader, val_dataset
 
@@ -79,7 +84,6 @@ if __name__ == "__main__":
 
     nx_graph_path = f"data/training_data/input/task_graph_{data_index}.json"
     nx_graph = nx.node_link_graph(json.load(open(nx_graph_path)))
-
 
     # Testing Custom Dataset
     print(f"Data is {data}")
@@ -98,7 +102,8 @@ if __name__ == "__main__":
     print(f"\nData loader information")
     print(f"Number of training batches: {len(train_loader)}")
     print(f"Batch size: {train_loader.batch_size}")
-    print(f"Total number of training samples {len(train_loader) * train_loader.batch_size}")
+    print(
+        f"Total number of training samples {len(train_loader) * train_loader.batch_size}"
+    )
 
     print(f"Number of validation batches: {len(val_loader)}")
-
