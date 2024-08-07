@@ -27,6 +27,10 @@ if __name__ == "__main__":
     target_path = "data/training_data/target"
     packet_list_path = "data/training_data/packet_list"
 
+    os.makedirs(input_path, exist_ok=True)
+    os.makedirs(target_path, exist_ok=True)
+    os.makedirs(packet_list_path, exist_ok=True)
+
     input_files = natsorted(os.listdir(input_path))
 
     test_split = int(len(input_files) * 0.05)

@@ -1,69 +1,37 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import global_max_pool, SAGEConv
+from torch_geometric.nn import global_max_pool, SAGEConv, GraphConv
 from training.utils import get_norm_adj
 from torch_sparse import SparseTensor
-
-# from torch_sparse import SparseTensor
 
 
 class GNN(torch.nn.Module):
     def __init__(self, num_features, hidden_channels):
         super(GNN, self).__init__()
         torch.manual_seed(1)
-        self.conv1 = DirGCNConv(num_features, hidden_channels, alpha=0.5)
-        self.conv2 = DirGCNConv(hidden_channels, hidden_channels, alpha=0.5)
-        self.conv3 = DirGCNConv(hidden_channels, hidden_channels, alpha=0.5)
+        self.conv1 = DirSageConv(num_features, hidden_channels)
+        self.conv2 = DirSageConv(hidden_channels, hidden_channels)
+        self.conv3 = DirSageConv(hidden_channels, hidden_channels)
         self.lin1 = torch.nn.Linear(hidden_channels, 5)
         self.lin2 = torch.nn.Linear(5, 1)
 
-    def forward(self, x, edge_index, edge_weight, batch):
-        # print(f"Initial shape of x: {x.shape}")
-        # print(f"Initial shape of batch: {batch.shape}")
-        # print(f"Edge index: {edge_index}")
+    def forward(self, x, edge_index, batch):
 
         x = self.conv1(x, edge_index)
         x = F.relu(x)
-        # print(f"Shape of x after conv1: {x.shape}")
 
         x = self.conv2(x, edge_index)
         x = F.relu(x)
-        # print(f"Shape of x after conv2: {x.shape}")
 
         x = self.conv3(x, edge_index)
         x = F.relu(x)
-        # print(f"Shape of x after conv3: {x.shape}")
-
-        # Ensure batch tensor is correctly sized
-        # print(f"Shape of batch before global_max_pool: {batch.shape}")
-        # print(f"Batch tensor: {batch}")
 
         x = global_max_pool(x, batch)
-        # print(f"Shape of x after global_max_pool: {x.shape}")
 
         x = F.relu(self.lin1(x))
-        # print(f"Shape of x after lin1: {x.shape}")
 
         x = self.lin2(x)
-        # print(f"x is {x}")
-        # print(f"Shape of x after lin2: {x.shape}")
-        # exit()
-
-        return x
-
-
-class LinearModel(nn.Module):
-    def __init__(self, num_features):
-        super(LinearModel, self).__init__()
-        self.lin = nn.Linear(num_features, 1)
-        # self.lin1 = nn.Linear(num_features, 5)
-        # self.lin2 = nn.Linear(5, 1)
-
-    def forward(self, x):
-        x = self.lin(x)
-        # x = F.relu(self.lin1(x))
-        # x = self.lin2(x)
         return x
 
 
@@ -80,10 +48,9 @@ class DirGCNConv(torch.nn.Module):
         self.adj_norm, self.adj_t_norm = None, None
 
     def forward(self, x, edge_index):
-        # print(f"\nInput x shape: {x.shape}")
-        # print(f"Edge index shape: {edge_index.shape}")
-
-        # if self.adj_norm is None:
+        # if self.adj_norm is None: # Commented because we have nodes with
+        # different number of edges and nodes.
+        # So, we need to recompute the adjacency matrix for each batch
         row, col = edge_index
         num_nodes = x.shape[0]
         adj = SparseTensor(row=row, col=col, sparse_sizes=(num_nodes, num_nodes))
@@ -91,21 +58,12 @@ class DirGCNConv(torch.nn.Module):
         adj_t = SparseTensor(row=col, col=row, sparse_sizes=(num_nodes, num_nodes))
         self.adj_t_norm = get_norm_adj(adj_t, norm="dir")
 
-        # else:
-        #     print(f"Adjacency matrices already calculated for {self}")
-
         adj_norm_x = self.adj_norm @ x
         adj_t_norm_x = self.adj_t_norm @ x
-
-        # print(f"adj_norm @ x shape: {adj_norm_x.shape}")
-        # print(f"adj_t_norm @ x shape: {adj_t_norm_x.shape}")
 
         out = self.alpha * self.lin_src_to_dst(adj_norm_x) + (
             1 - self.alpha
         ) * self.lin_dst_to_src(adj_t_norm_x)
-        # print(f"Output shape: {out.shape}")
-
-        # exit()
 
         return out
 
@@ -134,12 +92,24 @@ class DirSageConv(torch.nn.Module):
         )
 
 
+class LinearModel(nn.Module):
+    def __init__(self, num_features, hidden_channels):
+        super(LinearModel, self).__init__()
+        torch.manual_seed(0)
+        self.lin1 = nn.Linear(num_features, hidden_channels)
+        self.lin2 = nn.Linear(hidden_channels, 1)
+
+    def forward(self, x):
+        x = F.relu(self.lin1(x))
+        x = self.lin2(x)
+        return x
+
+
 if __name__ == "__main__":
 
-    from training.dataset import load_data, HomogenousGraph
+    from training.dataset import load_data
 
-    train_dataset = HomogenousGraph("data/training_data")
-    train_loader, val_loader = load_data(train_dataset, batch_size=64)
+    train_loader, val_loader = load_data("data/training_data", batch_size=64)
     model = GNN(2, 32)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     criterion = torch.nn.MSELoss()

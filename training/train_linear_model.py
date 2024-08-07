@@ -4,8 +4,8 @@ import torch.optim as optim
 
 from scipy.stats import kendalltau
 
-from training.model import GNN
-from training.dataset import load_data, HomogenousGraph
+from training.model import LinearModel
+from training.dataset import load_data
 from training.utils import does_path_exist, copy_model_to_results, plot_and_save_loss
 
 import time
@@ -34,14 +34,23 @@ torch.manual_seed(1)
 print(f"Training on {DEVICE}")
 
 
-def train_fn(train_loader, model, optimizer, loss_fn):
+def train_fn(train_loader, model, optimizer, loss_fn, batch_size):
     loop = tqdm(train_loader, leave=True)
 
     mean_loss = []
     for batch_idx, data in enumerate(loop):
         data = data.to(DEVICE)
 
-        output = model(data.x, data.edge_index, data.batch).squeeze(1)
+        input_data = data.x.view(batch_size, -1)    # Shape: [batch_size, 4]
+        input_data = input_data[:, :-1]             # Shape: [batch_size, 3]
+        # print(f"Batch size is {batch_size}")
+        # print(f"Input data size is {input_data.size()}")
+        # print(f"Input data size after reduction is {input_data.size()}")
+        # print(f"Input data is \n{input_data}")
+        # exit()
+
+        output = model(input_data)
+
         loss = loss_fn(output, data.y)
 
         optimizer.zero_grad()
@@ -55,12 +64,16 @@ def train_fn(train_loader, model, optimizer, loss_fn):
     return train_loss
 
 
-def validation_fn(test_loader, model, loss_fn, epoch):
+def validation_fn(test_loader, model, loss_fn, epoch, batch_size):
     mean_loss = []
     for data in test_loader:
         data = data.to(DEVICE)
 
-        output = model(data.x, data.edge_index, data.batch).squeeze(1)
+        input_data = data.x.view(batch_size, -1)  # Shape: [batch_size, 4]
+        input_data = input_data[:, :-1]  # Shape: [batch_size, 3]
+
+        output = model(input_data)
+
         loss = loss_fn(output, data.y)
         mean_loss.append(loss.item())
 
@@ -78,7 +91,9 @@ def test_fn(test_loader, model):
     for data in test_loader:
         data = data.to(DEVICE)
 
-        output = model(data.x, data.edge_index, data.batch).squeeze(1)
+        input_data = torch.flatten(data.x)[:-1]
+        # input_data = torch.flatten(data.x)
+        output = model(input_data)
 
         ground_truth_latency_list.append(data.y.item())
         predicted_latency_list.append(output.item())
@@ -91,31 +106,22 @@ def test_fn(test_loader, model):
 if __name__ == "__main__":
     EPOCHS = TRAINING_PARAMS["EPOCHS"]
     DATA_DIR = TRAINING_PARAMS["DATA_DIR"]
-    BATCH_SIZE = TRAINING_PARAMS["BATCH_SIZE"]
-    INPUT_FEATURES = TRAINING_PARAMS["INPUT_FEATURES"]
+    BATCH_SIZE = 1
+    INPUT_FEATURES = 3
     WEIGHT_DECAY = TRAINING_PARAMS["WEIGHT_DECAY"]
-    LOAD_MODEL = TRAINING_PARAMS["LOAD_MODEL"]
-    MODEL_PATH = TRAINING_PARAMS["MODEL_PATH"]
     SAVE_RESULTS = f"training/results/{args.name}"
 
     start_time = time.time()
 
     train_loader, valid_loader = load_data(DATA_DIR, BATCH_SIZE)
+    test_loader, _ = load_data(f"{DATA_DIR}/test", batch_size=1, validation_split=0.0)
 
-    test_dataset = HomogenousGraph(f"{DATA_DIR}/test")
-    test_loader, _ = load_data(test_dataset, batch_size=1, validation_split=0.0)
-
-    model = GNN(num_features=INPUT_FEATURES, hidden_channels=3).to(DEVICE)
+    model = LinearModel(num_features=INPUT_FEATURES, hidden_channels=10).to(DEVICE)
     print(
         f"Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}"
     )
 
     learning_rate = 0.01  # 5e-4
-
-    if LOAD_MODEL:
-        model_state_dict = torch.load(MODEL_PATH)
-        model.load_state_dict(model_state_dict)
-        print(f"\nPre-Trained Wieghts Loaded\n")
 
     optimizer = optim.Adam(
         model.parameters(), lr=learning_rate, weight_decay=WEIGHT_DECAY
@@ -126,9 +132,10 @@ if __name__ == "__main__":
     valid_loss_list = []
     train_loss_list = []
     test_metric_list = []
+
     for epoch in range(EPOCHS):
-        train_loss = train_fn(train_loader, model, optimizer, loss_fn)
-        valid_loss = validation_fn(valid_loader, model, loss_fn, epoch)
+        train_loss = train_fn(train_loader, model, optimizer, loss_fn, BATCH_SIZE)
+        valid_loss = validation_fn(valid_loader, model, loss_fn, epoch, BATCH_SIZE)
 
         test_metric = test_fn(test_loader, model)
 

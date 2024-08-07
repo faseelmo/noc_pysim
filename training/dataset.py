@@ -28,7 +28,7 @@ class CustomDataset(Dataset):
 
         assert len(self.input_files) == len(
             self.output_files
-        ), "Number of input files and output files must be the same"
+        ), f"Number of input files and output files must be the same. {len(self.input_files)} != {len(self.output_files)}"
 
     def __len__(self):
         return len(self.input_files)
@@ -54,6 +54,7 @@ class CustomDataset(Dataset):
 
     def _homogenous_data(self, graph, target_data):
         data = from_networkx(graph)
+
 
         # data.x should contain all the node features with shape [num_nodes, num_node_features]
         data.x = torch.stack((data.generate, data.processing_time), dim=1).float() / 10
@@ -150,8 +151,12 @@ def load_data(training_data_dir, is_hetero, batch_size=32, validation_split=0.1)
         dataset, [len(dataset) - validation_size, validation_size]
     )
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_dataset = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True, drop_last=True
+    )
+    val_dataset = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=False, drop_last=True
+    )
 
     return train_loader, val_dataset
 

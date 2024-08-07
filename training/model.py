@@ -2,7 +2,8 @@ import torch
 
 import torch.nn as nn
 import torch.nn.functional as F
-
+from torch_geometric.nn import global_max_pool, SAGEConv, GraphConv
+from training.utils import get_norm_adj
 from torch_sparse import SparseTensor
 
 from training.utils import get_norm_adj
@@ -19,12 +20,11 @@ class GNNHomo(torch.nn.Module):
     def __init__(self, num_features, hidden_channels):
         super().__init__()
         torch.manual_seed(1)
-        self.conv1 = DirGCNConv(num_features, hidden_channels, alpha=0.5)
-        self.conv2 = DirGCNConv(hidden_channels, hidden_channels, alpha=0.5)
-        self.conv3 = DirGCNConv(hidden_channels, hidden_channels, alpha=0.5)
-
-        self.lin1 = nn.Linear(hidden_channels, 5)
-        self.lin2 = nn.Linear(5, 1)
+        self.conv1 = DirSageConv(num_features, hidden_channels)
+        self.conv2 = DirSageConv(hidden_channels, hidden_channels)
+        self.conv3 = DirSageConv(hidden_channels, hidden_channels)
+        self.lin1 = torch.nn.Linear(hidden_channels, 5)
+        self.lin2 = torch.nn.Linear(5, 1)
 
     def forward(self, x, edge_index, batch):
         x = self.conv1(x, edge_index)
@@ -170,6 +170,19 @@ class DirSageConv(torch.nn.Module):
             + (1 - self.alpha) * self.conv_src_to_dst(x, edge_index)
             + self.alpha * self.conv_dst_to_src(x, edge_index)
         )
+
+
+class LinearModel(nn.Module):
+    def __init__(self, num_features, hidden_channels):
+        super(LinearModel, self).__init__()
+        torch.manual_seed(0)
+        self.lin1 = nn.Linear(num_features, hidden_channels)
+        self.lin2 = nn.Linear(hidden_channels, 1)
+
+    def forward(self, x):
+        x = F.relu(self.lin1(x))
+        x = self.lin2(x)
+        return x
 
 
 if __name__ == "__main__":
