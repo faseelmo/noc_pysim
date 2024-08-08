@@ -1,144 +1,89 @@
 import torch
-
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import global_max_pool, SAGEConv, GraphConv
+from torch_geometric.nn import global_max_pool, SAGEConv, GraphConv, to_hetero
 from training.utils import get_norm_adj
 from torch_sparse import SparseTensor
 
-from training.utils import get_norm_adj
-from torch_geometric.nn import (
-    global_max_pool,
-    SAGEConv,
-    HeteroConv,
-    to_hetero,
-    HeteroDictLinear,
-)
 
-
-class GNNHomo(torch.nn.Module):
-    def __init__(self, num_features, hidden_channels):
+class MPN(torch.nn.Module):
+    def __init__(self, hidden_channels):
         super().__init__()
-        torch.manual_seed(1)
-        self.conv1 = DirSageConv(num_features, hidden_channels)
-        self.conv2 = DirSageConv(hidden_channels, hidden_channels)
-        self.conv3 = DirSageConv(hidden_channels, hidden_channels)
-        self.lin1 = torch.nn.Linear(hidden_channels, 5)
-        self.lin2 = torch.nn.Linear(5, 1)
+        torch.manual_seed(0)
+        self.conv1 = GraphConv(-1, hidden_channels)
+        self.conv2 = GraphConv(hidden_channels, hidden_channels)
+        self.conv3 = GraphConv(hidden_channels, hidden_channels)
 
-    def forward(self, x, edge_index, batch):
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
-
-        x = self.conv2(x, edge_index)
-        x = F.relu(x)
-
+    def forward(self, x, edge_index):
+        x = self.conv1(x, edge_index).relu()
+        x = self.conv2(x, edge_index).relu()
         x = self.conv3(x, edge_index)
-        x = F.relu(x)
+        return x
 
-        x = global_max_pool(x, batch)
 
+class MLP(torch.nn.Module):
+    def __init__(self, input_channels, output_channels=1):
+        super().__init__()
+        torch.manual_seed(0)
+        self.lin1 = torch.nn.Linear(input_channels, 5)
+        self.lin2 = torch.nn.Linear(5, output_channels)
+
+    def forward(self, x):
         x = F.relu(self.lin1(x))
         x = self.lin2(x)
-
         return x
+
+
+class GNN(torch.nn.Module):
+    def __init__(self, hidden_channels):
+        super().__init__()
+        self.mpn = MPN(hidden_channels)
+        self.mlp = MLP(hidden_channels)
+
+    def forward(self, x, edge_index, batch):
+        x = self.mpn(x, edge_index)
+        x = global_max_pool(x, batch)
+        x = self.mlp(x)
+        return x
+
+
+class GNNHetero(torch.nn.Module):
+    def __init__(self, hidden_channels, metadata):
+        super().__init__()
+        mpn = MPN(hidden_channels)
+        self.hetero_mlp = to_hetero(mpn, metadata)
+
+    def forward(self, x_dict, edge_index_dict):
+
+        x_dict = self.hetero_mlp(x_dict, edge_index_dict)
+
+        return x_dict
 
 
 class DirGCNConv(torch.nn.Module):
     def __init__(self, input_dim, output_dim, alpha):
-        super().__init__()
+        super(DirGCNConv, self).__init__()
 
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        self.lin_src_to_dst = nn.Linear(input_dim, output_dim)  # W_1 (src to dst)
-        self.lin_dst_to_src = nn.Linear(input_dim, output_dim)  # W_2 (dst to src)
+        self.lin_src_to_dst = nn.Linear(input_dim, output_dim)
+        self.lin_dst_to_src = nn.Linear(input_dim, output_dim)
         self.alpha = alpha
         self.adj_norm, self.adj_t_norm = None, None
 
     def forward(self, x, edge_index):
-        # Can make this run faster if we cache the adj_norm and adj_t_norm
-        # But will cause issues with batching. Need to think about this
+        # if self.adj_norm is None: # Commented because we have nodes with
+        # different number of edges and nodes.
+        # So, we need to recompute the adjacency matrix for each batch
         row, col = edge_index
         num_nodes = x.shape[0]
-
         adj = SparseTensor(row=row, col=col, sparse_sizes=(num_nodes, num_nodes))
         self.adj_norm = get_norm_adj(adj, norm="dir")
-
         adj_t = SparseTensor(row=col, col=row, sparse_sizes=(num_nodes, num_nodes))
         self.adj_t_norm = get_norm_adj(adj_t, norm="dir")
 
-        adj_norm_x = self.adj_norm @ x  # matrix multiplication
-        adj_t_norm_x = self.adj_t_norm @ x
-
-        out = self.alpha * self.lin_src_to_dst(adj_norm_x) + (
-            1 - self.alpha
-        ) * self.lin_dst_to_src(adj_t_norm_x)
-
-        return out
-
-
-class GNNHetero(torch.nn.Module):
-    def __init__(self, hidden_channels, num_layers, node_types):
-        super(GNNHetero, self).__init__()
-
-        self.convs = nn.ModuleList()
-        for _ in range(num_layers):
-            conv = HeteroConv(
-                {
-                    ("task", "depends_on", "task"): DirGCNHetero(
-                        hidden_channels, hidden_channels, node_types, alpha=0.5
-                    ),
-                    ("dependency", "depends_on", "task"): DirGCNHetero(
-                        hidden_channels, hidden_channels, node_types, alpha=0.5
-                    ),
-                },
-                aggr="sum",
-            )
-            self.convs.append(conv)
-
-    def forward(self, x_dict, edge_index_dict):
-
-        out_dict = {}
-
-        for edge_type, edge_index in edge_index_dict.items():
-            x = x_dict[edge_type[0]]
-            edge_index = edge_index_dict[edge_type]
-            print(f"X is \n{x}")
-            print(f"Edge index is \n{edge_index}")
-            # out_dict[edge_type] = self.convs[0]({edge_type: x}, edge_index
-
-
-        # for conv in self.convs:
-        #     x_dict = conv(x_dict, edge_index_dict)
-
-
-class DirGCNHetero(torch.nn.Module):
-    def __init__(self, input_dim, output_dim, node_types, alpha):
-        super().__init__()
-
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-
-        # W_1 (src to dst) for each node type
-        self.lin_src_to_dst = HeteroDictLinear(-1, output_dim, types=node_types)
-        # W_2 (dst to src) for each node type
-        self.lin_dst_to_src = HeteroDictLinear(-1, output_dim, types=node_types)
-        self.alpha = alpha
-
-    def forward(self, x, edge_index):
-        # Can make this run faster if we cache the adj_norm and adj_t_norm
-        # But will cause issues with batching. Need to think about this
-        row, col = edge_index
-        num_nodes = x.shape[0]
-
-        adj = SparseTensor(row=row, col=col, sparse_sizes=(num_nodes, num_nodes))
-        self.adj_norm = get_norm_adj(adj, norm="dir")
-
-        adj_t = SparseTensor(row=col, col=row, sparse_sizes=(num_nodes, num_nodes))
-        self.adj_t_norm = get_norm_adj(adj_t, norm="dir")
-
-        adj_norm_x = self.adj_norm @ x  # matrix multiplication
+        adj_norm_x = self.adj_norm @ x
         adj_t_norm_x = self.adj_t_norm @ x
 
         out = self.alpha * self.lin_src_to_dst(adj_norm_x) + (
@@ -187,67 +132,29 @@ class LinearModel(nn.Module):
 
 if __name__ == "__main__":
 
-    from training.dataset import load_data, CustomDataset
+    from training.dataset import CustomDataset
 
-    INDEX = 2
-    DATA_DIR = "data/training_data"
+    IDX = 2
+    HIDDEN_CHANNELS = 5
 
-    hetero_dataset = CustomDataset(training_data_dir=DATA_DIR, is_hetero=True)
-    homo_dataset = CustomDataset(training_data_dir=DATA_DIR, is_hetero=False)
+    torch.manual_seed(0)
 
-    homo_model = GNNHomo(num_features=2, hidden_channels=32)
+    print(f"\n----Homogenous GNN----")
+    homogenous_dataset = CustomDataset("data/training_data", is_hetero=False)
+    data = homogenous_dataset[IDX]
+    print(f"Data is \n{data}")
+    print(f"Edge index is \n{data.edge_index}")
+    gnn_model = GNN(hidden_channels=HIDDEN_CHANNELS)
+    output = gnn_model(data.x, data.edge_index, data.batch)
+    print(f"Output of Homogenous GNN is {output}")
 
-    print(f"-------Homogenous Graph-------")
-    print(f"Homo Model is : {homo_model}")
-    hetero_data = hetero_dataset[INDEX]
-    homo_data = homo_dataset[INDEX]
-    output = homo_model(homo_data.x, homo_data.edge_index, homo_data.batch)
-
-    print(f"X_dict is \n{hetero_data.x_dict}")
-    print(f"edge_dict is \n{hetero_data.edge_index_dict}")
-
-    print(f"-------Heterogenous Graph-------")
-    node_types = ["task", "dependency"]
-    hetero_model = GNNHetero(hidden_channels=32, num_layers=3, node_types=node_types)
-    output = hetero_model(hetero_data.x_dict, hetero_data.edge_index_dict)
-
-    # print(f"Data is {data}")
-    # print(f"Edge index is {data.edge_index_dict}")
-    # hetero_model(data.x_dict, data.edge_index_dict)
-
-    from tqdm import tqdm
-
-    def train(loader, model, optimizer, criterion):
-        model.train()
-        loop = tqdm(loader, desc="Training")
-
-        for idx, data in enumerate(loop):
-            optimizer.zero_grad()
-
-            out = model(data.x, data.edge_index, data.batch)
-            loss = criterion(out, data.y)
-
-            loss.backward()
-            optimizer.step()
-
-            loop.set_postfix(loss=loss.item())
-
-    def test(loader, model, criterion):
-        model.eval()
-        total_loss = 0
-        with torch.no_grad():
-            for data in loader:
-                out = model(data.x, data.edge_index, data.batch)
-                loss = criterion(out, data.y)
-                total_loss += loss.item()
-
-        avg_loss = total_loss / len(loader)
-        print(f"Valid loss: {avg_loss}")
-
-    # optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    # criterion = torch.nn.MSELoss()
-
-    # for epoch in range(1, 10000):
-    #     print(f"Epoch {epoch}")
-    #     train(train_loader)
-    #     test(val_loader)
+    print(f"\n----Heterogenous GNN----")
+    hetero_dataset = CustomDataset("data/training_data", is_hetero=True)
+    data = hetero_dataset[IDX]
+    hetero_gnn_model = GNNHetero(
+        hidden_channels=HIDDEN_CHANNELS, metadata=data.metadata()
+    )
+    output = hetero_gnn_model(data.x_dict, data.edge_index_dict)
+    print(f"Model is \n{hetero_gnn_model}")
+    print(f"Data is \n{data}")
+    print(f"Output of Hetero GNN is \n{output}")

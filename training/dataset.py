@@ -10,11 +10,11 @@ from torch_geometric.utils import from_networkx
 from torch.utils.data import Dataset, random_split
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import HeteroData
+from torch_geometric.transforms import ToUndirected
 
 
 class CustomDataset(Dataset):
     def __init__(self, training_data_dir, is_hetero=False):
-
         self.is_hetero = is_hetero
         self.input_dir = os.path.join(training_data_dir, "input")
         self.target_dir = os.path.join(training_data_dir, "target")
@@ -54,7 +54,6 @@ class CustomDataset(Dataset):
 
     def _homogenous_data(self, graph, target_data):
         data = from_networkx(graph)
-
 
         # data.x should contain all the node features with shape [num_nodes, num_node_features]
         data.x = torch.stack((data.generate, data.processing_time), dim=1).float() / 10
@@ -131,6 +130,10 @@ class CustomDataset(Dataset):
                 hetero_data[edge_type].edge_index, dtype=torch.long
             ).contiguous()
 
+        hetero_data = ToUndirected()(
+            hetero_data
+        )  # To leverage message passing in both directions
+
         hetero_data.y = float(target_data["latency"])
         self._do_checks(hetero_data)
 
@@ -140,7 +143,7 @@ class CustomDataset(Dataset):
         assert data.validate() is True, "Data is invalid"
         assert data.has_isolated_nodes() is False, "Data contains isolated nodes"
         assert data.has_self_loops() is False, "Data contains self loops"
-        assert data.is_directed() is True, "Data is not directed"
+        # assert data.is_directed() is True, "Data is not directed"
 
 
 def load_data(training_data_dir, is_hetero, batch_size=32, validation_split=0.1):
@@ -196,10 +199,6 @@ if __name__ == "__main__":
         print(
             f"Edge type {edge_type} has edge index \n{hetero_data[edge_type].edge_index}\n"
         )
-
-    homogenous_data = hetero_data.to_homogeneous()
-    homogenous_data_graph = to_networkx(homogenous_data)
-    visualize_graph(homogenous_data_graph, latency_value=hetero_data.y)
 
     print(f"\n\n----------------------DataLoader Test----------------------")
     homo_train_loader, val_loader = load_data(
