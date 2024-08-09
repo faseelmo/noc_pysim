@@ -1,14 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import (
-    global_max_pool,
-    SAGEConv,
-    GraphConv,
-    to_hetero,
-    global_mean_pool,
-    Set2Set,
-)
+from torch_geometric.nn import global_max_pool, SAGEConv, GraphConv, to_hetero, global_mean_pool
 from training.utils import get_norm_adj
 from torch_sparse import SparseTensor
 
@@ -42,18 +35,15 @@ class MLP(torch.nn.Module):
 
 
 class GNN(torch.nn.Module):
-    def __init__(self, node_feature_size, hidden_channels, output_channels=1):
+    def __init__(self, node_feature_size, hidden_channels):
         super().__init__()
         self.mpn = MPN(node_feature_size, hidden_channels)
-        self.set2set = Set2Set(hidden_channels, processing_steps=3)
-        self.lin = torch.nn.Linear(
-            hidden_channels * 2, output_channels
-        )  # Assuming Set2Set doubles the hidden channels
+        self.mlp = MLP(hidden_channels)
 
     def forward(self, x, edge_index, batch):
         x = self.mpn(x, edge_index)
-        x = self.set2set(x, batch)
-        x = self.lin(x)
+        x = global_max_pool(x, batch)
+        x = self.mlp(x)
         return x
 
 
