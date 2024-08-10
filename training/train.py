@@ -93,6 +93,15 @@ def test_fn(test_loader, model):
     return tau
 
 
+def initialize_model(model, dataset_path):
+    """Necessary since GraphConv is lazily initialized"""
+    from training.dataset import CustomDataset
+
+    dataset = CustomDataset(dataset_path, is_hetero=False)
+    data = dataset[0]
+    model(data.x, data.edge_index, data.batch)
+
+
 if __name__ == "__main__":
     EPOCHS = TRAINING_PARAMS["EPOCHS"]
     DATA_DIR = TRAINING_PARAMS["DATA_DIR"]
@@ -114,7 +123,9 @@ if __name__ == "__main__":
     )
 
     torch.manual_seed(0)
-    model = GNN(node_feature_size=2, hidden_channels=3).to(DEVICE)
+    model = GNN(hidden_channels=3).to(DEVICE)
+    initialize_model(model, DATA_DIR)
+
     print(
         f"Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}"
     )
