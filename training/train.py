@@ -17,7 +17,9 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description="Train the GCN model")
 parser.add_argument(
-    "name", type=str, help="name of the experiment (used for saving the results)"
+    "name",
+    type=str,
+    help="Name of the experiment/Training. Results will be saved in training/results/<name>",
 )
 args = parser.parse_args()
 
@@ -88,7 +90,6 @@ def test_fn(test_loader, model):
         ground_truth_latency_list.append(data.y.item())
         predicted_latency_list.append(output.item())
 
-    # Calculate Kendall's tau
     tau, _ = kendalltau(ground_truth_latency_list, predicted_latency_list)
     return tau
 
@@ -102,7 +103,7 @@ def initialize_model(model, dataset_path):
     model(data.x, data.edge_index, data.batch)
 
 
-if __name__ == "__main__":
+def main():
     EPOCHS = TRAINING_PARAMS["EPOCHS"]
     DATA_DIR = TRAINING_PARAMS["DATA_DIR"]
     BATCH_SIZE = TRAINING_PARAMS["BATCH_SIZE"]
@@ -123,7 +124,7 @@ if __name__ == "__main__":
     )
 
     torch.manual_seed(0)
-    model = GNN(hidden_channels=3).to(DEVICE)
+    model = GNN(hidden_channels=5).to(DEVICE)
     initialize_model(model, DATA_DIR)
 
     print(
@@ -174,3 +175,7 @@ if __name__ == "__main__":
     time_elapsed = (end_time - start_time) / 60
 
     print(f"\nFinal Training Time: {time_elapsed} minutes\n")
+
+
+if __name__ == "__main__":
+    main()

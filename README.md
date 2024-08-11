@@ -3,6 +3,14 @@ When a packet is received (from outside the PE) or a packet is generated (inside
 inside the Processing Element is dependent on this Packet, then the packet is copied to all the dependent
 tasks. Assumption here is that the cache is big enough to store the packet.
 
+### 0. Prerequisites
+#### Setting up the environment 
+```bash 
+python3 -m venv "venv"
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
 
 #### Run all tests using
 ```bash
@@ -47,3 +55,11 @@ Start the training using
 ```bash
 python3 -m training.train name_of_results_save_directory
 ```
+
+
+### 3. Results 
+| ConvLayer | Parameters   | Kendall's Tau | Observation                               |
+| --------- | ------------ | ------------- | ----------------------------------------- |
+| GraphConv | Max Pooling  | 0.85          | Faster training than mean pooling         |
+| GraphConv | Mean Pooling | 0.85          | Train and Valid diverge and slow training |
+

@@ -43,25 +43,15 @@ class MLP(torch.nn.Module):
 
 
 class GNN(torch.nn.Module):
-    def __init__(self, hidden_channels, output_channels=1):
+    def __init__(self, hidden_channels):
         super().__init__()
         self.mpn = MPN(hidden_channels)
-        self.conv1d_layers = nn.ModuleList()
-        num_layers = hidden_channels - 1
-        for i in range(num_layers):
-            self.conv1d_layers.append(
-                nn.Conv1d(in_channels=1, out_channels=1, kernel_size=2)
-            )
+        self.mlp = MLP(hidden_channels)
 
     def forward(self, x, edge_index, batch):
         x = self.mpn(x, edge_index)
-        x = x.unsqueeze(1)  # Add channel dimension for Conv1d
-        for conv in self.conv1d_layers:
-            x = conv(x)
-        x = x.squeeze(1)  # Remove channel dimension after Conv1d
-
-        x = global_mean_pool(x, batch)
-        # x = self.lin(x)
+        x = global_max_pool(x, batch)
+        x = self.mlp(x)
         return x
 
 
@@ -69,11 +59,33 @@ class GNNHetero(torch.nn.Module):
     def __init__(self, hidden_channels, metadata):
         super().__init__()
         mpn = MPN(hidden_channels)
+        self.nodes_type = metadata[0]
+
         self.mpn_hetero = to_hetero(mpn, metadata, aggr="sum")
 
+        self.mlp = nn.ModuleDict()
+        for node_type in self.nodes_type:
+            self.mlp[node_type] = MLP(hidden_channels)
+
+        node_types = len(metadata[0])
+        self.output_mlp = nn.Linear(node_types, 1)
+
     def forward(self, x_dict, edge_index_dict):
-        x = self.mpn_hetero(x_dict, edge_index_dict)
-        return x
+        x_mpn_dict = self.mpn_hetero(x_dict, edge_index_dict)
+
+        x_global_max = {}
+        out_dict = {}
+        out_list = []
+
+        for node_type in self.nodes_type:
+            x_global_max[node_type] = torch.max(x_mpn_dict[node_type], dim=0).values
+            out_dict[node_type] = self.mlp[node_type](x_global_max[node_type])
+            out_list.append(out_dict[node_type])
+
+        out = torch.stack(out_list, dim=0).flatten()
+        out = self.output_mlp(out)
+
+        return out
 
 
 class DirGCNConv(torch.nn.Module):
@@ -167,6 +179,7 @@ if __name__ == "__main__":
     # print(f"\n----Heterogenous GNN----")
     hetero_dataset = CustomDataset("data/training_data", is_hetero=True)
     data = hetero_dataset[IDX]
+    print(f"Metadata is \n{data.metadata()}")
     hetero_gnn_model = GNNHetero(
         hidden_channels=HIDDEN_CHANNELS,
         metadata=data.metadata(),
