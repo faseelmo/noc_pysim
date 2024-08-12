@@ -107,20 +107,19 @@ class CustomDataset(Dataset):
         )
 
         # Creating edge indices
+        require_edge_type = "requires"
+        hetero_data["dependency", require_edge_type, "task"].edge_index = [[], []]
+        hetero_data["task", require_edge_type, "task"].edge_index = [[], []]
+
         for edge in graph.edges(data=True):
             src, dst, _ = edge
             src_type = graph.nodes[src]["type"]
             dst_type = graph.nodes[dst]["type"]
 
-            edge_type = "depends_on"
-
-            if (src_type, edge_type, dst_type) not in hetero_data.edge_types:
-                hetero_data[src_type, edge_type, dst_type].edge_index = [[], []]
-
-            hetero_data[src_type, edge_type, dst_type].edge_index[0].append(
+            hetero_data[src_type, require_edge_type, dst_type].edge_index[0].append(
                 global_to_local_indexing[src_type][src]
             )
-            hetero_data[src_type, edge_type, dst_type].edge_index[1].append(
+            hetero_data[src_type, require_edge_type, dst_type].edge_index[1].append(
                 global_to_local_indexing[dst_type][dst]
             )
 
@@ -150,18 +149,27 @@ def load_data(training_data_dir, is_hetero, batch_size=32, validation_split=0.1)
     dataset = CustomDataset(training_data_dir, is_hetero)
     validation_size = int(validation_split * len(dataset))
 
-    train_dataset, val_dataset = random_split(
-        dataset, [len(dataset) - validation_size, validation_size]
-    )
+    if validation_size == 0:
+        validation_size = 1  # Ensure at least one sample for validation
+
+    train_size = len(dataset) - validation_size
+
+    if train_size <= 0:
+        raise ValueError("Training dataset size is too small after splitting.")
+
+    train_dataset, val_dataset = random_split(dataset, [train_size, validation_size])
+
+    print(f"Training dataset size: {len(train_dataset)}")
+    print(f"Validation dataset size: {len(val_dataset)}")
 
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, drop_last=True
     )
-    val_dataset = DataLoader(
+    val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False, drop_last=True
     )
 
-    return train_loader, val_dataset
+    return train_loader, val_loader
 
 
 if __name__ == "__main__":
