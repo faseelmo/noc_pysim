@@ -57,10 +57,3 @@ python3 -m training.train name_of_results_save_directory
 ```
 
 
-### 3. Results 
-| ConvLayer        | Parameters   | Dataset          | Kendall's Tau | Observation                               |
-| ---------------- | ------------ | ---------------- | ------------- | ----------------------------------------- |
-| GraphConv        | Max Pooling  | upto_5_nodes.zip | 0.85          | Faster training than mean pooling         |
-| GraphConv        | Mean Pooling | upto_5_nodes.zip | 0.85          | Train and Valid diverge and slow training |
-| GraphConv Hetero | Max Pooling  | upto_5_nodes.zip | 0.90          |                                           |
-

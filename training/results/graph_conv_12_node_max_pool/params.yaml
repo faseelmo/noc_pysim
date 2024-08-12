@@ -12,7 +12,7 @@ HIDDEN_CHANNELS     : 5
 # Load pre-trained model
 LOAD_MODEL          : False
 MODEL_PATH          : null
-IS_HETERO           : True
+IS_HETERO           : False
 
 # Data Path
 DATA_DIR            : 'data/training_data'
