@@ -1,24 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import (
-    global_max_pool,
-    SAGEConv,
-    GraphConv,
-    to_hetero,
-    global_mean_pool,
-    Set2Set,
-    HeteroConv,
-)
+from torch_geometric.nn import global_max_pool, SAGEConv, GraphConv, to_hetero, global_mean_pool
 from training.utils import get_norm_adj
 from torch_sparse import SparseTensor
 
 
 class MPN(torch.nn.Module):
-    def __init__(self, hidden_channels):
+    def __init__(self, node_feature_size, hidden_channels):
         super().__init__()
         torch.manual_seed(0)
-        self.conv1 = GraphConv(-1, hidden_channels)
+        self.conv1 = GraphConv(node_feature_size, hidden_channels)
         self.conv2 = GraphConv(hidden_channels, hidden_channels)
         self.conv3 = GraphConv(hidden_channels, hidden_channels)
 
@@ -43,9 +35,9 @@ class MLP(torch.nn.Module):
 
 
 class GNN(torch.nn.Module):
-    def __init__(self, hidden_channels):
+    def __init__(self, node_feature_size, hidden_channels):
         super().__init__()
-        self.mpn = MPN(hidden_channels)
+        self.mpn = MPN(node_feature_size, hidden_channels)
         self.mlp = MLP(hidden_channels)
 
     def forward(self, x, edge_index, batch):
@@ -53,41 +45,6 @@ class GNN(torch.nn.Module):
         x = global_max_pool(x, batch)
         x = self.mlp(x)
         return x
-
-
-class GNNHetero(torch.nn.Module):
-    def __init__(self, hidden_channels, metadata):
-        super().__init__()
-        mpn = MPN(hidden_channels)
-        self.nodes_type = metadata[0]
-
-        self.mpn_hetero = to_hetero(mpn, metadata, aggr="sum")
-
-        self.mlp = nn.ModuleDict()
-        for node_type in self.nodes_type:
-            self.mlp[node_type] = MLP(hidden_channels)
-
-        node_types = len(metadata[0])
-        self.output_mlp = nn.Linear(node_types, 1)
-
-    def forward(self, x_dict, edge_index_dict, batch_dict):
-        x_mpn_dict = self.mpn_hetero(x_dict, edge_index_dict)
-
-        out_list = []
-
-        for node_type in self.nodes_type:
-            x_mpn = x_mpn_dict[node_type]
-            batch = batch_dict[node_type]
-
-            global_max = global_max_pool(x_mpn, batch)
-            mlp_out = self.mlp[node_type](global_max)  # Forward pass through MLP
-
-            out_list.append(mlp_out)
-
-        out_tensor = torch.cat(out_list, dim=1)  # Concatenate the output of MLPs
-        out = self.output_mlp(out_tensor)  # Forward pass through the output MLP
-
-        return out
 
 
 class DirGCNConv(torch.nn.Module):
@@ -162,9 +119,9 @@ class LinearModel(nn.Module):
 
 if __name__ == "__main__":
 
-    from training.dataset import CustomDataset, load_data
+    from training.dataset import CustomDataset
 
-    IDX = 1000
+    IDX = 2
     HIDDEN_CHANNELS = 5
 
     torch.manual_seed(0)
@@ -174,27 +131,20 @@ if __name__ == "__main__":
     data = homogenous_dataset[IDX]
     print(f"Data is \n{data}")
     print(f"Edge index is \n{data.edge_index}")
-    gnn_model = GNN(hidden_channels=HIDDEN_CHANNELS)
+    gnn_model = GNN(node_feature_size=2, hidden_channels=HIDDEN_CHANNELS)
     output = gnn_model(data.x, data.edge_index, data.batch)
     print(f"Output of Homogenous GNN is {output}")
 
-    print(f"\n----Heterogenous GNN----")
-    hetero_dataset = CustomDataset("data/training_data", is_hetero=True)
-    data = hetero_dataset[IDX]
-    hetero_gnn_model = GNNHetero(
-        hidden_channels=HIDDEN_CHANNELS,
-        metadata=data.metadata(),
-    )
-
-    train_loader, _ = load_data(
-        "data/training_data", is_hetero=True, batch_size=2, validation_split=0.1
-    )
-
-    train_data = next(iter(train_loader))
-    output = hetero_gnn_model(
-        train_data.x_dict, train_data.edge_index_dict, train_data.batch_dict
-    )
-
-    assert (
-        output.size()[0] == train_data.batch_size
-    ), f"Batch size is {train_data.batch_size} != output size is {output.size()[0]}"
+    # print(f"\n----Heterogenous GNN----")
+    # hetero_dataset = CustomDataset("data/training_data", is_hetero=True)
+    # data = hetero_dataset[IDX]
+    # node_feature_sizes = data.num_node_features
+    # hetero_gnn_model = GNNHetero(
+    #     hidden_channels=HIDDEN_CHANNELS,
+    #     # metadata=data.metadata(),
+    #     node_feature_sizes=node_feature_sizes,
+    # )
+    # output = hetero_gnn_model(data.x_dict, data.edge_index_dict)
+    # print(f"Model is \n{hetero_gnn_model}")
+    # print(f"Data is \n{data}")
+    # print(f"Output of Hetero GNN is \n{output}")

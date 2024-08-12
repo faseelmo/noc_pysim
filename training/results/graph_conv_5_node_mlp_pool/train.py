@@ -17,9 +17,7 @@ from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description="Train the GCN model")
 parser.add_argument(
-    "name",
-    type=str,
-    help="Name of the experiment/Training. Results will be saved in training/results/<name>",
+    "name", type=str, help="name of the experiment (used for saving the results)"
 )
 args = parser.parse_args()
 
@@ -90,20 +88,12 @@ def test_fn(test_loader, model):
         ground_truth_latency_list.append(data.y.item())
         predicted_latency_list.append(output.item())
 
+    # Calculate Kendall's tau
     tau, _ = kendalltau(ground_truth_latency_list, predicted_latency_list)
     return tau
 
 
-def initialize_model(model, dataset_path):
-    """Necessary since GraphConv is lazily initialized"""
-    from training.dataset import CustomDataset
-
-    dataset = CustomDataset(dataset_path, is_hetero=False)
-    data = dataset[0]
-    model(data.x, data.edge_index, data.batch)
-
-
-def main():
+if __name__ == "__main__":
     EPOCHS = TRAINING_PARAMS["EPOCHS"]
     DATA_DIR = TRAINING_PARAMS["DATA_DIR"]
     BATCH_SIZE = TRAINING_PARAMS["BATCH_SIZE"]
@@ -124,9 +114,7 @@ def main():
     )
 
     torch.manual_seed(0)
-    model = GNN(hidden_channels=5).to(DEVICE)
-    initialize_model(model, DATA_DIR)
-
+    model = GNN(node_feature_size=2, hidden_channels=3).to(DEVICE)
     print(
         f"Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}"
     )
@@ -175,7 +163,3 @@ def main():
     time_elapsed = (end_time - start_time) / 60
 
     print(f"\nFinal Training Time: {time_elapsed} minutes\n")
-
-
-if __name__ == "__main__":
-    main()

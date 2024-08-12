@@ -4,7 +4,7 @@ import torch.optim as optim
 
 from scipy.stats import kendalltau
 
-from training.model import GNN
+from training.model import GNN, GNNHetero
 from training.dataset import load_data
 from training.utils import does_path_exist, copy_file, plot_and_save_loss
 
@@ -48,7 +48,7 @@ def train_fn(train_loader, model, optimizer, loss_fn):
     for batch_idx, data in enumerate(loop):
         data = data.to(DEVICE)
 
-        output = model(data.x, data.edge_index, data.batch).squeeze(1)
+        output = model(data.x_dict, data.edge_index_dict, data.batch_dict).squeeze(1)
         loss = loss_fn(output, data.y)
 
         optimizer.zero_grad()
@@ -67,7 +67,7 @@ def validation_fn(test_loader, model, loss_fn, epoch):
     for data in test_loader:
         data = data.to(DEVICE)
 
-        output = model(data.x, data.edge_index, data.batch).squeeze(1)
+        output = model(data.x_dict, data.edge_index_dict, data.batch_dict).squeeze(1)
         loss = loss_fn(output, data.y)
         mean_loss.append(loss.item())
 
@@ -85,7 +85,7 @@ def test_fn(test_loader, model):
     for data in test_loader:
         data = data.to(DEVICE)
 
-        output = model(data.x, data.edge_index, data.batch).squeeze(1)
+        output = model(data.x_dict, data.edge_index_dict, data.batch_dict).squeeze(1)
 
         ground_truth_latency_list.append(data.y.item())
         predicted_latency_list.append(output.item())
@@ -94,13 +94,19 @@ def test_fn(test_loader, model):
     return tau
 
 
-def initialize_model(model, dataset_path):
+def initialize_model(model, dataloader):
     """Necessary since GraphConv is lazily initialized"""
+    data = next(iter(dataloader))
+    model(data.x_dict, data.edge_index_dict, data.batch_dict)
+
+
+def get_metadata(dataset_path):
     from training.dataset import CustomDataset
 
-    dataset = CustomDataset(dataset_path, is_hetero=False)
+    dataset = CustomDataset(dataset_path, is_hetero=True)
     data = dataset[0]
-    model(data.x, data.edge_index, data.batch)
+
+    return data.metadata()
 
 
 def main():
@@ -113,19 +119,24 @@ def main():
     MODEL_PATH = TRAINING_PARAMS["MODEL_PATH"]
     SAVE_RESULTS = f"training/results/{args.name}"
 
+    IS_HETERO = True
+
     start_time = time.time()
 
     train_loader, valid_loader = load_data(
-        DATA_DIR, is_hetero=False, batch_size=BATCH_SIZE, validation_split=0.1
+        DATA_DIR, is_hetero=IS_HETERO, batch_size=BATCH_SIZE, validation_split=0.1
     )
 
     test_loader, _ = load_data(
-        f"{DATA_DIR}/test", is_hetero=False, batch_size=1, validation_split=0.0
+        f"{DATA_DIR}/test", is_hetero=IS_HETERO, batch_size=1, validation_split=0.0
     )
 
     torch.manual_seed(0)
-    model = GNN(hidden_channels=5).to(DEVICE)
-    initialize_model(model, DATA_DIR)
+
+    metadata = get_metadata(DATA_DIR)
+
+    model = GNNHetero(hidden_channels=5, metadata=metadata).to(DEVICE)
+    initialize_model(model, test_loader)
 
     print(
         f"Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}"
@@ -147,8 +158,10 @@ def main():
     valid_loss_list = []
     train_loss_list = []
     test_metric_list = []
+
     for epoch in range(EPOCHS):
         train_loss = train_fn(train_loader, model, optimizer, loss_fn)
+
         valid_loss = validation_fn(valid_loader, model, loss_fn, epoch)
 
         test_metric = test_fn(test_loader, model)

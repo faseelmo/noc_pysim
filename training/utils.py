@@ -15,13 +15,11 @@ def does_path_exist(model_name):
             exit()
 
 
-def copy_model_to_results(model_name):
+def copy_file(src_path, dest_path):
     import shutil
-    import os
 
-    path = os.path.join("training", "results", model_name)
-    shutil.copy2("training/model.py", path)
-    print(f"model.py copied to {path}")
+    shutil.copy2(src_path, dest_path)
+    print(f"Copied {src_path} to {dest_path}")
 
 
 def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
