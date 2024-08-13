@@ -49,7 +49,7 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
     return computing_list
 
 
-def simulate(computing_list: list, packet_list: list, debug_mode=False, max_cycles=1000):
+def simulate(computing_list: list, packet_list: list, debug_mode=False, max_cycles=1000) -> int:
 
     from src.processing_element import ProcessingElement
     from src.packet import PacketStatus
@@ -73,7 +73,7 @@ def simulate(computing_list: list, packet_list: list, debug_mode=False, max_cycl
     return cycle
 
 
-def get_random_packet_list(graph: nx.DiGraph, shuffle=False):
+def get_random_packet_list(graph: nx.DiGraph, shuffle=False) -> list:
     # > Look into here
 
     from src.processing_element import RequireInfo

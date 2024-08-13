@@ -55,7 +55,7 @@ class ProcessingElement:
         self.dependency_list = self.check_inter_task_dependency()
         self.debug_print(f"Dependency list: {self.dependency_list}")
 
-    def debug_print(self, string: str):
+    def debug_print(self, string: str) -> None: 
         if self.debug_mode:
             print(string)
 
@@ -91,7 +91,7 @@ class ProcessingElement:
 
         return dependency_list
 
-    def update_TaskInfo(self, task_id: int):
+    def update_TaskInfo(self, task_id: int) -> None:
         # - Increment received_packet_count for all the tasks that require the packet
         # - If this behavior is not desired, the function can be modified by returning 
         #   after the first increment.
@@ -107,7 +107,7 @@ class ProcessingElement:
                     require.received_packet_count += 1
                     # return
 
-    def recieve_packets(self, packet: Packet):
+    def recieve_packets(self, packet: Packet) -> None:
         """
         Checks if the packet received is required by the PE
         Updates the packet status and location  
@@ -123,14 +123,14 @@ class ProcessingElement:
             packet.update_location(self)
             self.update_TaskInfo(recieved_packet_task_id)
 
-    def reset_received_packet_task(self, compute_task: TaskInfo):
+    def reset_received_packet_task(self, compute_task: TaskInfo) -> None:
         """
         Resets the current processing cycle to 0
         """
         for require in compute_task.require_list:
             require.received_packet_count = 0
 
-    def can_start_new_processing(self):
+    def can_start_new_processing(self) -> None:
         """
         Checks if all the required packets for a task have been received
             Processing can only start if all required packets (w/ task_id) have been received
@@ -161,13 +161,13 @@ class ProcessingElement:
                 return 
 
 
-    def update_task_status(self, compute_task: TaskInfo):
+    def update_task_status(self, compute_task: TaskInfo) -> None:
         if compute_task.generated_packet_count == compute_task.expected_generated_packets:
             compute_task.status = TaskStatus.PENDING
             self.compute_is_busy = False
 
     
-    def check_generate_for_inter_task_dependency(self, current_task: TaskInfo): 
+    def check_generate_for_inter_task_dependency(self, current_task: TaskInfo) -> None:  
         """
         Check if the generated packets are required by other tasks in the same PE 
         """
@@ -195,7 +195,7 @@ class ProcessingElement:
                         f"packets of type {require.require_type_id}")
                     return 
 
-    def process_compute_task(self, compute_task: TaskInfo):
+    def process_compute_task(self, compute_task: TaskInfo) -> None:
         if compute_task.status is TaskStatus.PROCESSING:
             compute_task.current_processing_cycle += 1  
             if compute_task.current_processing_cycle == compute_task.processing_cycles:
@@ -217,7 +217,7 @@ class ProcessingElement:
                     f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                 )
 
-    def increment_processing_cycle(self):
+    def increment_processing_cycle(self) -> None:
         """
         Checks if multiple tasks are processing at the same time
         Increment the processing cycle for the task (in compute_list) that is processing
@@ -230,7 +230,7 @@ class ProcessingElement:
         for compute_task in self.compute_list:
             self.process_compute_task(compute_task)
 
-    def get_packet_count(self):
+    def get_packet_count(self) -> None:
         for compute_task in self.compute_list:
             for require in compute_task.require_list:
                 self.debug_print(
@@ -238,7 +238,7 @@ class ProcessingElement:
                     f"({require.received_packet_count}/{require.required_packets})"
                 )
 
-    def process(self, packet: Optional[Packet]):
+    def process(self, packet: Optional[Packet]) -> None:
         if packet is not None: 
             self.recieve_packets(packet)
 
@@ -251,7 +251,7 @@ class ProcessingElement:
 
         self.get_packet_count() 
 
-    def check_task_requirements_met(self):
+    def check_task_requirements_met(self) -> bool:
         """
         Checks if all the tasks have generated the expected number of packets
         Also checks if the status of the task is pending. i.e done 
@@ -264,7 +264,7 @@ class ProcessingElement:
                 return False
         return True
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"PE({self.xy})"
 
 if __name__ == "__main__":

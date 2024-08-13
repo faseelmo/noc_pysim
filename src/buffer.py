@@ -6,13 +6,13 @@ class Buffer:
         self.size = size
         self.queue = deque(maxlen=size)
 
-    def add(self, flit):
+    def add(self, flit) -> None:
         if len(self.queue) < self.size:
             self.queue.append(flit)
         else:
             print("Buffer is full")
 
-    def add_packet(self, packet):
+    def add_packet(self, packet) -> None:
         if len(self.queue) + packet.size <= self.size:
             self.queue.append(packet.header_info)
             for i in range(packet.payload_size):
@@ -25,6 +25,7 @@ class Buffer:
             return self.queue.popleft()
         else:
             print("Buffer is empty")
+            return 
 
     def __str__(self):
         return f"Buffer: {self.queue}"

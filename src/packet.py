@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 
 class PacketStatus(Enum):
@@ -23,14 +24,14 @@ class Packet:
         self.flits_transmitted = 0
         self.current_location = None
 
-    def update_location(self, object):
+    def update_location(self, object) -> None:
         """Update the current location of the packet.
         args: object (PE or Router)
         """
         self.current_location = object
         # print(f" ~ updating packet location to {object}")
 
-    def increment_flits(self):
+    def increment_flits(self) -> None:
         """Increment the number of flits transmitted by the packet."""
         if self.status is PacketStatus.IDLE and self.flits_transmitted == 0:
             self.flits_transmitted = 1
@@ -43,7 +44,7 @@ class Packet:
         else:
             return
 
-    def check_transmission_status(self):
+    def check_transmission_status(self) -> tuple[bool, Optional[int]]:
         """Check if the packet has been transmitted completely."""
         if (self.status is PacketStatus.TRANSMITTING) and (
             self.flits_transmitted == self.size
@@ -55,9 +56,7 @@ class Packet:
         else:
             return False, None
 
-    
-
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"Packet: {self.source_task_id} "
             # f"from {self.current_location},"

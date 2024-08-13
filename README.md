@@ -6,6 +6,7 @@ tasks. Assumption here is that the cache is big enough to store the packet.
 ### 0. Prerequisites
 #### Setting up the environment 
 ```bash 
+unset PYTHONPATH  # to avoid conflits with system Python packages
 python3 -m venv "venv"
 source venv/bin/activate
 pip install -r requirements.txt
@@ -21,11 +22,12 @@ python3 -m pytest tests
 #### Automated Approach
 To create random graphs, to run those graphs through a simulator and to split training and test dataset
 ```bash
-source data/create_training_data.sh
+./data/create_training_data.sh GEN_COUNT NUM_NODES
 ```
-> Note: Max number of nodes of the generated graph can be changed in the bash script above
+> *GEN_COUNT* is the total number of graphs that'll be generated.  
+> *NUM_NODES* is the max number of node that'll be possible for the generated graphs. 
 
-Alternatively, the above data generation pipeline can also be done individually
+Alternatively, the above data generation pipeline can also be executed individually as follows 
 ##### &emsp;1. Generating Graphs
 ```bash
 python3 -m data.create_graph_tasks --help # To see the arg list
@@ -53,7 +55,8 @@ python3 -m data.histogram_data # To see the frequency of number
 Parameters for training can be modified in training/params.yaml
 Start the training using
 ```bash
-python3 -m training.train name_of_results_save_directory
+python3 -m training.train directory_name
 ```
+> Note: Results will be saved in training/results/directory_name 
 
 
