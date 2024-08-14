@@ -14,7 +14,7 @@ from typing import Optional
 
 
 @dataclass
-class TASKDependency:
+class TaskDependency:
     require_id: int     # Task id of the task that requires the packets
     generate_id: int    # Task id of the task that generates the packets
 
@@ -70,7 +70,7 @@ class ProcessingElement:
         return packet_type_list
 
 
-    def check_inter_task_dependency(self) -> list[TASKDependency]:
+    def check_inter_task_dependency(self) -> list[TaskDependency]:
         """
         Checking if any of the tasks require packets from the same PE
         """
@@ -83,7 +83,7 @@ class ProcessingElement:
             for require in compute_task.require_list:
                 # check if the required packet type is in the task list
                 if require.require_type_id in task_list:
-                    task_depend = TASKDependency(
+                    task_depend = TaskDependency(
                         generate_id=require.require_type_id,    # task that generates the packets
                         require_id=compute_task.task_id         # task that requires the packets
                     )
@@ -196,21 +196,33 @@ class ProcessingElement:
                     return 
 
     def process_compute_task(self, compute_task: TaskInfo) -> None:
+        """
+        Tasks generate packets here
+        To do: There should be a way to check if the packets generated 
+        by the processing element will be sent outside. 
+        """
         if compute_task.status is TaskStatus.PROCESSING:
             compute_task.current_processing_cycle += 1  
+
             if compute_task.current_processing_cycle == compute_task.processing_cycles:
+
                 self.debug_print(
                     f"Task {compute_task.task_id} is done processing "
                     f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                 )
+
                 compute_task.generated_packet_count += 1  
                 compute_task.current_processing_cycle = 0 
+
                 self.update_task_status(compute_task)
+
                 self.debug_print(
                     f" -> Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
                     f"packets in task {compute_task.task_id}"
                 )
-                self.check_generate_for_inter_task_dependency(compute_task) # there's an issue here
+
+                self.check_generate_for_inter_task_dependency(compute_task) 
+
             else :
                 self.debug_print(
                     f"Task {compute_task.task_id} is processing at cycle "
@@ -231,10 +243,12 @@ class ProcessingElement:
             self.process_compute_task(compute_task)
 
     def get_packet_count(self) -> None:
+        print(f"Require List:")
         for compute_task in self.compute_list:
+            print(f" - Task {compute_task.task_id}")
             for require in compute_task.require_list:
                 self.debug_print(
-                    f" - Task {compute_task.task_id} type {require.require_type_id} packets "
+                    f"   • type {require.require_type_id} "
                     f"({require.received_packet_count}/{require.required_packets})"
                 )
 
@@ -302,7 +316,10 @@ if __name__ == "__main__":
             send the packets to the Network Interface
     """
 
-    # The Task 
+    from .packet import PacketStatus
+    import copy 
+
+    # Graph in Thesis Notes Pg. 13
     task_1 = TaskInfo(
         task_id=1, 
         processing_cycles=5, 
@@ -328,13 +345,9 @@ if __name__ == "__main__":
     )
     computing_list = [task_1, task_3]
 
-    # The Processing Element
-    pe_1 = ProcessingElement((0, 0), computing_list)
+    pe_1 = ProcessingElement((0, 0), computing_list, debug_mode=True)
 
     # The Packet (src and dest does not matter for now)
-    from .packet import PacketStatus
-    import copy 
-
     packet_0 = Packet(
         source_xy=(0, 0),
         dest_xy=(1, 1),
@@ -355,7 +368,6 @@ if __name__ == "__main__":
     current_packet = packet_list.pop(0)  
 
     max_cycle = 50
-
 
     for cycle in range(max_cycle):
         print(f"\n> {cycle}")

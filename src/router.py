@@ -20,6 +20,8 @@ class Router:
         self.east_input_buffer = Buffer(buffer_size)
         self.south_input_buffer = Buffer(buffer_size)
 
+    # def process()
+
     def do_routing(self):
         pass
 
