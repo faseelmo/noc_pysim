@@ -1,6 +1,8 @@
 import networkx as nx
 import random
 
+from src.packet import PacketStatus, Packet
+from src.processing_element import TaskInfo
 
 def graph_to_task_list(graph: nx.DiGraph) -> list:
     """
@@ -22,7 +24,9 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
     computing_list = []
     # Creating computing list
     for node in graph.nodes:
+
         if graph.nodes[node]["type"] == "task":
+
             task = TaskInfo(
                 task_id=node,
                 processing_cycles=graph.nodes[node]["processing_time"],
@@ -36,9 +40,11 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
 
         if graph.nodes[node]["type"] == "task":
             predecessors = list(graph.predecessors(node))
+
             for predecessor in predecessors:
                 # print(f"Node {node} has predecessor {predecessor}")
                 for task in computing_list:
+
                     if task.task_id == node:
                         require = RequireInfo(
                             require_type_id=predecessor,
@@ -50,7 +56,10 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
 
 
 def simulate(
-    computing_list: list, packet_list: list, debug_mode=False, max_cycles=1000
+    computing_list: list[TaskInfo], 
+    packet_list: list[Packet], 
+    debug_mode=False, 
+    max_cycles=1000
 ) -> int:
     """
     Simulation of the processing element
@@ -67,28 +76,41 @@ def simulate(
         - Packets initially are in the `IDLE` state. During transmission, 
           Packet status is changed to `TRANSMITTING` and once the packet
           is fully transmitted, the status is changed back to `IDLE`. 
+
+        - `computing_list` is updated with start_cycle and end_cycle. 
          
     """
 
     from src.processing_element import ProcessingElement
-    from src.packet import PacketStatus
 
     pe = ProcessingElement((0, 0), computing_list, debug_mode=debug_mode)
     current_packet = packet_list.pop(0)
 
     for cycle in range(max_cycles):
+
         if debug_mode:
             print(f"\n> {cycle}")
-        pe.process(current_packet)
-        if current_packet is not None and current_packet.status is PacketStatus.IDLE:
-            if len(packet_list) > 0:
-                current_packet = packet_list.pop(0)
-            else:
-                current_packet = None
-        if pe.check_task_requirements_met():
+
+        is_done_processing = pe.process(current_packet)
+
+        current_packet = update_current_packet(current_packet, packet_list)
+
+        if is_done_processing:
             break
 
     return cycle
+
+
+def update_current_packet(current_packet: Packet, packet_list: list[Packet]) -> Packet:
+    """
+    Updates the current packet if it is idle and there are packets in the packet list.
+    """
+    if current_packet is not None and current_packet.status is PacketStatus.IDLE:
+        if len(packet_list) > 0:
+            current_packet = packet_list.pop(0)
+        else:
+            current_packet = None
+    return current_packet
 
 
 def get_random_packet_list(graph: nx.DiGraph, shuffle=False) -> list:
@@ -103,6 +125,7 @@ def get_random_packet_list(graph: nx.DiGraph, shuffle=False) -> list:
     for node in graph.nodes:
         predecessors = list(graph.predecessors(node))
         successors = list(graph.successors(node))
+
         if len(predecessors) == 0:
             # for dependency nodes
             successor_require = []

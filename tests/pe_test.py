@@ -36,7 +36,7 @@ def simulate(computing_list: list, packet_list: list):
             else:
                 current_packet = None
         print(f"POST: {pe}\t{pe_status_string(pe.compute_is_busy)}")
-        if pe.check_task_requirements_met():
+        if pe._check_task_requirements_met():
             break
 
     return cycle

@@ -2,10 +2,11 @@ import copy
 import random
 import networkx as nx
 
-from src.processing_element import ProcessingElement
-from src.packet import PacketStatus, Packet
-from src.utils import graph_to_task_list, get_random_packet_list
+from src.packet import Packet
+from src.utils import graph_to_task_list, get_random_packet_list, simulate
+
 from data.utils import load_graph_from_json 
+
 
 MAX_CYCLES = 1000
 
@@ -25,26 +26,6 @@ def check_if_pe_is_done(packet_list, pe):
 def create_packet_copies(num_copies, packet_source):
     packet = Packet(source_xy=(0, 0), dest_xy=(1, 1), source_task_id=packet_source)
     return [copy.deepcopy(packet) for _ in range(num_copies)]
-
-
-def simulate(computing_list: list, packet_list: list, debug_mode=False):
-
-    pe = ProcessingElement((0, 0), computing_list, debug_mode=debug_mode)
-    current_packet = packet_list.pop(0)
-
-    for cycle in range(MAX_CYCLES):
-        print(f"\n> {cycle}")
-        pe.process(current_packet)
-        if not current_packet is None and current_packet.status is PacketStatus.IDLE:
-            if len(packet_list) > 0:
-                current_packet = packet_list.pop(0)
-            else:
-                current_packet = None
-        print(f"POST: {pe}\t{pe_status_string(pe.compute_is_busy)}")
-        if pe.check_task_requirements_met():
-            break
-
-    return cycle
 
 
 def connect_dependecy_node(graph, task_id, dependency_id, require):

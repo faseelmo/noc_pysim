@@ -20,13 +20,14 @@ def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycle
     for packet in packet_list:
         packet_list_copy.append(packet.source_task_id)
 
-
     if debug_mode:
         print(*packet_list)
+
     latency = simulate(
         computing_list, packet_list, debug_mode=debug_mode, max_cycles=max_cycles
     )
-    return latency, packet_list_copy
+
+    return latency, packet_list_copy, computing_list
 
 
 if __name__ == "__main__":
@@ -60,12 +61,18 @@ if __name__ == "__main__":
         # graph_path = "data/training_data/input/task_graph_0.json"
         graph_path = "data/test_task_graph.json"
         graph = load_graph_from_json(graph_path)
+
         visualize_graph(graph)
-        latency, packet_list = simlate_latency_from_graph(
+
+        latency, packet_list, computing_list = simlate_latency_from_graph(
             graph, debug_mode=True, max_cycles=args.max_cycle
         )
+
         print(f"\nLatency of the test graph in {graph_path} is {latency}")
         print(f"Packet list: {packet_list}")
+        
+        for task in computing_list:
+            print(f"Task {task.task_id} starts at {task.start_cycle} and ends at {task.end_cycle}")
 
     if args.sim:
 
@@ -82,8 +89,9 @@ if __name__ == "__main__":
         for file in list_of_files:
 
             graph = load_graph_from_json(f"{INPUT_DATA_DIR}/{file}")
-            latency, packet_list = simlate_latency_from_graph(
-                graph, debug_mode=False, max_cycles=1000
+
+            latency, packet_list, computing_list = simlate_latency_from_graph(
+                graph, debug_mode=False, max_cycles=args.max_cycle
             )
 
             assert (
