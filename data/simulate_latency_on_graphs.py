@@ -8,8 +8,12 @@ from src.utils import simulate
 from src.utils import graph_to_task_list
 from src.utils import get_random_packet_list
 
-from data.utils import load_graph_from_json, visualize_graph, does_path_contains_files
-
+from data.utils import (
+    load_graph_from_json, 
+    visualize_graph, 
+    does_path_contains_files, 
+    compute_list_to_node_dict
+)
 
 def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycles: int):
     random.seed(0)
@@ -62,17 +66,20 @@ if __name__ == "__main__":
         graph_path = "data/test_task_graph.json"
         graph = load_graph_from_json(graph_path)
 
-        visualize_graph(graph)
 
         latency, packet_list, computing_list = simlate_latency_from_graph(
             graph, debug_mode=True, max_cycles=args.max_cycle
         )
 
-        print(f"\nLatency of the test graph in {graph_path} is {latency}")
-        print(f"Packet list: {packet_list}")
-        
+        visualize_graph(graph, compute_list=computing_list, packet_list=packet_list)
+
+        print(f"\nPacket list: {packet_list}")
+
         for task in computing_list:
             print(f"Task {task.task_id} starts at {task.start_cycle} and ends at {task.end_cycle}")
+
+        print(f"\nLatency of the test graph in {graph_path} is {latency}")
+        
 
     if args.sim:
 
@@ -98,7 +105,10 @@ if __name__ == "__main__":
                 latency != 999 or latency != 0
             ), f"Graph task {file} is not schedulable. Latency is {latency}"
 
+            node_time_info = compute_list_to_node_dict(computing_list)
             latency_json = {"latency": latency}
+            latency_json.update(node_time_info)
+
             packet_list_json = json.dumps(packet_list)
 
             with open(f"{TARGET_DATA_DIR}/{file}", "w") as f:

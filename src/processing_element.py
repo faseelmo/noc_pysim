@@ -38,6 +38,7 @@ class TaskInfo:
     start_cycle: int = None
     end_cycle: int = None
 
+
 class ProcessingElement:
     def __init__(
             self, 
@@ -265,6 +266,20 @@ class ProcessingElement:
                     f"({require.received_packet_count}/{require.required_packets})"
                 )
 
+    def _check_task_requirements_met(self) -> bool:
+        """
+        Checks if all the tasks have generated the expected number of packets
+        Also checks if the status of the task is done 
+        This is useful in the simulate function to get the total cycle count required
+        """
+
+        for compute_task in self.compute_list:
+            if (compute_task.expected_generated_packets != compute_task.generated_packet_count or
+                compute_task.status is not TaskStatus.DONE):
+                return False
+        
+        return True
+
     def process(self, packet: Optional[Packet]) -> bool:
 
         self._increment_processing_cycle()
@@ -283,20 +298,6 @@ class ProcessingElement:
 
         if self._check_task_requirements_met(): # stops the simulation now 
             return True
-
-    def _check_task_requirements_met(self) -> bool:
-        """
-        Checks if all the tasks have generated the expected number of packets
-        Also checks if the status of the task is done 
-        This is useful in the simulate function to get the total cycle count required
-        """
-
-        for compute_task in self.compute_list:
-            if (compute_task.expected_generated_packets != compute_task.generated_packet_count or
-                compute_task.status is not TaskStatus.DONE):
-                return False
-        
-        return True
 
     def __repr__(self) -> str:
         return f"PE({self.xy})"
@@ -326,7 +327,6 @@ if __name__ == "__main__":
             > If the other task gets all the required packets 
             before the first 
             > task is done processing, wait for the first task to finish processing
-    
             
     Generate Conditions 
     1. Check 

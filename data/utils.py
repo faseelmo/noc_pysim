@@ -13,8 +13,39 @@ def load_graph_from_json(filename: str):
         data = json.load(file)
     return nx.node_link_graph(data)
 
+def compute_list_to_node_dict(compute_list):
+    """
+    Converts compute list to a dictionary with task_id as key
+    and start and end cycle as value
+    """
+    node_dict = {}
+    for task in compute_list:
+        node_dict[task.task_id] = {
+            "start_cycle": task.start_cycle,
+            "end_cycle": task.end_cycle
+        }
+    return node_dict
 
-def visualize_graph(graph: nx.DiGraph, latency_value=None, packet_list=None):
+
+def get_compute_list_from_json(filename: str):
+    """
+    Converts the node cycle information from the json file to a dictionary
+    used in inspect_data.py
+    """
+    json_dict = json.load(open(filename))
+
+    compute_list = {}
+    for key in json_dict:
+        if key == "latency":
+            continue
+        else: 
+            compute_list[int(key)] = json_dict[key] 
+
+    return compute_list
+
+
+
+def visualize_graph(graph: nx.DiGraph, latency_value=None, packet_list=None, compute_list=None):
     import matplotlib.pyplot as plt
     import networkx as nx
 
@@ -25,6 +56,7 @@ def visualize_graph(graph: nx.DiGraph, latency_value=None, packet_list=None):
     ]
 
     pos = nx.spring_layout(graph)
+    # color_light_gray = 
     nx.draw(
         graph,
         pos,
@@ -32,7 +64,14 @@ def visualize_graph(graph: nx.DiGraph, latency_value=None, packet_list=None):
         node_size=900,
         node_color=node_colors,
         arrows=True,
+        edge_color="lightgray",
     )
+
+    if not isinstance(compute_list, dict): 
+        # From inspect_data.py the compute list is a dictionary retrieved from the json file
+        node_cycle_dict = compute_list_to_node_dict(compute_list)
+    else: 
+        node_cycle_dict = compute_list
 
     custom_labels = {}
     for node in graph.nodes:
@@ -41,6 +80,8 @@ def visualize_graph(graph: nx.DiGraph, latency_value=None, packet_list=None):
             label_parts.append(f"P: {graph.nodes[node]['processing_time']}")
         if "generate" in graph.nodes[node]:
             label_parts.append(f"G: {graph.nodes[node]['generate']}")
+        if node in node_cycle_dict:
+            label_parts.append(f"({node_cycle_dict[node]['start_cycle']}-{node_cycle_dict[node]['end_cycle']})")
         custom_labels[node] = "\n".join(label_parts)
 
     nx.draw_networkx_labels(graph, pos, labels=custom_labels)

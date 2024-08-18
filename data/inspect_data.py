@@ -4,7 +4,7 @@ import argparse
 
 from natsort import natsorted
 
-from data.utils import load_graph_from_json, visualize_graph
+from data.utils import load_graph_from_json, visualize_graph, get_compute_list_from_json
 
 
 if __name__ == "__main__":
@@ -29,6 +29,11 @@ if __name__ == "__main__":
 
     for input_idx, target_idx, packet_list_idx in zip(input_files, target_files, packet_list_files):
         graph = load_graph_from_json(os.path.join(input_path, input_idx))
-        latency = json.load(open(os.path.join(target_path, target_idx)))["latency"]
+        
+        json_data = json.load(open(os.path.join(target_path, target_idx)))
+
+        latency = json_data["latency"]
+        compute_list = get_compute_list_from_json(os.path.join(target_path, target_idx))
+
         packet_list = json.load(open(os.path.join(packet_list_path, packet_list_idx)))
-        visualize_graph(graph, latency, packet_list)
+        visualize_graph(graph, latency, packet_list, compute_list)
