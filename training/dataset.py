@@ -28,8 +28,8 @@ class CustomDataset(Dataset):
         self.max_cycle              = training_parameters["MAX_CYCLE"]
 
         assert len(self.input_files) == len(
-            self.output_files
-        ), f"Number of input files and output files must be the same. {len(self.input_files)} != {len(self.output_files)}"
+            self.output_files), f"Number of input files and output files must be the same. "
+        f"{len(self.input_files)} != {len(self.output_files)}"
 
     def __len__(self):
         return len(self.input_files)
@@ -93,8 +93,7 @@ class CustomDataset(Dataset):
                 generate = node_data["generate"] / self.max_generate
 
                 processing_time = (
-                    node_data["processing_time"] / self.max_processing_time
-                )
+                    node_data["processing_time"] / self.max_processing_time)
 
                 task_target_feature = target_data[str(node_idx)]
                 target_start_cycle  = task_target_feature["start_cycle"] / self.max_cycle
@@ -108,8 +107,7 @@ class CustomDataset(Dataset):
                 dependency_input_feature.append([generate])
 
             global_to_local_indexing[node_type][node_idx] = len(
-                global_to_local_indexing[node_type]
-            )
+                global_to_local_indexing[node_type])
 
         # Converting list of features to tensor
         hetero_data["task"].x       = torch.tensor(task_input_feature, dtype=torch.float)
@@ -160,7 +158,8 @@ def load_data(training_data_dir, is_hetero, batch_size=32, validation_split=0.1)
     validation_size = int(validation_split * len(dataset))
 
     if validation_size == 0:
-        validation_size = 1  # Ensure at least one sample for validation
+        # Ensure at least one sample for validation
+        validation_size = 1  
 
     train_size = len(dataset) - validation_size
 
@@ -188,29 +187,30 @@ if __name__ == "__main__":
     from data.utils import (
         visualize_graph, 
         load_graph_from_json, 
-        get_compute_list_from_json
-    )
+        get_compute_list_from_json)
 
-    if len(sys.argv) > 1:
-        DATA_INDEX = int(sys.argv[1])
-    else: 
-        DATA_INDEX = 2
+    if len(sys.argv) > 1:   DATA_INDEX = int(sys.argv[1])
+    else:                   DATA_INDEX = 2
 
     DATASET_DIR = "data/training_data"
 
     print(f"\n\n----------------------Homogenous Graph----------------------")
+
     is_hetero           = False
     homogenous_dataset  = CustomDataset(DATASET_DIR, is_hetero=False)
     data                = homogenous_dataset[DATA_INDEX]
+
     print(f"Data is {data}")
     print(f"Feature matrix \n{data.x}\n")
     print(f"\nedge_index \n{data.edge_index}\n")
     print(f"edge_attr \n{data.edge_attr}\n")
 
     print(f"\n\n----------------------Heterogenous Graph----------------------")
+
     is_hetero               = True
     heterogenous_dataset    = CustomDataset(DATASET_DIR, is_hetero=True)
     hetero_data             = heterogenous_dataset[DATA_INDEX]
+
     print(f"\nHeteroData is {hetero_data}")
     print(f"\nOutput feature matrix \n{hetero_data['task'].y}")
     print(f"Latency is {hetero_data.y}")
@@ -220,25 +220,35 @@ if __name__ == "__main__":
 
     for node_type in hetero_data.node_types:
         print(
-            f"Node type {node_type} has feature matrix \n{hetero_data[node_type].x}\n"
-        )
+            f"Node type {node_type} has feature "
+            f"matrix \n{hetero_data[node_type].x}\n")
+
     for edge_type in hetero_data.edge_types:
         print(
-            f"Edge type {edge_type} has edge index \n{hetero_data[edge_type].edge_index}\n"
-        )
+            f"Edge type {edge_type} has edge index "
+            "\n{hetero_data[edge_type].edge_index}\n")
 
     # Visualize the graph
-    graph_visu      = load_graph_from_json(f"{DATASET_DIR}/input/task_graph_{DATA_INDEX}.json")
-    json_data       = json.load(open(f"{DATASET_DIR}/target/task_graph_{DATA_INDEX}.json"))
-    compute_list    = get_compute_list_from_json(f"{DATASET_DIR}/target/task_graph_{DATA_INDEX}.json")
+    graph_name      = f"task_graph_{DATA_INDEX}.json"
+    graph_visu      = load_graph_from_json(f"{DATASET_DIR}/input/{graph_name}")
+    json_data       = json.load(open(f"{DATASET_DIR}/target/{graph_name}"))
+    compute_list    = get_compute_list_from_json(f"{DATASET_DIR}/target/{graph_name}")
 
     visualize_graph(graph_visu, compute_list=compute_list)
-
     # exit()
+
     print(f"\n\n----------------------DataLoader Test----------------------")
-    homo_train_loader, val_loader = load_data(
-        DATASET_DIR, is_hetero=False, batch_size=32
-    )
+
+    homo_train_loader, val_loader           = load_data(
+                                                DATASET_DIR, 
+                                                is_hetero=False, 
+                                                batch_size=32)
+
+    hetero_train_loader, hetero_val_loader  = load_data(
+                                                DATASET_DIR, 
+                                                is_hetero=True, 
+                                                batch_size=32)
+
     print(f"\n For homogenous graph")
     print(f"\nData loader information")
     print(f"Number of training batches: {len(homo_train_loader)}")
@@ -246,14 +256,10 @@ if __name__ == "__main__":
     print(f"Training samples {len(homo_train_loader) * homo_train_loader.batch_size}")
     print(f"Number of validation batches: {len(val_loader)}")
 
-    hetero_train_loader, hetero_val_loader = load_data(
-        DATASET_DIR, is_hetero=True, batch_size=32
-    )
+
     print(f"\n For homogenous graph")
     print(f"\nData loader information")
     print(f"Number of training batches: {len(hetero_train_loader)}")
     print(f"Batch size: {hetero_train_loader.batch_size}")
-    print(
-        f"Training samples {len(hetero_train_loader) * hetero_train_loader.batch_size}"
-    )
+    print(f"Training samples {len(hetero_train_loader) * hetero_train_loader.batch_size}")
     print(f"Number of validation batches: {len(hetero_val_loader )}")

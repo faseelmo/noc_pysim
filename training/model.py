@@ -15,12 +15,16 @@ from torch_sparse import SparseTensor
 
 
 class MPN(torch.nn.Module):
-    def __init__(self, hidden_channels):
+    def __init__(self, hidden_channels, output_channels=None):
         super().__init__()
         torch.manual_seed(0)
+
+        if output_channels is None:
+            output_channels = hidden_channels
+
         self.conv1 = GraphConv(-1, hidden_channels)
         self.conv2 = GraphConv(hidden_channels, hidden_channels)
-        self.conv3 = GraphConv(hidden_channels, hidden_channels)
+        self.conv3 = GraphConv(hidden_channels, output_channels)
 
     def forward(self, x, edge_index):
         x = self.conv1(x, edge_index).relu()
@@ -33,6 +37,7 @@ class MLP(torch.nn.Module):
     def __init__(self, input_channels, output_channels=1):
         super().__init__()
         torch.manual_seed(0)
+
         self.lin1 = torch.nn.Linear(input_channels, 5)
         self.lin2 = torch.nn.Linear(5, output_channels)
 
@@ -45,13 +50,15 @@ class MLP(torch.nn.Module):
 class GNN(torch.nn.Module):
     def __init__(self, hidden_channels):
         super().__init__()
+        torch.manual_seed(0)
+
         self.mpn = MPN(hidden_channels)
         self.mlp = MLP(hidden_channels)
 
     def forward(self, data):
-        x = data.x
-        edge_index = data.edge_index
-        batch = data.batch
+        x           = data.x
+        edge_index  = data.edge_index
+        batch       = data.batch
 
         x = self.mpn(x, edge_index)
         x = global_max_pool(x, batch)
@@ -60,28 +67,28 @@ class GNN(torch.nn.Module):
         return x
 
 
-class GNNHetero(torch.nn.Module):
+class GNNHeteroPooling(torch.nn.Module):
     def __init__(self, hidden_channels, metadata):
         super().__init__()
-        mpn = MPN(hidden_channels)
-        self.nodes_type = metadata[0]
 
+        mpn             = MPN(hidden_channels)
         self.mpn_hetero = to_hetero(mpn, metadata, aggr="sum")
 
-        self.mlp = nn.ModuleDict()
+        self.nodes_type = metadata[0]
+        self.mlp        = nn.ModuleDict()
+
         for node_type in self.nodes_type:
             self.mlp[node_type] = MLP(hidden_channels)
 
-        node_types = len(metadata[0])
+        node_types      = len(metadata[0])
         self.output_mlp = nn.Linear(node_types, 1)
 
     def forward(self, data):
 
-        x_dict = data.x_dict
+        x_dict          = data.x_dict
         edge_index_dict = data.edge_index_dict
-        batch_dict = data.batch_dict
-
-        x_mpn_dict = self.mpn_hetero(x_dict, edge_index_dict)
+        batch_dict      = data.batch_dict
+        x_mpn_dict      = self.mpn_hetero(x_dict, edge_index_dict)
 
         out_list = []
 
@@ -89,16 +96,32 @@ class GNNHetero(torch.nn.Module):
             x_mpn = x_mpn_dict[node_type]
             batch = batch_dict[node_type]
 
-            global_max = global_max_pool(x_mpn, batch)
-            mlp_out = self.mlp[node_type](global_max)  # Forward pass through MLP
+            global_max  = global_max_pool(x_mpn, batch)
+            mlp_out     = self.mlp[node_type](global_max)  # Forward pass through MLP
 
             out_list.append(mlp_out)
 
-        out_tensor = torch.cat(out_list, dim=1)  # Concatenate the output of MLPs
-        out = self.output_mlp(out_tensor)  # Forward pass through the output MLP
+        out_tensor  = torch.cat(out_list, dim=1)  # Concatenate the output of MLPs
+        out         = self.output_mlp(out_tensor)  # Forward pass through the output MLP
 
         return out
 
+class GNNHetero(torch.nn.Module):
+    def __init__(self, hidden_channels, metadata):
+        super().__init__()
+
+        num_output_features     = 2
+        mpn                     = MPN(hidden_channels, num_output_features)
+        self.mpn_hetero         = to_hetero(mpn, metadata, aggr="sum")
+
+
+    def forward(self, data):
+        x_dict          = data.x_dict
+        edge_index_dict = data.edge_index_dict
+
+        out_dict = self.mpn_hetero(x_dict, edge_index_dict)
+
+        return out_dict['task']
 
 class DirGCNConv(torch.nn.Module):
     def __init__(self, input_dim, output_dim, alpha):
@@ -174,35 +197,57 @@ if __name__ == "__main__":
 
     from training.dataset import CustomDataset, load_data
 
-    IDX = 1000
+    IDX             = 1000
+    BATCH_SIZE      = 1
     HIDDEN_CHANNELS = 5
 
     torch.manual_seed(0)
 
     print(f"\n----Homogenous GNN----")
-    homogenous_dataset = CustomDataset("data/training_data", is_hetero=False)
-    data = homogenous_dataset[IDX]
+
+    homogenous_dataset  = CustomDataset("data/training_data", is_hetero=False)
+    data                = homogenous_dataset[IDX]
+
     print(f"Data is \n{data}")
     print(f"Edge index is \n{data.edge_index}")
-    gnn_model = GNN(hidden_channels=HIDDEN_CHANNELS)
-    output = gnn_model(data)
-    print(f"Output of Homogenous GNN is {output}")
 
-    print(f"\n----Heterogenous GNN----")
-    hetero_dataset = CustomDataset("data/training_data", is_hetero=True)
-    data = hetero_dataset[IDX]
-    hetero_gnn_model = GNNHetero(
-        hidden_channels=HIDDEN_CHANNELS,
-        metadata=data.metadata(),
-    )
+    gnn_model   = GNN(hidden_channels=HIDDEN_CHANNELS)
+    output      = gnn_model(data)
 
-    train_loader, _ = load_data(
-        "data/training_data", is_hetero=True, batch_size=2, validation_split=0.1
-    )
+    print(f"Output {output}")
 
-    train_data = next(iter(train_loader))
-    output = hetero_gnn_model(train_data)
+    print(f"\n----Heterogenous Pooling GNN----")
+
+    hetero_pooling_dataset      = CustomDataset("data/training_data", is_hetero=True)
+    data                        = hetero_pooling_dataset[IDX]
+
+    hetero_gnn_pooling_model    = GNNHeteroPooling(
+                                    hidden_channels=HIDDEN_CHANNELS,
+                                    metadata=data.metadata())
+
+    train_loader, _             = load_data(
+                                    "data/training_data", 
+                                    is_hetero=True, 
+                                    batch_size=BATCH_SIZE, 
+                                    validation_split=0.1)
+
+    input_data                  = next(iter(train_loader))
+    output                      = hetero_gnn_pooling_model(input_data)
+
+    print(f"Input data is \n{input_data}")
 
     assert (
-        output.size()[0] == train_data.batch_size
-    ), f"Batch size is {train_data.batch_size} != output size is {output.size()[0]}"
+        output.size()[0] == input_data.batch_size
+    ), f"Batch size is {input_data.batch_size} != output size is {output.size()[0]}"
+
+    print(f"\n----Heterogenous GNN----")
+
+    hetero_gnn_model    = GNNHetero(
+                            hidden_channels=HIDDEN_CHANNELS, 
+                            metadata=data.metadata())
+
+    output              = hetero_gnn_model(input_data)
+
+    print(f"Output is {output} of shape {output.shape}")
+
+    

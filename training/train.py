@@ -11,7 +11,7 @@ import torch.optim as optim
 
 from scipy.stats import kendalltau
 
-from training.model import GNN, GNNHetero
+from training.model import GNN, GNNHetero, GNNHeteroPooling
 from training.dataset import load_data
 from training.utils import does_path_exist, copy_file, plot_and_save_loss
 
@@ -139,7 +139,7 @@ def main():
     if IS_HETERO:
         print(f"\n----Heterogenous GNN----")
         metadata = get_metadata(DATA_DIR)
-        model = GNNHetero(hidden_channels=HIDDEN_CHANNELS, metadata=metadata).to(DEVICE)
+        model = GNNHeteroPooling(hidden_channels=HIDDEN_CHANNELS, metadata=metadata).to(DEVICE)
 
     elif not IS_HETERO:
         print(f"\n----Homogenous GNN----")
