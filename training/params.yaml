@@ -4,6 +4,7 @@ MAX_PROCESSING_TIME : 10
 MAX_CYCLE           : 100
 
 # Hyperparameters 
+LEARNING_RATE       : 0.01
 EPOCHS              : 10000 
 WEIGHT_DECAY        : 0
 BATCH_SIZE          : 10

@@ -22,6 +22,17 @@ def copy_file(src_path, dest_path):
     print(f"Copied {src_path} to {dest_path}")
 
 
+def print_parameter_count(model):
+    num_params = sum(
+        p.numel() 
+        for p in model.parameters() 
+        if p.requires_grad
+    )
+    print(f"Number of parameters: {num_params}")
+
+
+
+
 def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
     import matplotlib.pyplot as plt
     import pickle
