@@ -14,7 +14,6 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-
 #### Run all tests using
 ```bash
 python3 -m pytest tests

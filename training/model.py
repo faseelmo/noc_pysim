@@ -1,35 +1,45 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch_geometric.nn import (
-    global_max_pool,
-    SAGEConv,
-    GraphConv,
-    to_hetero,
-    global_mean_pool,
-    Set2Set,
-    HeteroConv,
-)
-from training.utils import get_norm_adj
-from torch_sparse import SparseTensor
+import torch.nn             as nn
+import torch.nn.functional  as F
+
+from torch_sparse           import SparseTensor
+from torch_geometric.nn     import (
+                                global_max_pool,
+                                SAGEConv,
+                                GraphConv,
+                                to_hetero,
+                                global_mean_pool,
+                                Set2Set,
+                                HeteroConv)
+
+from training.utils         import get_norm_adj
 
 
 class MPN(torch.nn.Module):
-    def __init__(self, hidden_channels, output_channels=None):
+    def __init__(self, hidden_channels, output_channels=None, num_conv_layers=3):
         super().__init__()
         torch.manual_seed(0)
+
+        assert num_conv_layers >= 2, "Number of convolution layers should be at least 2."
 
         if output_channels is None:
             output_channels = hidden_channels
 
-        self.conv1 = GraphConv(-1, hidden_channels)
-        self.conv2 = GraphConv(hidden_channels, hidden_channels)
-        self.conv3 = GraphConv(hidden_channels, output_channels)
+        self.conv_list = nn.ModuleList()
+        self.conv_list.append(GraphConv(-1, hidden_channels))
+
+        for _ in range(num_conv_layers - 2):
+            self.conv_list.append(GraphConv(hidden_channels, hidden_channels))
+
+        self.conv_list.append(GraphConv(hidden_channels, output_channels))
 
     def forward(self, x, edge_index):
-        x = self.conv1(x, edge_index).relu()
-        x = self.conv2(x, edge_index).relu()
-        x = self.conv3(x, edge_index)
+
+        for conv in self.conv_list[:-1]:
+            x = conv(x, edge_index).relu()
+
+        x = self.conv_list[-1](x, edge_index)
+        
         return x
 
 
@@ -48,11 +58,11 @@ class MLP(torch.nn.Module):
 
 
 class GNN(torch.nn.Module):
-    def __init__(self, hidden_channels):
+    def __init__(self, hidden_channels, num_mpn_layers):
         super().__init__()
         torch.manual_seed(0)
 
-        self.mpn = MPN(hidden_channels)
+        self.mpn = MPN(hidden_channels, num_mpn_layers)
         self.mlp = MLP(hidden_channels)
 
     def forward(self, data):
@@ -68,10 +78,10 @@ class GNN(torch.nn.Module):
 
 
 class GNNHeteroPooling(torch.nn.Module):
-    def __init__(self, hidden_channels, metadata):
+    def __init__(self, hidden_channels, num_mpn_layers, metadata):
         super().__init__()
 
-        mpn             = MPN(hidden_channels)
+        mpn             = MPN(hidden_channels, num_conv_layers=num_mpn_layers)
         self.mpn_hetero = to_hetero(mpn, metadata, aggr="sum")
 
         self.nodes_type = metadata[0]
@@ -107,11 +117,11 @@ class GNNHeteroPooling(torch.nn.Module):
         return out
 
 class GNNHetero(torch.nn.Module):
-    def __init__(self, hidden_channels, metadata):
+    def __init__(self, hidden_channels, num_mpn_layers, metadata):
         super().__init__()
 
         num_output_features     = 2
-        mpn                     = MPN(hidden_channels, num_output_features)
+        mpn                     = MPN(hidden_channels, num_output_features, num_mpn_layers)
         self.mpn_hetero         = to_hetero(mpn, metadata, aggr="sum")
 
 
@@ -242,11 +252,11 @@ if __name__ == "__main__":
 
     print(f"\n----Heterogenous GNN----")
 
-    hetero_gnn_model    = GNNHetero(
-                            hidden_channels=HIDDEN_CHANNELS, 
-                            metadata=data.metadata())
+    hetero_gnn_model            = GNNHetero(
+                                    hidden_channels=HIDDEN_CHANNELS, 
+                                    metadata=data.metadata())
 
-    output              = hetero_gnn_model(input_data)
+    output                      = hetero_gnn_model(input_data)
 
     print(f"Output is {output} of shape {output.shape}")
 

@@ -2,14 +2,15 @@ import os
 import json
 import torch
 import yaml
-import networkx as nx
 
-from natsort import natsorted
+import networkx                 as nx
 
-from torch_geometric.utils import from_networkx
-from torch.utils.data import Dataset, random_split
-from torch_geometric.loader import DataLoader
-from torch_geometric.data import HeteroData
+from natsort                    import natsorted
+
+from torch_geometric.utils      import from_networkx
+from torch.utils.data           import Dataset, random_split
+from torch_geometric.loader     import DataLoader
+from torch_geometric.data       import HeteroData
 from torch_geometric.transforms import ToUndirected
 
 
@@ -168,8 +169,8 @@ def load_data(training_data_dir, is_hetero, batch_size=32, validation_split=0.1)
 
     train_dataset, val_dataset = random_split(dataset, [train_size, validation_size])
 
-    print(f"Training dataset size: {len(train_dataset)}")
-    print(f"Validation dataset size: {len(val_dataset)}")
+    print(f"\nTraining dataset size: \t\t{len(train_dataset)}")
+    print(f"Validation dataset size: \t{len(val_dataset)}")
 
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)

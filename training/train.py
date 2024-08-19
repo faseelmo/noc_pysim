@@ -3,17 +3,20 @@ import math
 import yaml
 import argparse
 
-from tqdm import tqdm
+from tqdm               import tqdm
+from scipy.stats        import kendalltau
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
+import torch.nn         as nn
+import torch.optim      as optim
 
-from scipy.stats import kendalltau
-
-from training.model import GNN, GNNHetero, GNNHeteroPooling
-from training.dataset import load_data
-from training.utils import does_path_exist, copy_file, plot_and_save_loss, print_parameter_count
+from training.model     import GNN, GNNHetero, GNNHeteroPooling
+from training.dataset   import load_data
+from training.utils     import (
+                            does_path_exist, 
+                            copy_file, 
+                            plot_and_save_loss, 
+                            print_parameter_count)
 
 torch.manual_seed(1)
 
@@ -152,6 +155,7 @@ def main():
     IS_HETERO       = TRAINING_PARAMS["IS_HETERO"]
     LEARNING_RATE   = TRAINING_PARAMS["LEARNING_RATE"]
     DO_POOLING      = TRAINING_PARAMS["DO_POOLING"] 
+    NUM_MPN_LAYERS  = TRAINING_PARAMS["NUM_MPN_LAYERS"]
 
     start_time = time.time()
 
@@ -172,16 +176,19 @@ def main():
         metadata    = get_metadata(DATA_DIR)
 
         if DO_POOLING:
+
             print(f"\nGNNHeteroPooling Model Loaded")
-            model   = GNNHeteroPooling(HIDDEN_CHANNELS, metadata).to(DEVICE)
+            model   = GNNHeteroPooling(HIDDEN_CHANNELS, NUM_MPN_LAYERS, metadata).to(DEVICE)
+
         else:
+
             print(f"\nGNNHetero Model Loaded")
-            model   = GNNHetero(HIDDEN_CHANNELS, metadata).to(DEVICE)
+            model   = GNNHetero(HIDDEN_CHANNELS, NUM_MPN_LAYERS, metadata).to(DEVICE)
 
     elif not IS_HETERO:
 
-        print(f"\n----Homogenous GNN----")
-        model       = GNN(hidden_channels=5).to(DEVICE)
+        print(f"\nGNN Model Loaded")
+        model       = GNN(HIDDEN_CHANNELS, NUM_MPN_LAYERS).to(DEVICE)
 
     initialize_model(model, test_loader)
     print_parameter_count(model)
