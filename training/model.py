@@ -93,8 +93,8 @@ class GNNHeteroPooling(torch.nn.Module):
         out_list = []
 
         for node_type in self.nodes_type:
-            x_mpn = x_mpn_dict[node_type]
-            batch = batch_dict[node_type]
+            x_mpn       = x_mpn_dict[node_type]
+            batch       = batch_dict[node_type]
 
             global_max  = global_max_pool(x_mpn, batch)
             mlp_out     = self.mlp[node_type](global_max)  # Forward pass through MLP

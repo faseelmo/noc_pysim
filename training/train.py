@@ -40,17 +40,21 @@ copy_file(params_path, f"{results}/params.yaml")
 DEVICE          = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 TRAINING_PARAMS = yaml.safe_load(open(params_path))
 
-print(f"Training on {DEVICE}")
+print(f"\nTraining on {DEVICE}")
 
-def train_fn(train_loader, model, optimizer, loss_fn):
-    loop = tqdm(train_loader, leave=True)
+def train_fn(train_loader, model, optimizer, loss_fn, is_pooling_model):
+    loop        = tqdm(train_loader, leave=True)
+    mean_loss   = []
 
-    mean_loss = []
     for batch_idx, data in enumerate(loop):
 
         data    = data.to(DEVICE)
         output  = model(data).squeeze(1)
-        loss    = loss_fn(output, data.y)
+        
+        if is_pooling_model:
+            loss    = loss_fn(output, data.y)
+        else: 
+            loss    = loss_fn(output, data['task'].y)
 
         optimizer.zero_grad()
         loss.backward()
@@ -59,39 +63,58 @@ def train_fn(train_loader, model, optimizer, loss_fn):
         loop.set_postfix(loss=loss.item())
         mean_loss.append(loss.item())
 
-    train_loss = math.sqrt(sum(mean_loss) / len(mean_loss))
+    if is_pooling_model:
+        train_loss = math.sqrt(sum(mean_loss) / len(mean_loss))
+    else: 
+        train_loss = sum(mean_loss) / len(mean_loss)
 
     return train_loss
 
 
-def validation_fn(test_loader, model, loss_fn, epoch):
+def validation_fn(test_loader, model, loss_fn, epoch, is_pooling_model):
     mean_loss = []
+
     for data in test_loader:
 
         data    = data.to(DEVICE)
         output  = model(data).squeeze(1)
-        loss    = loss_fn(output, data.y)
+        
+        if is_pooling_model:
+            loss    = loss_fn(output, data.y)
+
+        else: 
+            loss    = loss_fn(output, data['task'].y)
 
         mean_loss.append(loss.item())
 
-    validation_set_loss = math.sqrt(sum(mean_loss) / len(mean_loss))
+    if is_pooling_model:
+        validation_set_loss = math.sqrt(sum(mean_loss) / len(mean_loss))
+    else: 
+        validation_set_loss = sum(mean_loss) / len(mean_loss)
 
     print(  f"[{epoch+1}/{TRAINING_PARAMS['EPOCHS']}] "
             f"Validation Loss is {validation_set_loss}")
 
     return validation_set_loss
 
-
-def test_fn(test_loader, model):
-    ground_truth_latency_list   = []
-    predicted_latency_list      = []
+def test_fn(test_loader, model, is_pooling_model):
+    ground_truth_latency_list = []
+    predicted_latency_list = []
 
     for data in test_loader:
         data    = data.to(DEVICE)
         output  = model(data).squeeze(1)
 
-        ground_truth_latency_list.append(data.y.item())
-        predicted_latency_list.append(output.item())
+        if is_pooling_model:
+            latency_truth   = data.y.item()
+            latency_pred    = output.item()
+
+        else: 
+            latency_truth   = torch.max(data['task'].y).detach().cpu().numpy()
+            latency_pred    = torch.max(output).detach().cpu().numpy()
+
+        ground_truth_latency_list.append(latency_truth)
+        predicted_latency_list.append(latency_pred)
 
     tau, _ = kendalltau(ground_truth_latency_list, predicted_latency_list)
 
@@ -128,6 +151,7 @@ def main():
     HIDDEN_CHANNELS = TRAINING_PARAMS["HIDDEN_CHANNELS"]
     IS_HETERO       = TRAINING_PARAMS["IS_HETERO"]
     LEARNING_RATE   = TRAINING_PARAMS["LEARNING_RATE"]
+    DO_POOLING      = TRAINING_PARAMS["DO_POOLING"] 
 
     start_time = time.time()
 
@@ -145,9 +169,14 @@ def main():
 
     if IS_HETERO:
 
-        print(f"\n----Heterogenous GNN----")
         metadata    = get_metadata(DATA_DIR)
-        model       = GNNHeteroPooling(hidden_channels=HIDDEN_CHANNELS, metadata=metadata).to(DEVICE)
+
+        if DO_POOLING:
+            print(f"\nGNNHeteroPooling Model Loaded")
+            model   = GNNHeteroPooling(HIDDEN_CHANNELS, metadata).to(DEVICE)
+        else:
+            print(f"\nGNNHetero Model Loaded")
+            model   = GNNHetero(HIDDEN_CHANNELS, metadata).to(DEVICE)
 
     elif not IS_HETERO:
 
@@ -175,9 +204,9 @@ def main():
 
     for epoch in range(EPOCHS):
 
-        train_loss  = train_fn(train_loader, model, optimizer, loss_fn)
-        valid_loss  = validation_fn(valid_loader, model, loss_fn, epoch)
-        test_metric = test_fn(test_loader, model)
+        train_loss  = train_fn(train_loader, model, optimizer, loss_fn, DO_POOLING)
+        valid_loss  = validation_fn(valid_loader, model, loss_fn, epoch, DO_POOLING)
+        test_metric = test_fn(test_loader, model, DO_POOLING)
 
         train_loss_list.append(train_loss)
         valid_loss_list.append(valid_loss)

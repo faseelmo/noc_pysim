@@ -15,6 +15,7 @@ HIDDEN_CHANNELS     : 5
 LOAD_MODEL          : False
 MODEL_PATH          : null
 IS_HETERO           : True
+DO_POOLING          : True
 
 # Data Path
 DATA_DIR            : 'data/training_data'

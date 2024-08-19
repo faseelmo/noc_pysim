@@ -213,6 +213,7 @@ if __name__ == "__main__":
 
     print(f"\nHeteroData is {hetero_data}")
     print(f"\nOutput feature matrix \n{hetero_data['task'].y}")
+    print(f"\nLatency is {torch.max(hetero_data['task'].y) * 100}")
     print(f"Latency is {hetero_data.y}")
     print(f"\nNode types are {hetero_data.node_types}")
     print(f"Edge types are {hetero_data.edge_types}")
@@ -235,7 +236,7 @@ if __name__ == "__main__":
     compute_list    = get_compute_list_from_json(f"{DATASET_DIR}/target/{graph_name}")
 
     visualize_graph(graph_visu, compute_list=compute_list)
-    # exit()
+    exit()
 
     print(f"\n\n----------------------DataLoader Test----------------------")
 
