@@ -67,11 +67,10 @@ def visualize_graph(graph: nx.DiGraph, latency_value=None, packet_list=None, com
         edge_color="lightgray",
     )
 
-    if not isinstance(compute_list, dict): 
-        # From inspect_data.py the compute list is a dictionary retrieved from the json file
-        node_cycle_dict = compute_list_to_node_dict(compute_list)
-    else: 
+    if isinstance(compute_list, dict): 
         node_cycle_dict = compute_list
+    else: 
+        node_cycle_dict = compute_list_to_node_dict(compute_list) if compute_list else {}
 
     custom_labels = {}
     for node in graph.nodes:

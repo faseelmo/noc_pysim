@@ -1,6 +1,7 @@
 # Dataset 
 MAX_GENERATE        : 10
 MAX_PROCESSING_TIME : 10
+MAX_CYCLE           : 100
 
 # Hyperparameters 
 EPOCHS              : 10000 

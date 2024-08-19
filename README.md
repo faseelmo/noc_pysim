@@ -3,7 +3,7 @@ When a packet is received (from outside the PE) or a packet is generated (inside
 inside the Processing Element is dependent on this Packet, then the packet is copied to all the dependent
 tasks. Assumption here is that the cache is big enough to store the packet.  
 
-The *require* and *generate* of nodes/tasks in the graph should match. Otherwise, there could be weird behavior observed from the simulator. 
+The *require* and *generate* of nodes/tasks in the graph should match. Might observe weird behavior otherwise. 
 
 ### 0. Prerequisites
 #### Setting up the environment 
