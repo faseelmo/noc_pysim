@@ -96,6 +96,9 @@ def validation_fn(test_loader, model, loss_fn, epoch, is_pooling_model):
     else: 
         validation_set_loss = sum(mean_loss) / len(mean_loss)
 
+    print(  f"[{epoch+1}/{TRAINING_PARAMS['EPOCHS']}] "
+            f"Validation Loss is {validation_set_loss}")
+
     return validation_set_loss
 
 def test_fn(test_loader, model, is_pooling_model):
@@ -117,9 +120,9 @@ def test_fn(test_loader, model, is_pooling_model):
         ground_truth_latency_list.append(latency_truth)
         predicted_latency_list.append(latency_pred)
 
-    tau, p_value = kendalltau(ground_truth_latency_list, predicted_latency_list)
+    tau, _ = kendalltau(ground_truth_latency_list, predicted_latency_list)
 
-    return tau, p_value
+    return tau
 
 
 def initialize_model(model, dataloader):
@@ -160,15 +163,6 @@ def main():
 
     start_time = time.time()
 
-    if CREATE_DATASET:
-        script_path = "data/create_training_data.sh"
-        results     = subprocess.run(
-                        [script_path, str(GEN_COUNT), str(MAX_NODES)])
-
-        continue_prompt = input("Dataset created. Continue with training? (yes/no): ")
-        if continue_prompt.lower() != "yes":
-            exit()
-
     train_loader, valid_loader  = load_data(
                                     DATA_DIR, 
                                     is_hetero=IS_HETERO, 
@@ -181,6 +175,15 @@ def main():
                                     batch_size=1, 
                                     validation_split=0.0)
 
+    if CREATE_DATASET:
+        script_path = "data/create_training_data.sh"
+        results     = subprocess.run(
+                        [script_path, str(GEN_COUNT), str(MAX_NODES)])
+
+        continue_prompt = input("Dataset created. Continue with training? (yes/no): ")
+        if continue_prompt.lower() != "yes":
+            exit()
+        
     if IS_HETERO:
 
         metadata    = get_metadata(DATA_DIR)
@@ -221,11 +224,9 @@ def main():
 
     for epoch in range(EPOCHS):
 
-        train_loss          = train_fn(train_loader, model, optimizer, loss_fn, DO_POOLING)
-        valid_loss          = validation_fn(valid_loader, model, loss_fn, epoch, DO_POOLING)
-        test_metric, pvalue = test_fn(test_loader, model, DO_POOLING)
-
-        print(f"Epoch {epoch+1}/{EPOCHS}, Validation Loss: {valid_loss}, Kendall's Tau: {test_metric}, P-Value: {round(pvalue,5)}")
+        train_loss  = train_fn(train_loader, model, optimizer, loss_fn, DO_POOLING)
+        valid_loss  = validation_fn(valid_loader, model, loss_fn, epoch, DO_POOLING)
+        test_metric = test_fn(test_loader, model, DO_POOLING)
 
         train_loss_list.append(train_loss)
         valid_loss_list.append(valid_loss)

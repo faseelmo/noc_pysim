@@ -40,9 +40,9 @@ class TaskInfo:
 class ProcessingElement:
     def __init__(
             self, 
-            xy:             tuple[int, int], 
-            computing_list: list[TaskInfo], 
-            debug_mode:     bool = False
+            xy:             tuple   [int, int], 
+            computing_list: list    [TaskInfo], 
+            debug_mode:     bool    =  False
         ):
 
         self.xy                         = xy 
