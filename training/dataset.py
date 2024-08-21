@@ -16,12 +16,12 @@ from torch_geometric.transforms import ToUndirected
 
 class CustomDataset(Dataset):
     def __init__(self, training_data_dir, is_hetero=False):
-        self.is_hetero  = is_hetero
-        self.input_dir  = os.path.join(training_data_dir, "input")
-        self.target_dir = os.path.join(training_data_dir, "target")
+        self.is_hetero              = is_hetero
+        self.input_dir              = os.path.join(training_data_dir, "input")
+        self.target_dir             = os.path.join(training_data_dir, "target")
 
-        self.input_files    = natsorted(os.listdir(self.input_dir))
-        self.output_files   = natsorted(os.listdir(self.target_dir))
+        self.input_files            = natsorted(os.listdir(self.input_dir))
+        self.output_files           = natsorted(os.listdir(self.target_dir))
 
         training_parameters         = yaml.safe_load(open("training/params.yaml"))
         self.max_generate           = training_parameters["MAX_GENERATE"]
