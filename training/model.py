@@ -216,12 +216,12 @@ if __name__ == "__main__":
     print(f"\n----Homogenous GNN----")
 
     homogenous_dataset  = CustomDataset("data/training_data", is_hetero=False)
-    data                = homogenous_dataset[IDX]
+    data, _             = homogenous_dataset[IDX]
 
     print(f"Data is \n{data}")
     print(f"Edge index is \n{data.edge_index}")
 
-    gnn_model   = GNN(hidden_channels=HIDDEN_CHANNELS)
+    gnn_model   = GNN(hidden_channels=HIDDEN_CHANNELS, num_mpn_layers=3)
     output      = gnn_model(data)
 
     print(f"Output {output}")
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     print(f"\n----Heterogenous Pooling GNN----")
 
     hetero_pooling_dataset      = CustomDataset("data/training_data", is_hetero=True)
-    data                        = hetero_pooling_dataset[IDX]
+    data, _                     = hetero_pooling_dataset[IDX]
 
     hetero_gnn_pooling_model    = GNNHeteroPooling(
                                     hidden_channels=HIDDEN_CHANNELS,

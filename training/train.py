@@ -17,7 +17,10 @@ from training.utils     import (
                             does_path_exist, 
                             copy_file, 
                             plot_and_save_loss, 
-                            print_parameter_count)
+                            print_parameter_count, 
+                            get_metadata, 
+                            initialize_model
+                        )
 
 torch.manual_seed(1)
 
@@ -120,21 +123,6 @@ def test_fn(test_loader, model, is_pooling_model):
     tau, p_value = kendalltau(ground_truth_latency_list, predicted_latency_list)
 
     return tau, p_value
-
-
-def initialize_model(model, dataloader):
-    """Necessary since GraphConv is lazily initialized"""
-    data = next(iter(dataloader))
-    model(data)
-
-
-def get_metadata(dataset_path):
-    from training.dataset import CustomDataset
-
-    dataset = CustomDataset(dataset_path, is_hetero=True)
-    data    = dataset[0]
-
-    return data.metadata()
 
 
 def main():

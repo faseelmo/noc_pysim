@@ -126,3 +126,6 @@ def does_path_contains_files(path: str):
             print(f"Files in '{path}' deleted.")
         else:
             print(f"Files in '{path}' not deleted. Appending new files.")
+
+
+# def inference(model, data): 

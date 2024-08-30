@@ -10,7 +10,7 @@ from natsort                    import natsorted
 from torch_geometric.utils      import from_networkx
 from torch.utils.data           import Dataset, random_split
 from torch_geometric.loader     import DataLoader
-from torch_geometric.data       import HeteroData
+from torch_geometric.data       import HeteroData, Data
 from torch_geometric.transforms import ToUndirected
 
 
@@ -55,6 +55,9 @@ class CustomDataset(Dataset):
         return data
 
     def _homogenous_data(self, graph, target_data):
+        """
+        returns a tuple of Data and an empty dictionary (for compatibility with heterogenous data)
+        """
         data = from_networkx(graph)
 
         # data.x should contain all the node features with shape [num_nodes, num_node_features]
@@ -71,9 +74,12 @@ class CustomDataset(Dataset):
         data.y = float(target_data["latency"])
         self._do_checks(data)
 
-        return data
+        return data, {}
 
-    def _heterogenous_data(self, graph, target_data):
+    def _heterogenous_data(self, graph, target_data): 
+        """
+        returns a tuple of HeteroData and a dictionary containing global to local indexing
+        """
         hetero_data = HeteroData()
 
         task_input_feature          = []
@@ -145,7 +151,7 @@ class CustomDataset(Dataset):
         hetero_data.y = float(target_data["latency"])
         self._do_checks(hetero_data)
 
-        return hetero_data
+        return hetero_data, global_to_local_indexing
 
     def _do_checks(self, data):
         assert data.validate() is True, "Data is invalid"
@@ -155,8 +161,9 @@ class CustomDataset(Dataset):
 
 
 def load_data(training_data_dir, is_hetero, batch_size=32, validation_split=0.1):
-    dataset         = CustomDataset(training_data_dir, is_hetero)
-    validation_size = int(validation_split * len(dataset))
+    print(f"Is heterogenous graph: {is_hetero}")
+    dataset             = CustomDataset(training_data_dir, is_hetero)
+    validation_size     = int(validation_split * len(dataset))
 
     if validation_size == 0:
         # Ensure at least one sample for validation
@@ -199,7 +206,7 @@ if __name__ == "__main__":
 
     is_hetero           = False
     homogenous_dataset  = CustomDataset(DATASET_DIR, is_hetero=False)
-    data                = homogenous_dataset[DATA_INDEX]
+    data, _             = homogenous_dataset[DATA_INDEX]
 
     print(f"Data is {data}")
     print(f"Feature matrix \n{data.x}\n")
@@ -210,7 +217,7 @@ if __name__ == "__main__":
 
     is_hetero               = True
     heterogenous_dataset    = CustomDataset(DATASET_DIR, is_hetero=True)
-    hetero_data             = heterogenous_dataset[DATA_INDEX]
+    hetero_data, _          = heterogenous_dataset[DATA_INDEX]
 
     print(f"\nHeteroData is {hetero_data}")
     print(f"\nOutput feature matrix \n{hetero_data['task'].y}")
@@ -237,7 +244,7 @@ if __name__ == "__main__":
     compute_list    = get_compute_list_from_json(f"{DATASET_DIR}/target/{graph_name}")
 
     visualize_graph(graph_visu, compute_list=compute_list)
-    exit()
+    # exit()
 
     print(f"\n\n----------------------DataLoader Test----------------------")
 
