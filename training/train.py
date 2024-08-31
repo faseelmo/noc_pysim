@@ -53,7 +53,7 @@ def train_fn(train_loader, model, optimizer, loss_fn, is_pooling_model):
     loop        = tqdm(train_loader, leave=True)
     mean_loss   = []
 
-    for batch_idx, data in enumerate(loop):
+    for batch_idx, (data, _) in enumerate(loop):
 
         data    = data.to(DEVICE)
         output  = model(data).squeeze(1)
@@ -78,10 +78,10 @@ def train_fn(train_loader, model, optimizer, loss_fn, is_pooling_model):
     return train_loss
 
 
-def validation_fn(test_loader, model, loss_fn, epoch, is_pooling_model):
+def validation_fn(valid_loader, model, loss_fn, epoch, is_pooling_model):
     mean_loss = []
 
-    for data in test_loader:
+    for (data, _) in valid_loader:
 
         data    = data.to(DEVICE)
         output  = model(data).squeeze(1)
@@ -105,7 +105,7 @@ def test_fn(test_loader, model, is_pooling_model):
     ground_truth_latency_list = []
     predicted_latency_list = []
 
-    for data in test_loader:
+    for (data, _) in test_loader:
         data    = data.to(DEVICE)
         output  = model(data).squeeze(1)
 

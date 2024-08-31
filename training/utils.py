@@ -41,7 +41,7 @@ def get_metadata(dataset_path):
 
 def initialize_model(model, dataloader):
     """Necessary since GraphConv is lazily initialized"""
-    data = next(iter(dataloader))
+    data, _ = next(iter(dataloader))
     model(data)
 
 def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):

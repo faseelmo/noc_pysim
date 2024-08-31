@@ -45,7 +45,17 @@ def get_compute_list_from_json(filename: str):
 
 
 
-def visualize_graph(graph: nx.DiGraph, latency_value=None, packet_list=None, compute_list=None):
+def visualize_graph(
+        graph: nx.DiGraph, 
+        latency_value=None, 
+        packet_list=None, 
+        compute_list=None, 
+        pred_compute_list=None):
+    """
+    args: 
+        compute_list: list or dict. Used to display the start and end cycle (truth) of each task
+
+    """
     import matplotlib.pyplot as plt
     import networkx as nx
 
@@ -80,7 +90,20 @@ def visualize_graph(graph: nx.DiGraph, latency_value=None, packet_list=None, com
         if "generate" in graph.nodes[node]:
             label_parts.append(f"G: {graph.nodes[node]['generate']}")
         if node in node_cycle_dict:
-            label_parts.append(f"({node_cycle_dict[node]['start_cycle']}-{node_cycle_dict[node]['end_cycle']})")
+            
+            truth_start_cycle   = node_cycle_dict[node]['start_cycle']
+            truth_end_cycle     = node_cycle_dict[node]['end_cycle']
+
+            label_parts.append(f"T: ({truth_start_cycle}-{truth_end_cycle}) "
+                               f"= {truth_end_cycle - truth_start_cycle}")
+
+            if pred_compute_list:
+                pred_start_cycle    = pred_compute_list[node]['start_cycle']
+                pred_end_cycle      = pred_compute_list[node]['end_cycle']
+    
+                label_parts.append(f"P: ({pred_start_cycle}-{pred_end_cycle}) "
+                                   f"= {pred_end_cycle - pred_start_cycle}")
+
         custom_labels[node] = "\n".join(label_parts)
 
     nx.draw_networkx_labels(graph, pos, labels=custom_labels)

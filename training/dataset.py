@@ -15,8 +15,10 @@ from torch_geometric.transforms import ToUndirected
 
 
 class CustomDataset(Dataset):
-    def __init__(self, training_data_dir, is_hetero=False):
+    def __init__(self, training_data_dir, is_hetero=False, return_graph=False):
+        """return graph is only used in inspect_data.py"""
         self.is_hetero              = is_hetero
+        self.return_graph           = return_graph
         self.input_dir              = os.path.join(training_data_dir, "input")
         self.target_dir             = os.path.join(training_data_dir, "target")
 
@@ -74,7 +76,12 @@ class CustomDataset(Dataset):
         data.y = float(target_data["latency"])
         self._do_checks(data)
 
-        return data, {}
+        if self.return_graph:
+            return (data, ({}, graph))
+
+        else: 
+            return data, {}
+
 
     def _heterogenous_data(self, graph, target_data): 
         """
@@ -151,7 +158,12 @@ class CustomDataset(Dataset):
         hetero_data.y = float(target_data["latency"])
         self._do_checks(hetero_data)
 
-        return hetero_data, global_to_local_indexing
+        
+        if self.return_graph:
+            return (hetero_data, (global_to_local_indexing, graph))
+
+        else: 
+            return (hetero_data, global_to_local_indexing)
 
     def _do_checks(self, data):
         assert data.validate() is True, "Data is invalid"
@@ -260,15 +272,15 @@ if __name__ == "__main__":
 
     print(f"\n For homogenous graph")
     print(f"\nData loader information")
-    print(f"Number of training batches: {len(homo_train_loader)}")
-    print(f"Batch size: {homo_train_loader.batch_size}")
-    print(f"Training samples {len(homo_train_loader) * homo_train_loader.batch_size}")
-    print(f"Number of validation batches: {len(val_loader)}")
+    print(f"Number of training batches:     {len(homo_train_loader)}")
+    print(f"Batch size:                     {homo_train_loader.batch_size}")
+    print(f"Training samples                {len(homo_train_loader) * homo_train_loader.batch_size}")
+    print(f"Number of validation batches:   {len(val_loader)}")
 
 
     print(f"\n For homogenous graph")
     print(f"\nData loader information")
-    print(f"Number of training batches: {len(hetero_train_loader)}")
-    print(f"Batch size: {hetero_train_loader.batch_size}")
-    print(f"Training samples {len(hetero_train_loader) * hetero_train_loader.batch_size}")
-    print(f"Number of validation batches: {len(hetero_val_loader )}")
+    print(f"Number of training batches:     {len(hetero_train_loader)}")
+    print(f"Batch size:                     {hetero_train_loader.batch_size}")
+    print(f"Training samples                {len(hetero_train_loader) * hetero_train_loader.batch_size}")
+    print(f"Number of validation batches:   {len(hetero_val_loader )}")

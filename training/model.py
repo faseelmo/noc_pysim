@@ -10,13 +10,19 @@ from torch_geometric.nn     import (
                                 to_hetero,
                                 global_mean_pool,
                                 Set2Set,
-                                HeteroConv)
+                                HeteroConv
+                            )
 
 from training.utils         import get_norm_adj
 
 
 class MPN(torch.nn.Module):
     def __init__(self, hidden_channels, output_channels=None, num_conv_layers=3):
+        """
+        Message Passing Network (MPN)  
+        Uses GraphConv to create a multi-layered model
+        GraphConv is lazily initialized
+        """
         super().__init__()
         torch.manual_seed(0)
 
@@ -45,6 +51,9 @@ class MPN(torch.nn.Module):
 
 class MLP(torch.nn.Module):
     def __init__(self, input_channels, output_channels=1):
+        """
+        Muli-Layer Perceptron (MLP)  
+        """
         super().__init__()
         torch.manual_seed(0)
 
@@ -59,6 +68,17 @@ class MLP(torch.nn.Module):
 
 class GNN(torch.nn.Module):
     def __init__(self, hidden_channels, num_mpn_layers):
+        """
+        Note:  
+        1. Message Passing Network (MPN) is lazily initialized  
+        2. Global Max pooling  
+        3. Forward pass requires torch_geometric.data.Data object
+        5. Forward pass outputs a single value
+
+        args:  
+            hidden_channels : Number of channels (width) in MPN and MLP
+            num_mpn_layers  : Number of layers (depth) in MPN   
+        """
         super().__init__()
         torch.manual_seed(0)
 
@@ -79,6 +99,18 @@ class GNN(torch.nn.Module):
 
 class GNNHeteroPooling(torch.nn.Module):
     def __init__(self, hidden_channels, num_mpn_layers, metadata):
+        """
+        Note:  
+        1. Message Passing Network (MPN) is lazily initialized  
+        2. Uses HeteroConv to create a multi-layered model  
+        3. Global Max pooling  
+        4. Forward pass requires torch_geometric.data.HeteroData object
+        5. Forward pass outputs a single value
+
+        args:  
+            hidden_channels : Number of channels (width) in MPN and MLP
+            num_mpn_layers  : Number of layers (depth) in MPN   
+        """
         super().__init__()
 
         mpn             = MPN(hidden_channels, num_conv_layers=num_mpn_layers)
@@ -118,6 +150,18 @@ class GNNHeteroPooling(torch.nn.Module):
 
 class GNNHetero(torch.nn.Module):
     def __init__(self, hidden_channels, num_mpn_layers, metadata):
+        """
+        Note:  
+        1. Message Passing Network (MPN) is lazily initialized  
+        2. Uses HeteroConv to create a multi-layered model  
+        3. Global Max pooling  
+        4. Forward pass requires torch_geometric.data.HeteroData object
+        5. Forward pass outputs start and end cycle for each task node  
+
+        args:  
+            hidden_channels : Number of channels (width) in MPN and MLP
+            num_mpn_layers  : Number of layers (depth) in MPN   
+        """
         super().__init__()
 
         num_output_features     = 2
@@ -221,7 +265,7 @@ if __name__ == "__main__":
     print(f"Data is \n{data}")
     print(f"Edge index is \n{data.edge_index}")
 
-    gnn_model   = GNN(hidden_channels=HIDDEN_CHANNELS, num_mpn_layers=3)
+    gnn_model   = GNN(hidden_channels=HIDDEN_CHANNELS, num_mpn_layers=HIDDEN_CHANNELS)
     output      = gnn_model(data)
 
     print(f"Output {output}")
@@ -233,6 +277,7 @@ if __name__ == "__main__":
 
     hetero_gnn_pooling_model    = GNNHeteroPooling(
                                     hidden_channels=HIDDEN_CHANNELS,
+                                    num_mpn_layers=3, 
                                     metadata=data.metadata())
 
     train_loader, _             = load_data(
@@ -241,7 +286,7 @@ if __name__ == "__main__":
                                     batch_size=BATCH_SIZE, 
                                     validation_split=0.1)
 
-    input_data                  = next(iter(train_loader))
+    input_data, _               = next(iter(train_loader))
     output                      = hetero_gnn_pooling_model(input_data)
 
     print(f"Input data is \n{input_data}")
@@ -254,6 +299,7 @@ if __name__ == "__main__":
 
     hetero_gnn_model            = GNNHetero(
                                     hidden_channels=HIDDEN_CHANNELS, 
+                                    num_mpn_layers=3,
                                     metadata=data.metadata())
 
     output                      = hetero_gnn_model(input_data)
