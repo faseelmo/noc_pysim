@@ -1,55 +1,91 @@
 from collections import deque
+from enum import Enum
+from typing import Optional, Union
+
+
+class BufferStatus(Enum):
+    EMPTY       = "empty"
+    AVAILABLE   = "available"
+    FULL        = "full"
 
 
 class Buffer:
     def __init__(self, size: int):
-        self.size = size
-        self.queue = deque(maxlen=size)
+        self.size   = size
+        self.queue  = deque(maxlen=size)
+        self.status = BufferStatus.EMPTY
 
-    def add(self, flit) -> None:
-        if len(self.queue) < self.size:
+    def add_flit(self, flit: Union[dict, int]) -> None:
+        """
+        Adds flit to the buffer if there is space available.
+        Updates the status of the buffer.
+        State transitions:
+            EMPTY      -> AVAILABLE, for the first flit.
+            AVAILABLE  -> FULL, when the buffer is full.
+        
+        """
+        if self.status in (BufferStatus.EMPTY, BufferStatus.AVAILABLE ): # Basically or condition
+
             self.queue.append(flit)
-        else:
-            print("Buffer is full")
 
-    def add_packet(self, packet) -> None:
-        if len(self.queue) + packet.size <= self.size:
-            self.queue.append(packet.header_info)
-            for i in range(packet.payload_size):
-                self.queue.append(i)
-        else:
-            print(f"Not enough space in buffer to add packet")
+            if self.status == BufferStatus.EMPTY:
+                self.status = BufferStatus.AVAILABLE
 
-    def remove(self):
-        if len(self.queue) > 0:
-            return self.queue.popleft()
+            if len(self.queue) == self.size:
+                self.status = BufferStatus.FULL
+
         else:
-            print("Buffer is empty")
-            return 
+            raise Exception("Cannot add to full buffer")
+
+    def remove(self) -> Union[dict, int]:
+        """
+        Removes flits from the buffer if there are any.
+        Updates the status of the buffer.
+        returns the flit that was removed.
+        State transitions:
+            FULL        -> AVAILABLE, when the buffer is not full.
+            AVAILABLE   -> EMPTY, when the buffer is empty.
+        """
+
+        if self.status == BufferStatus.EMPTY:
+            raise Exception("Cannot remove from empty buffer")
+
+        if self.status in (BufferStatus.FULL, BufferStatus.AVAILABLE):
+
+            flit = self.queue.popleft()
+
+            if len(self.queue) == 0:
+                self.status = BufferStatus.EMPTY
+
+            if self.status == BufferStatus.FULL:
+                self.status = BufferStatus.AVAILABLE
+
+            return flit
 
     def __str__(self):
-        return f"Buffer: {self.queue}"
+        return f"{self.status} -> {list(self.queue)}"
 
 
 if __name__ == "__main__":
-    input_buffer = Buffer(4)
 
-    from packet import Packet
+    from .packet import Packet
 
-    packet = Packet((0, 0), (1, 1))
+    buffer = Buffer(4)
+    print(f"\n{buffer}")
 
-    input_buffer.add(packet.header_info)
-    for i in range(packet.payload_size):
-        input_buffer.add(i)
+    packet = Packet(source_xy=(0, 0), 
+                    dest_xy=(1, 1), 
+                    source_task_id=0)
 
-    input_buffer.add(None)
+    is_transmitted = False
+    while not is_transmitted:
+        is_transmitted, flit = packet.get_flit()
+        buffer.add_flit(flit)
+        print(f"{buffer}")
 
-    print(f"Buffer is {input_buffer}")
-    input_buffer.remove()
-    print(f"Buffer after removing is {input_buffer} ")
+    print(f"\nRemoving\n{buffer}")
+    for i in range(4):
+        buffer.remove()
+        print(f"{buffer}")
 
-    new_buffer = Buffer(4)
-    new_buffer.add_packet(packet)
-    print(f"\nBuffer after adding packet is {new_buffer}")
-    new_buffer.remove()
-    print(f"Buffer after removing is {new_buffer}")
+
