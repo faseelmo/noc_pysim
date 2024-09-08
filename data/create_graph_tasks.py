@@ -8,7 +8,6 @@ from data.utils import (
     does_path_contains_files,
 )
 
-
 def generate_graph(num_nodes: int):
     """
     Generates a GNR (Growing network with reduction)
@@ -32,12 +31,12 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
     processing_time_range = (1, 10)
 
     for node in graph.nodes:
-        successors = list(graph.successors(node))
-        predecessors = list(graph.predecessors(node))
-        num_of_successors = len(successors)
+        successors          = list(graph.successors(node))
+        predecessors        = list(graph.predecessors(node))
+        num_of_successors   = len(successors)
 
-        generate_range = (num_of_successors + 1, max_generate)
-        random_generate_value = random.randint(*generate_range)
+        generate_range          = (num_of_successors + 1, max_generate)
+        random_generate_value   = random.randint(*generate_range)
 
         gen_split_values = get_split_value(random_generate_value, num_of_successors)
 
@@ -45,9 +44,9 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
         # Note: dependency nodes don't have processing time
         if len(predecessors) == 0:
 
-            graph.nodes[node]["type"] = "dependency"
-            graph.nodes[node]["generate"] = random_generate_value
-            graph.nodes[node]["processing_time"] = 0
+            graph.nodes[node]["type"]               = "dependency"
+            graph.nodes[node]["generate"]           = random_generate_value
+            graph.nodes[node]["processing_time"]    = 0
 
             for successor, gen_value in zip(successors, gen_split_values):
                 graph[node][successor]["weight"] = gen_value
@@ -56,9 +55,10 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
 
             random_processing_time = random.randint(*processing_time_range)
 
-            graph.nodes[node]["type"] = "task"
-            graph.nodes[node]["generate"] = random_generate_value
-            graph.nodes[node]["processing_time"] = random_processing_time
+            graph.nodes[node]["type"]               = "task"
+            graph.nodes[node]["generate"]           = random_generate_value
+            graph.nodes[node]["processing_time"]    = random_processing_time
+            graph.nodes[node]["wait_time"]          = 0
 
             # Assigning require (edge weights) to successors by
             # splitting the generate value randomly
@@ -75,13 +75,28 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
 
     for node in graph.nodes:
         # Assigning Generate of the dependency nodes to the max
-        # of the weights of its successors
+        # of the edge weights of its successors. 
+        # Also, changes the type of the successor to task_depend + 
+        # calculates the wait time of the successor
+
         if graph.nodes[node]["type"] != "dependency":
             continue
 
         successors = list(graph.successors(node))
         max_weight = max([graph[node][successor]["weight"] for successor in successors])
+
         graph.nodes[node]["generate"] = max_weight
+
+        for successor in successors:
+            graph.nodes[successor]["type"] = "task_depend"
+
+            require_value   = graph[node][successor]["weight"]
+            wait_time       = 4 * require_value # 4 is the packet size in flit
+
+            current_node_wait_time = graph.nodes[successor]["wait_time"]
+
+            if wait_time > current_node_wait_time:
+                graph.nodes[successor]["wait_time"] = wait_time
 
     return graph
 
@@ -91,7 +106,7 @@ def get_split_value(generate_value: int, num_of_successors: int):
         generate_value >= num_of_successors
     ), "generate_value must be at least as large as num_of_successors"
 
-    base_values = np.ones(num_of_successors, dtype=int)  # assign 1 to each successor
+    base_values     = np.ones(num_of_successors, dtype=int)  # assign 1 to each successor
     remaining_value = generate_value - num_of_successors
 
     additional_values = np.random.multinomial(
@@ -110,12 +125,12 @@ def get_split_value(generate_value: int, num_of_successors: int):
 
 
 def test_function(num_nodes: int):
-    graph = generate_graph(num_nodes)
-    modified_graph = modify_graph_to_task_graph(graph)
+    graph           = generate_graph(num_nodes)
+    modified_graph  = modify_graph_to_task_graph(graph)
     visualize_graph(modified_graph)
 
     save_graph_to_json(modified_graph, "data/test_task_graph.json")
-    loaded_graph = load_graph_from_json("data/test_task_graph.json")
+    loaded_graph    = load_graph_from_json("data/test_task_graph.json")
     visualize_graph(loaded_graph)
 
 
@@ -126,9 +141,9 @@ def generate_n_graphs(count: int, num_nodes: int):
     does_path_contains_files(path)
 
     for i in range(count):
-        random_num_nodes = random.randint(2, num_nodes)
-        graph = generate_graph(random_num_nodes)
-        modified_graph = modify_graph_to_task_graph(graph)
+        random_num_nodes    = random.randint(2, num_nodes)
+        graph               = generate_graph(random_num_nodes)
+        modified_graph      = modify_graph_to_task_graph(graph)
 
         save_graph_to_json(
             modified_graph, f"data/training_data/input/task_graph_{i}.json"
@@ -141,7 +156,7 @@ if __name__ == "__main__":
 
     import argparse
 
-    random.seed(0)
+    random.seed(3)
 
     parser = argparse.ArgumentParser()
     parser.add_argument(

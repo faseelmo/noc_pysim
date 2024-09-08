@@ -44,7 +44,6 @@ def get_compute_list_from_json(filename: str):
     return compute_list
 
 
-
 def visualize_graph(
         graph: nx.DiGraph, 
         latency_value=None, 
@@ -59,7 +58,7 @@ def visualize_graph(
     import matplotlib.pyplot as plt
     import networkx as nx
 
-    color_map = {"dependency": "skyblue", "task": "lightgreen"}
+    color_map = {"dependency": "skyblue", "task": "lightgreen", "task_depend": "yellow"}
     node_colors = [
         color_map.get(graph.nodes[node].get("type", "task"), "lightgreen")
         for node in graph.nodes
@@ -89,6 +88,10 @@ def visualize_graph(
             label_parts.append(f"P: {graph.nodes[node]['processing_time']}")
         if "generate" in graph.nodes[node]:
             label_parts.append(f"G: {graph.nodes[node]['generate']}")
+        if "wait_time" in graph.nodes[node]:
+            wait_time = graph.nodes[node]["wait_time"]
+            if wait_time != 0:
+                label_parts.append(f"W: {wait_time}")
         if node in node_cycle_dict:
             
             truth_start_cycle   = node_cycle_dict[node]['start_cycle']
@@ -150,5 +153,3 @@ def does_path_contains_files(path: str):
         else:
             print(f"Files in '{path}' not deleted. Appending new files.")
 
-
-# def inference(model, data): 

@@ -25,7 +25,17 @@ def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycle
         packet_list_copy.append(packet.source_task_id)
 
     if debug_mode:
+        print(f"---- Debug Mode ----")
+        print(f"\nPacket List")
         print(*packet_list)
+
+        print(f"\nComputing List")
+        for idx, task in enumerate(computing_list):
+            print(f"{idx}. {task}\n")
+
+
+        visualize_graph(nx_graph)
+        print(f"\n")
 
     latency = simulate(
         computing_list, packet_list, debug_mode=debug_mode, max_cycles=max_cycles
@@ -70,10 +80,6 @@ if __name__ == "__main__":
         latency, packet_list, computing_list = simlate_latency_from_graph(
             graph, debug_mode=True, max_cycles=args.max_cycle
         )
-
-        visualize_graph(graph, compute_list=computing_list, packet_list=packet_list)
-
-        print(f"\nPacket list: {packet_list}")
 
         for task in computing_list:
             print(f"Task {task.task_id} starts at {task.start_cycle} and ends at {task.end_cycle}")

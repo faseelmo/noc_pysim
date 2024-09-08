@@ -25,7 +25,7 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
     # Creating computing list
     for node in graph.nodes:
 
-        if graph.nodes[node]["type"] == "task":
+        if graph.nodes[node]["type"] in ("task", "task_depend"):
 
             task = TaskInfo(
                 task_id=node,
@@ -38,7 +38,7 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
     # Updating require list for each task
     for node in graph.nodes:
 
-        if graph.nodes[node]["type"] == "task":
+        if graph.nodes[node]["type"] in ("task", "task_depend"):
             predecessors = list(graph.predecessors(node))
 
             for predecessor in predecessors:
