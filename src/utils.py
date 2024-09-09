@@ -105,7 +105,7 @@ def update_current_packet(current_packet: Packet, packet_list: list[Packet]) -> 
     """
     Updates the current packet if it is idle and there are packets in the packet list.
     """
-    if current_packet is not None and current_packet.status is PacketStatus.IDLE:
+    if current_packet is not None and current_packet.get_status() is PacketStatus.IDLE:
         if len(packet_list) > 0:
             current_packet = packet_list.pop(0)
         else:

@@ -127,11 +127,14 @@ class ProcessingElement:
         Checks if the packet received is required by the PE
         Updates the packet status and location  
         """
-        if packet.source_task_id not in self.required_packet_types:
-            raise ValueError(f"Packet type {packet.source_task_id} not required in this PE")
+
+        packet_source_task_id = packet.get_source_task_id()
+
+        if packet_source_task_id not in self.required_packet_types:
+            raise ValueError(f"Packet type {packet_source_task_id} not required in this PE")
 
         packet.increment_flits()
-        self._debug_print(f"{self} Recieving flits (type: {packet.source_task_id}) {packet.flits_transmitted}/{packet.size}")
+        self._debug_print(f"{self} Recieving flits (type: {packet_source_task_id}) {packet.get_flits_transmitted()}/{packet.get_size()}")
         is_transmitted, recieved_packet_task_id = packet.check_transmission_status()
         
         if is_transmitted:

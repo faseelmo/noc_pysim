@@ -2,6 +2,8 @@ from enum           import Enum
 from typing         import Union
 from collections    import deque
 
+from .flit import HeaderFlit, PayloadFlit, TailFlit
+
 class BufferStatus(Enum):
     EMPTY       = "empty"
     AVAILABLE   = "available"
@@ -13,7 +15,7 @@ class Buffer:
         self.queue  = deque(maxlen=size)
         self.status = BufferStatus.EMPTY
 
-    def add_flit(self, flit: Union[dict, int]) -> None:
+    def add_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> None:
         """
         Adds flit to the buffer if there is space available.
         Updates the status of the buffer.
@@ -61,7 +63,8 @@ class Buffer:
             return flit
 
     def __str__(self):
-        return f"{self.status} -> {list(self.queue)}"
+        queue_str = [str(item) for item in self.queue]
+        return f"{self.status} -> {queue_str}"
 
 
 if __name__ == "__main__":

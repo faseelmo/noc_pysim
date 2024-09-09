@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import Optional, Union
 from collections import deque
-from copy import deepcopy
 
 import uuid 
 
@@ -14,22 +13,22 @@ class PacketStatus(Enum):
 
 
 class Packet:
-    def __init__(self, source_xy: tuple, dest_xy: tuple, source_task_id: int):
-        self.payload_size       = 2
+    def __init__( self, source_xy: tuple, dest_xy: tuple, source_task_id: int ):
+        self._payload_size      = 2
         num_header_tail_flits   = 2
 
-        self.size                   = self.payload_size + num_header_tail_flits 
-        self.packet_content         = deque( maxlen=self.size )
+        self._size              = self._payload_size + num_header_tail_flits 
+        self._packet_content    = deque( maxlen=self._size )
 
-        self._init_packet( self.packet_content, source_xy, dest_xy )
+        self._init_packet( self._packet_content, source_xy, dest_xy )
 
-        self.status                 = PacketStatus.IDLE
-        self.flits_transmitted      = 0
-        self.source_task_id         = source_task_id
-        self.packet_content_copy    = None
+        self._status            = PacketStatus.IDLE
+        self._flits_transmitted = 0
+        self._source_task_id    = source_task_id
+        self._pointer           = 0
 
 
-    def _init_packet(self, packet_content: deque, source_xy: tuple , dest_xy: tuple) -> None: 
+    def _init_packet( self, packet_content: deque, source_xy: tuple , dest_xy: tuple ) -> None: 
         """ Initialize the packet with the header and payload information.
             "packet_content" is a member variable of the Packet class.
         """
@@ -39,30 +38,26 @@ class Packet:
         header_flit = HeaderFlit( src_xy=source_xy, dest_xy=dest_xy, packet_uid=uid )
         packet_content.append(header_flit)
 
-        for i in range(self.payload_size):
+        for i in range(self._payload_size):
             packet_content.append( PayloadFlit( packet_uid = uid, payload_index = i+1 ) )
 
         packet_content.append( TailFlit( packet_uid = uid ) )
 
 
-    def transmit_flit(self) -> tuple[bool, Union[dict, int]]: 
+    def transmit_flit( self ) -> tuple[bool, Union[HeaderFlit, PayloadFlit, TailFlit]]: 
         """
-        Creates a copy of the packet content and returns the first flit in the packet.
+        Returns a flit from the packet content based on the pointer index. 
         Also returns a flag indicating if the packet has been transmitted completely.
         """
 
-        is_transmitted_flag = False
+        flit = self._packet_content[self._pointer]
+        
+        if isinstance( flit, TailFlit ): 
+            self._pointer = 0
+            return True, flit
 
-        if self.packet_content_copy is None or len(self.packet_content_copy) == 0:
-            # Creating a copy for the first time
-            self.packet_content_copy = deepcopy(self.packet_content)
-
-        flit = self.packet_content_copy.popleft()
-
-        if isinstance(flit, TailFlit):
-            is_transmitted_flag = True
-
-        return is_transmitted_flag, flit
+        self._pointer += 1
+        return False, flit
 
 
     def update_location(self, buffer_location: BufferLocation) -> None:
@@ -73,32 +68,47 @@ class Packet:
 
     def increment_flits(self) -> None:
         """Increment the number of flits transmitted by the packet."""
-        if self.status is PacketStatus.IDLE and self.flits_transmitted == 0:
-            self.flits_transmitted = 1
-            self.status = PacketStatus.TRANSMITTING
+        if self._status is PacketStatus.IDLE and self._flits_transmitted == 0:
+            self._flits_transmitted = 1
+            self._status = PacketStatus.TRANSMITTING
         elif (
-            self.status is PacketStatus.TRANSMITTING
-            and self.flits_transmitted < self.size
+            self._status is PacketStatus.TRANSMITTING
+            and self._flits_transmitted < self._size
         ):
-            self.flits_transmitted += 1
+            self._flits_transmitted += 1
         else:
             return
 
     def check_transmission_status(self) -> tuple[bool, Optional[int]]:
         """Check if the packet has been transmitted completely."""
-        if (self.status is PacketStatus.TRANSMITTING) and (
-            self.flits_transmitted == self.size
+        if (self._status is PacketStatus.TRANSMITTING) and (
+            self._flits_transmitted == self._size
         ):
-            self.status = PacketStatus.IDLE
+            self._status = PacketStatus.IDLE
             # print(f"{self} has been transmitted")
-            self.flits_transmitted = 0
-            return True, self.source_task_id
+            self._flits_transmitted = 0
+            return True, self._source_task_id
         else:
             return False, None
 
+    def get_source_task_id(self) -> int:
+        return self._source_task_id
+
+    def get_flits_transmitted(self) -> int:
+        return self._flits_transmitted
+
+    def get_size(self) -> int:
+        return self._size
+
+    def get_status(self) -> PacketStatus:
+        return self._status
+    
+
     def __str__(self) -> str:
         return (
-            f"[Pakcet] Src: {self.source_task_id}, routing: {self.packet_content[0].get_routing_info()} "
+            f"[Packet] Src: {self._source_task_id}, "
+            f"Routing: {self._packet_content[0].get_routing_info()} "
+            f"UID: {self._packet_content[0].get_uid()}"
         )
 
 
@@ -109,7 +119,7 @@ if __name__ == "__main__":
 
     print(f"{packet}\n")
 
-    for i in range(packet.size + 1):
+    for i in range(packet._size + 1):
 
         is_transmitted, flit = packet.transmit_flit()
-        print(f"{flit}, Packet content copy size: {len(packet.packet_content_copy)}")
+        print(f"{flit}, pointer at {packet._pointer}")

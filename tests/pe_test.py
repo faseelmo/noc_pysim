@@ -30,7 +30,7 @@ def simulate(computing_list: list, packet_list: list):
     for cycle in range(MAX_CYCLES):
         print(f"\n> {cycle}")
         pe.process(current_packet)
-        if not current_packet is None and current_packet.status is PacketStatus.IDLE:
+        if not current_packet is None and current_packet.get_status() is PacketStatus.IDLE:
             if len(packet_list) > 0:
                 current_packet = packet_list.pop(0)
             else:
