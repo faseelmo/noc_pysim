@@ -1,13 +1,11 @@
-from collections import deque
-from enum import Enum
-from typing import Optional, Union
-
+from enum           import Enum
+from typing         import Union
+from collections    import deque
 
 class BufferStatus(Enum):
     EMPTY       = "empty"
     AVAILABLE   = "available"
     FULL        = "full"
-
 
 class Buffer:
     def __init__(self, size: int):
@@ -77,9 +75,9 @@ if __name__ == "__main__":
                     dest_xy=(1, 1), 
                     source_task_id=0)
 
-    is_transmitted = False
-    while not is_transmitted:
-        is_transmitted, flit = packet.get_flit()
+    packet_is_transmitted = False
+    while not packet_is_transmitted:
+        packet_is_transmitted, flit = packet.transmit_flit()
         buffer.add_flit(flit)
         print(f"{buffer}")
 

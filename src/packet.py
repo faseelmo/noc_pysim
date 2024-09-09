@@ -3,6 +3,9 @@ from typing import Optional, Union
 from collections import deque
 from copy import deepcopy
 
+import uuid 
+
+from .flit import HeaderFlit, PayloadFlit, TailFlit, BufferLocation
 
 class PacketStatus(Enum):
     IDLE            = "idle"
@@ -12,32 +15,37 @@ class PacketStatus(Enum):
 
 class Packet:
     def __init__(self, source_xy: tuple, dest_xy: tuple, source_task_id: int):
-        payload_size    = 3
-        header_size     = 1
+        self.payload_size       = 2
+        num_header_tail_flits   = 2
+
+        self.size                   = self.payload_size + num_header_tail_flits 
+        self.packet_content         = deque( maxlen=self.size )
+
+        self._init_packet( self.packet_content, source_xy, dest_xy )
 
         self.status                 = PacketStatus.IDLE
         self.flits_transmitted      = 0
         self.source_task_id         = source_task_id
-        self.current_location       = None
         self.packet_content_copy    = None
 
-        self.size           = payload_size + header_size
-        self.packet_content = deque(maxlen=self.size)
-        self._init_packet(self.packet_content, source_xy, dest_xy)
 
     def _init_packet(self, packet_content: deque, source_xy: tuple , dest_xy: tuple) -> None: 
-        """Initialize the packet with the header and payload information."""
-        header_info = {"source": source_xy,
-                       "dest": dest_xy,
-                       "routing": []}
+        """ Initialize the packet with the header and payload information.
+            "packet_content" is a member variable of the Packet class.
+        """
 
-        packet_content.append(header_info)
+        uid        = uuid.uuid4()
 
-        for i in range(self.size - 1):
-            packet_content.append(i+1)
+        header_flit = HeaderFlit( src_xy=source_xy, dest_xy=dest_xy, packet_uid=uid )
+        packet_content.append(header_flit)
+
+        for i in range(self.payload_size):
+            packet_content.append( PayloadFlit( packet_uid = uid, payload_index = i+1 ) )
+
+        packet_content.append( TailFlit( packet_uid = uid ) )
 
 
-    def get_flit(self) -> tuple[bool, Union[dict, int]]: 
+    def transmit_flit(self) -> tuple[bool, Union[dict, int]]: 
         """
         Creates a copy of the packet content and returns the first flit in the packet.
         Also returns a flag indicating if the packet has been transmitted completely.
@@ -46,22 +54,22 @@ class Packet:
         is_transmitted_flag = False
 
         if self.packet_content_copy is None or len(self.packet_content_copy) == 0:
+            # Creating a copy for the first time
             self.packet_content_copy = deepcopy(self.packet_content)
 
         flit = self.packet_content_copy.popleft()
 
-        if len(self.packet_content_copy) == 0:
+        if isinstance(flit, TailFlit):
             is_transmitted_flag = True
 
         return is_transmitted_flag, flit
 
 
-    def update_location(self, object) -> None:
+    def update_location(self, buffer_location: BufferLocation) -> None:
         """Update the current location of the packet.
         args: object (PE or Router)
         """
-        self.current_location = object
-        # print(f" ~ updating packet location to {object}")
+        self.current_buffer_loc = buffer_location
 
     def increment_flits(self) -> None:
         """Increment the number of flits transmitted by the packet."""
@@ -90,7 +98,7 @@ class Packet:
 
     def __str__(self) -> str:
         return (
-            f"Packet: {self.source_task_id} "
+            f"[Pakcet] Src: {self.source_task_id}, routing: {self.packet_content[0].get_routing_info()} "
         )
 
 
@@ -99,5 +107,9 @@ if __name__ == "__main__":
                     dest_xy=(1, 1), 
                     source_task_id=0)
 
+    print(f"{packet}\n")
+
     for i in range(packet.size + 1):
-        print(f"{packet.get_flit()}, len: {len(packet.packet_content_copy)}")
+
+        is_transmitted, flit = packet.transmit_flit()
+        print(f"{flit}, Packet content copy size: {len(packet.packet_content_copy)}")

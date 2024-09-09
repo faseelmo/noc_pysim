@@ -1,43 +1,82 @@
-from buffer import Buffer
+from enum   import Enum
+from typing import Union
 
-from enum import Enum
-
-
-class NIStatus(Enum):
-    FULL = "full"
-    NOT_FULL = "not_full"
+from .buffer import Buffer
+from .flit   import BufferLocation, HeaderFlit, PayloadFlit, TailFlit
 
 
 class Router:
-    def __init__(self, x_y: tuple, buffer_size: int):
-        self.x = x_y[0]
-        self.y = x_y[1]
+    def __init__(self, pos: tuple, buffer_size: int = 4):
+        """ Args; 
+            "pos"           : tuple, coordinates of the router  
+            "buffer_size"   : int, number of flits that can be stored in a buffer
+        """
 
-        self.network_interface = Buffer(buffer_size)
+        self.x = pos[0]
+        self.y = pos[1]
 
-        self.west_input_buffer = Buffer(buffer_size)
-        self.north_input_buffer = Buffer(buffer_size)
-        self.east_input_buffer = Buffer(buffer_size)
-        self.south_input_buffer = Buffer(buffer_size)
+        self.ni_input_buffer        = Buffer( buffer_size )
+        self.ni_input_buffer        = Buffer( buffer_size )
 
-    # def process()
+        self.west_input_buffer      = Buffer( buffer_size )
+        self.west_output_buffer     = Buffer( buffer_size )
+  
+        self.north_input_buffer     = Buffer( buffer_size )
+        self.north_output_buffer    = Buffer( buffer_size )
+  
+        self.east_input_buffer      = Buffer( buffer_size )
+        self.east_output_buffer     = Buffer( buffer_size )
+  
+        self.south_input_buffer     = Buffer( buffer_size )
+        self.south_output_buffer    = Buffer( buffer_size )
 
-    def do_routing(self):
-        pass
 
-    def check_network_interface_status(self):
-        if len(self.network_interface.queue) == self.network_interface.size:
-            return NIStatus.FULL
-        else:
-            return NIStatus.NOT_FULL
+    def receive_flits( self, flit: Union[dict, int] ) -> None:
 
-    def add_packet_to_network_interface(self, packet):
-        print(f"{self} Adding packet to network interface")
-        self.network_interface.add_packet(packet)
+        if isinstance(flit, dict):
+            if isinstance(flit, HeaderFlit):
+                routing_info    = self._get_routing_information( flit )
+                flit["routing"] = routing_info
+
+
+
+    def _get_routing_information( self, header_flit: dict) -> list:
+        """ Returns the routing information from the flit.
+        """
+        routing_information = ["Routing Information here"]
+        return routing_information
 
     def __repr__(self):
         return f"R({self.x}, {self.y})"
 
 
 if __name__ == "__main__":
-    router = Router()
+    
+    from .packet import Packet
+
+    router = Router( pos = (0, 0) )
+    print( f"Router initialized: { router }")
+
+    packet = Packet( source_xy      = (0, 0), 
+                     dest_xy        = (1, 1), 
+                     source_task_id = 0 )
+
+    print(f"Packet initialized: {packet}")
+
+    max_sim_cycle = 100
+
+    for i in range( max_sim_cycle ): 
+
+        if i == 0:
+            packet_is_transmitted = False # Think about moving this to the packet class
+
+        if not packet_is_transmitted:
+            packet_is_transmitted, flit = packet.transmit_flit() 
+            router.receive_flits( flit )
+            print( f"current flits is {flit}" )
+
+    print( f"Packet transmitted: {packet}" )
+
+
+    
+

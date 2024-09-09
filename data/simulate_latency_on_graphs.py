@@ -17,8 +17,8 @@ from data.utils import (
 
 def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycles: int):
     random.seed(0)
-    computing_list = graph_to_task_list(nx_graph)
-    packet_list = get_random_packet_list(nx_graph)
+    computing_list  = graph_to_task_list(nx_graph)
+    packet_list     = get_random_packet_list(nx_graph)
 
     packet_list_copy = []
     for packet in packet_list:
@@ -37,8 +37,11 @@ def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycle
         visualize_graph(nx_graph)
         print(f"\n")
 
-    latency = simulate(
-        computing_list, packet_list, debug_mode=debug_mode, max_cycles=max_cycles
+    latency     = simulate(
+        computing_list, 
+        packet_list, 
+        debug_mode=debug_mode, 
+        max_cycles=max_cycles
     )
 
     return latency, packet_list_copy, computing_list
@@ -73,9 +76,8 @@ if __name__ == "__main__":
 
     if args.test:
         # graph_path = "data/training_data/input/task_graph_0.json"
-        graph_path = "data/test_task_graph.json"
-        graph = load_graph_from_json(graph_path)
-
+        graph_path  = "data/test_task_graph.json"
+        graph       = load_graph_from_json(graph_path)
 
         latency, packet_list, computing_list = simlate_latency_from_graph(
             graph, debug_mode=True, max_cycles=args.max_cycle
@@ -89,7 +91,7 @@ if __name__ == "__main__":
 
     if args.sim:
 
-        INPUT_DATA_DIR = "data/training_data/input"
+        INPUT_DATA_DIR  = "data/training_data/input"
         TARGET_DATA_DIR = "data/training_data/target"
         PACKET_LIST_DIR = "data/training_data/packet_list"
 
