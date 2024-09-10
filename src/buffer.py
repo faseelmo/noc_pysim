@@ -56,7 +56,7 @@ class Buffer:
             return None
 
 
-        if self.status in (BufferStatus.FULL, BufferStatus.AVAILABLE):
+        if self.status == BufferStatus.FULL:
 
             flit = self.queue.popleft()
 
@@ -67,6 +67,12 @@ class Buffer:
                 self.status = BufferStatus.AVAILABLE
 
             return flit
+
+    def can_do_routing(self) -> bool:
+        if self.status == BufferStatus.FULL:
+            if isinstance(self.queue[0], HeaderFlit):
+                return True
+        return False
 
     def __str__(self):
         queue_str = [str(item) for item in self.queue]
