@@ -1,5 +1,12 @@
 import uuid
 from enum import Enum
+from dataclasses    import dataclass   
+
+@dataclass
+class NextHop:
+    x       : int 
+    y       : int 
+    buffer  : str
 
 
 class BufferLocation(Enum):
@@ -12,25 +19,30 @@ class BufferLocation(Enum):
 
 class HeaderFlit: 
     def __init__(self, src_xy: tuple, dest_xy: tuple, packet_uid: uuid.UUID): 
-        self._src_xy         = src_xy
-        self._dest_xy        = dest_xy
-        self._packet_uid     = packet_uid
+        self._src_xy            = src_xy
+        self._dest_xy           = dest_xy
+        self._packet_uid        = packet_uid
 
-        self._routing_info   = []
-        self._current_buffer = BufferLocation.UNASSIGNED
+        self._next_hop          = None
+        self._current_buffer    = BufferLocation.UNASSIGNED
 
-    def update_routing_info(self, routing_info: list) -> None:
+    
+    def update_routing_info(self, routing_info: NextHop) -> None:
         print( f"Updating routing information: {routing_info}" )
         self._routing_info = routing_info
 
     def update_current_buffer(self, buffer_location: BufferLocation) -> None:
         self._current_buffer = buffer_location
 
+    def get_destination(self) -> tuple:
+        """ returns destination (x, y) coordinates"""
+        return self._dest_xy
+
     def get_last_buffer(self) -> BufferLocation:
         return self._current_buffer
 
     def get_routing_info(self) -> list: 
-        return self._routing_info
+        return self._next_hop
 
     def get_uid(self) -> uuid.UUID:
         return self._packet_uid

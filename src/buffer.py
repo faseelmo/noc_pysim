@@ -37,18 +37,24 @@ class Buffer:
         else:
             raise Exception("Cannot add to full buffer")
 
-    def remove(self) -> Union[dict, int]:
+    def remove(self) -> Union[HeaderFlit, PayloadFlit, TailFlit, None]:
         """
         Removes flits from the buffer if there are any.
-        Updates the status of the buffer.
-        returns the flit that was removed.
+        - Updates the status of the buffer.
+        Returns the flit that was removed or if the buffer is not fully populated, 
+            returns False.
         State transitions:
-            FULL        -> AVAILABLE, when the buffer is not full.
-            AVAILABLE   -> EMPTY, when the buffer is empty.
+            FULL        -> AVAILABLE,   when the buffer is not full.
+            AVAILABLE   -> EMPTY,       when the buffer is empty.
         """
 
         if self.status == BufferStatus.EMPTY:
             raise Exception("Cannot remove from empty buffer")
+
+        if self.status == BufferStatus.AVAILABLE:
+            # Last element in the buffer is empty. Returns False.
+            return None
+
 
         if self.status in (BufferStatus.FULL, BufferStatus.AVAILABLE):
 
@@ -74,6 +80,10 @@ if __name__ == "__main__":
     buffer = Buffer(4)
     print(f"\n{buffer}")
 
+    """
+    Test 1: Adding 4 flits to the buffer and then removing them.
+    """
+    print( "\n- Test 1: Adding 4 flits to the buffer and then removing them." )
     packet = Packet(source_xy=(0, 0), 
                     dest_xy=(1, 1), 
                     source_task_id=0)
@@ -88,5 +98,28 @@ if __name__ == "__main__":
     for i in range(4):
         buffer.remove()
         print(f"{buffer}")
+
+    """
+    Test 2: Adding 2 flits to the buffer and then removing them.
+    """
+    print( "\n- Test 2: Adding 2 flits to the buffer and then removing them." )
+    
+    packet = Packet(source_xy=(0, 0), 
+                    dest_xy=(1, 1), 
+                    source_task_id=0)
+
+    buffer = Buffer(4)
+
+    for i in range(2):
+        packet_is_transmitted, flit = packet.transmit_flit()
+        buffer.add_flit(flit)
+        print(f"{buffer}")
+
+    print( f"Buffer after adding 2 flits: {buffer}" )
+
+    flit = buffer.remove()
+    print( f"Buffer after removing 1 flit: {buffer}, removed flit {flit}" )
+
+
 
 

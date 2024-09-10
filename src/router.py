@@ -1,8 +1,7 @@
-from enum   import Enum
-from typing import Union
+from typing     import Union
 
-from .buffer import Buffer
-from .flit   import HeaderFlit, PayloadFlit, TailFlit
+from .buffer    import Buffer
+from .flit      import HeaderFlit, PayloadFlit, TailFlit, NextHop
 
 
 class Router:
@@ -31,26 +30,63 @@ class Router:
         self._south_output_buffer   = Buffer( buffer_size )
 
 
+    def process_flits( self ) -> None:
+        # Process the flits in the input buffer first 
+            # forward_flits()
+        # Receive New flits 
+            # receive_flits()
+        pass
+
+    def forward_flits( self ) -> None:
+        """Moving Flits from input buffer to output buffer."""
+
+        pass
+
     def receive_flits( self, flit: Union[ HeaderFlit, PayloadFlit, TailFlit ], buffer_name: str ) -> None:
 
         buffer = getattr( self, f"_{buffer_name}_input_buffer" )
 
-        # Check if the buffer is full
+        # Here -> Check if the buffer is full
 
         if isinstance(flit, HeaderFlit):
-            routing_info    = self._get_routing_information( flit )
-            flit.update_routing_info( routing_info )
-            print(f"Received Header Flit: {flit}, routing info: {flit.get_routing_info()}")
+            next_hop_info    = self._get_routing_information( flit )
+            flit.update_routing_info( next_hop_info )
 
         buffer.add_flit( flit )
         print(f"Buffer status: {buffer}\n")
 
 
-    def _get_routing_information( self, header_flit: dict) -> list:
+    def _get_routing_information( self, header_flit: dict) -> NextHop:
         """ Returns the routing information from the flit.
         """
-        routing_information = ["Routing Information here"]
-        return routing_information
+        
+        dest_x, dest_y = header_flit.get_destination()
+
+        if dest_x > self._x:    # Destination on east
+            next_hop_x  = self._x + 1
+            next_buffer = "east"
+            return NextHop( x = next_hop_x, y = self._y, buffer = next_buffer )
+            
+        elif dest_x < self._x:  # Destination on west
+            next_hop_x = self._x - 1
+            next_buffer = "west"
+            return NextHop( x = next_hop_x, y = self._y, buffer = next_buffer )
+
+        else:                   # Destination on the same x-axis
+            next_hop_x = self._x
+
+        if dest_y > self._y:
+            next_hop_y = self._y + 1
+            next_buffer = "north"
+            return NextHop( x = next_hop_x, y = next_hop_y, buffer = next_buffer )
+
+        elif dest_y < self._y:
+            next_hop_y = self._y - 1
+            return NextHop( x = next_hop_x, y = next_hop_y, buffer = "south" )
+
+        else: 
+            return NextHop( x = next_hop_x, y = next_hop_y, buffer = "local" )
+
 
     def __repr__(self):
         return f"R({self._x}, {self._y})"
