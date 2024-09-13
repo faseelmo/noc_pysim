@@ -22,7 +22,7 @@ def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycle
 
     packet_list_copy = []
     for packet in packet_list:
-        packet_list_copy.append(packet.source_task_id)
+        packet_list_copy.append(packet.get_source_task_id())
 
     if debug_mode:
         print(f"---- Debug Mode ----")

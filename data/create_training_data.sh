@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Usage ./data/create_training_data.sh 8000 5 
+
 # Default values
 GEN_COUNT=1000
 NUM_NODES=2

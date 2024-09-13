@@ -47,6 +47,7 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
             graph.nodes[node]["type"]               = "dependency"
             graph.nodes[node]["generate"]           = random_generate_value
             graph.nodes[node]["processing_time"]    = 0
+            graph.nodes[node]["wait_time"]          = 0
 
             for successor, gen_value in zip(successors, gen_split_values):
                 graph[node][successor]["weight"] = gen_value
@@ -74,10 +75,10 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
             raise ValueError("Dangling node detected")
 
     for node in graph.nodes:
-        # Assigning Generate of the dependency nodes to the max
-        # of the edge weights of its successors. 
-        # Also, changes the type of the successor to task_depend + 
-        # calculates the wait time of the successor
+        # - Changing the type of the dependency node to task_depend
+        # - Changing the wait time of the task_depend node to 
+        #   max( 4 * require_value ) of its predecessors. 
+        #  Note: 4 is the packet size in flit
 
         if graph.nodes[node]["type"] != "dependency":
             continue
@@ -88,6 +89,7 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
         graph.nodes[node]["generate"] = max_weight
 
         for successor in successors:
+            
             graph.nodes[successor]["type"] = "task_depend"
 
             require_value   = graph[node][successor]["weight"]
