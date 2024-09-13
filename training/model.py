@@ -8,9 +8,6 @@ from torch_geometric.nn     import (
                                 SAGEConv,
                                 GraphConv,
                                 to_hetero,
-                                global_mean_pool,
-                                Set2Set,
-                                HeteroConv
                             )
 
 from training.utils         import get_norm_adj
@@ -130,16 +127,27 @@ class GNNHeteroPooling(torch.nn.Module):
         x_dict          = data.x_dict
         edge_index_dict = data.edge_index_dict
         batch_dict      = data.batch_dict
+        
         x_mpn_dict      = self.mpn_hetero(x_dict, edge_index_dict)
 
         out_list = []
 
         for node_type in self.nodes_type:
             x_mpn       = x_mpn_dict[node_type]
+            
+
             batch       = batch_dict[node_type]
+
+            print(f"Batch is {batch}")
+            exit()
+
+            if x_mpn.numel() == 0:
+                out_list.append(torch.zeros((1, 1), dtype=torch.float)) 
+                continue
 
             global_max  = global_max_pool(x_mpn, batch)
             mlp_out     = self.mlp[node_type](global_max)  # Forward pass through MLP
+
 
             out_list.append(mlp_out)
 
@@ -252,8 +260,9 @@ if __name__ == "__main__":
     from training.dataset import CustomDataset, load_data
 
     IDX             = 1000
-    BATCH_SIZE      = 1
+    BATCH_SIZE      = 2
     HIDDEN_CHANNELS = 5
+    HAS_WAIT_TIME   = True
 
     torch.manual_seed(0)
 
@@ -272,23 +281,35 @@ if __name__ == "__main__":
 
     print(f"\n----Heterogenous Pooling GNN----")
 
-    hetero_pooling_dataset      = CustomDataset("data/training_data", is_hetero=True)
+    hetero_pooling_dataset      = CustomDataset("data/training_data", is_hetero=True, has_wait_time=HAS_WAIT_TIME)
     data, _                     = hetero_pooling_dataset[IDX]
 
     hetero_gnn_pooling_model    = GNNHeteroPooling(
-                                    hidden_channels=HIDDEN_CHANNELS,
-                                    num_mpn_layers=3, 
-                                    metadata=data.metadata())
+                                    hidden_channels = HIDDEN_CHANNELS,
+                                    num_mpn_layers  = 3, 
+                                    metadata        = data.metadata()
+                                )
 
     train_loader, _             = load_data(
                                     "data/training_data", 
-                                    is_hetero=True, 
-                                    batch_size=BATCH_SIZE, 
-                                    validation_split=0.1)
+                                    is_hetero           = True, 
+                                    batch_size          = BATCH_SIZE, 
+                                    validation_split    = 0.1, 
+                                    has_wait_time       = HAS_WAIT_TIME
+                                )
+
+    for batch in train_loader: 
+        print(f"Batch is {batch}")
+        exit()
+
+    print(f"Train Loader is {train_loader}")
 
     input_data, _               = next(iter(train_loader))
-    output                      = hetero_gnn_pooling_model(input_data)
 
+    print(f"Model is \n{hetero_gnn_pooling_model}")
+
+    output                      = hetero_gnn_pooling_model(input_data)
+    
     print(f"Input data is \n{input_data}")
 
     assert (
@@ -300,7 +321,8 @@ if __name__ == "__main__":
     hetero_gnn_model            = GNNHetero(
                                     hidden_channels=HIDDEN_CHANNELS, 
                                     num_mpn_layers=3,
-                                    metadata=data.metadata())
+                                    metadata=data.metadata()
+                                )
 
     output                      = hetero_gnn_model(input_data)
 
