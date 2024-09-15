@@ -11,7 +11,7 @@ from typing                     import Union
 from torch_geometric.utils      import from_networkx
 from torch.utils.data           import Dataset, random_split
 from torch_geometric.loader     import DataLoader
-from torch_geometric.data       import HeteroData, Data, Batch
+from torch_geometric.data       import HeteroData, Data
 from torch_geometric.transforms import ToUndirected
 
 
@@ -23,7 +23,7 @@ class CustomDataset(Dataset):
         2. has_wait_time : If True, the dataset will contain wait time feature for task_depend nodes.
                            This is only relevant for heterogenous graphs. In homogenous graphs, all nodes
                            have the same features. 
-        3. return_graph  : If True, the dataset will return the graph along with the data object. 
+        3. return_graph  : If True, the __get__item__ will return the graph along with the data object. 
                            Useful for visualization.  
         """
         self.is_hetero              = is_hetero
@@ -73,7 +73,10 @@ class CustomDataset(Dataset):
             data = json.load(file)
         return data
 
-    def _homogenous_data(self, graph: nx.DiGraph, target_data: dict) -> tuple[Data, dict]:
+    def _homogenous_data(self, graph: nx.DiGraph, target_data: dict) -> Union[
+            Data, 
+            tuple[Data, tuple[dict, nx.DiGraph]]
+        ]:
         """
         Args: 
             1. graphs       : the directed graph of idx. From data/training_data/input/task_graph_idx.json 
@@ -101,10 +104,13 @@ class CustomDataset(Dataset):
             return (data, ({}, graph))
 
         else: 
-            return data, {}
+            return data
 
 
-    def _heterogenous_data(self, graph: nx.DiGraph, target_data: dict) -> Union[tuple[HeteroData, dict], tuple[HeteroData, tuple[dict, nx.DiGraph]]]:
+    def _heterogenous_data(self, graph: nx.DiGraph, target_data: dict) -> Union[
+            HeteroData, 
+            tuple[HeteroData, tuple[dict, nx.DiGraph]]
+        ]:
         """
         Args: 
             1. graphs       : the directed graph of idx. From data/training_data/input/task_graph_idx.json 
@@ -128,8 +134,6 @@ class CustomDataset(Dataset):
 
         if self.has_wait_time:
             global_to_local_indexing["task_depend"] = {}    
-
-        print(f"Hello from heterogenous data")
 
         # Creating node features + global to local indexing
         for node_idx, node_data in graph.nodes(data=True):
@@ -174,7 +178,6 @@ class CustomDataset(Dataset):
         has_task_node = True
         if len(task_input_feature) == 0:
             has_task_node = False
-            # print(f"Data has no task node. Assigning empty tensor")
 
         # Converting list of node features to tensor
         num_features_task_node = 2
@@ -240,19 +243,20 @@ class CustomDataset(Dataset):
         hetero_data.y = float(target_data["latency"])
         self._do_checks(hetero_data)
 
-
-        print(f"Hetero data: {hetero_data}")
-        from data.utils import visualize_graph
-        visualize_graph(graph=graph)    
-
+        # # [debugging] Uncomment to visualize the graph
+        # from data.utils import visualize_graph
+        # visualize_graph(graph=graph)    
         
         if self.return_graph:
             return (hetero_data, (global_to_local_indexing, graph))
 
         else: 
-            return (hetero_data, global_to_local_indexing)
+            return hetero_data
+
+
 
     def _do_checks(self, data: Union[Data, HeteroData]) -> None:
+
         assert data.validate() is True, "Data is invalid"
         assert data.has_isolated_nodes() is False, "Data contains isolated nodes"
         assert data.has_self_loops() is False, "Data contains self loops"
@@ -270,7 +274,11 @@ def load_data(
     print(f"[load_data] Is heterogenous graph: {is_hetero}")
     print(f"[load_data] Has wait time: {has_wait_time}")
 
-    dataset             = CustomDataset(training_data_dir, is_hetero, has_wait_time)
+    dataset             = CustomDataset(training_data_dir, 
+                                        is_hetero, 
+                                        has_wait_time, 
+                                        return_graph=False)
+
     validation_size     = int(validation_split * len(dataset))
 
     if validation_size == 0: # ensure at least one validation sample
@@ -312,8 +320,6 @@ if __name__ == "__main__":
 
     import sys
 
-    from data.utils import visualize_graph, get_compute_list_from_json
-
     if len(sys.argv) > 1:   
         DATA_INDEX      = int(sys.argv[1])
         IS_HETERO       = sys.argv[2].lower() in ['true', '1']
@@ -333,32 +339,36 @@ if __name__ == "__main__":
 
     dataset = CustomDataset(
                 DATASET_DIR, 
-                is_hetero=IS_HETERO, 
-                return_graph=True, 
-                has_wait_time=HAS_WAIT_TIME)
+                is_hetero       = IS_HETERO, 
+                has_wait_time   = HAS_WAIT_TIME, 
+                return_graph    = True)   
 
-    # print(f"\n------Checking all files in the dataset------")
-    # list_of_edge_type = []
-    # for idx, (data, (index_dict, graph)) in enumerate(dataset):
+    def check_all_files_in_dataset():
+        # Inside a def for scoping
+        print(f"\n------Checking all files in the dataset------")
+        list_of_edge_type = []
 
-    #     for src, dst, edge in graph.edges(data=True):
-    #         src_type = graph.nodes[src]["type"]
-    #         dst_type = graph.nodes[dst]["type"]
-
-    #         edge_type = f"{src_type}_to_{dst_type}"
-
-    #         if edge_type not in list_of_edge_type:
-    #             print(f"New edge type found: {edge_type}")
-    #             list_of_edge_type.append(edge_type)
-
+        for idx, (data, (index_dict, graph)) in enumerate(dataset):
         
-    #     pass
-    # print(f"[Passed] All files are valid\n")
+            for src, dst, edge in graph.edges(data=True):
+                src_type = graph.nodes[src]["type"]
+                dst_type = graph.nodes[dst]["type"]
+    
+                edge_type = f"{src_type}_to_{dst_type}"
+    
+                if edge_type not in list_of_edge_type:
+                    print(f"New edge type found: {edge_type}")
+                    list_of_edge_type.append(edge_type)
 
-    # data, (index_dict, graph) = dataset[DATA_INDEX]
-    # print(f"Data in index {DATA_INDEX} is \n{data}")
+        print(f"[Passed] All files are valid\n")
+
+    check_all_files_in_dataset()
+    data = dataset[DATA_INDEX]
+    print(f"Data in index {DATA_INDEX} is \n{data}")
+
 
     print(f"\n\n----------------------DataLoader Test----------------------")
+
     BATCH_SIZE = 10
     print(f"\nLoading data with batch size {BATCH_SIZE}")
 
@@ -369,23 +379,13 @@ if __name__ == "__main__":
                                                 has_wait_time       = HAS_WAIT_TIME
                                         )
 
-    # Debugging: Print the keys of the first batch
-    for batch in train_loader:
-        print(f"Batch data: {batch}")
-        break
-
-
-
-
     print(f"\n For homogenous graph")
-    print(f"\nData loader information")
+    print(f"Data from DataLoader            {next(iter(train_loader))}")
+    print(f"DataLoader is                   {train_loader}")
     print(f"Number of training batches:     {len(train_loader)}")
     print(f"Batch size:                     {train_loader.batch_size}")
     print(f"Training samples                {len(train_loader) * train_loader.batch_size}")
     print(f"Number of validation batches:   {len(val_loader)}")
-
-    print(f"DataLoader is                   {train_loader}")
     
 
-    # print(f"Data from DataLoader            {next(iter(train_loader))}")
 
