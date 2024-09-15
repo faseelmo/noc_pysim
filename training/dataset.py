@@ -129,6 +129,8 @@ class CustomDataset(Dataset):
         if self.has_wait_time:
             global_to_local_indexing["task_depend"] = {}    
 
+        print(f"Hello from heterogenous data")
+
         # Creating node features + global to local indexing
         for node_idx, node_data in graph.nodes(data=True):
             node_type = node_data["type"]
@@ -166,6 +168,7 @@ class CustomDataset(Dataset):
 
             global_to_local_indexing[node_type][node_idx] = len(
                 global_to_local_indexing[node_type])
+
 
         # Flag to check if data has no task node
         has_task_node = True
@@ -205,8 +208,6 @@ class CustomDataset(Dataset):
 
             hetero_data["dependency", require_edge_type, "task"].edge_index         = [[], []]
 
-        # from data.utils import visualize_graph
-        # visualize_graph(graph=graph)    
 
         for edge in graph.edges(data=True):
             src, dst, _ = edge
@@ -238,6 +239,11 @@ class CustomDataset(Dataset):
         
         hetero_data.y = float(target_data["latency"])
         self._do_checks(hetero_data)
+
+
+        print(f"Hetero data: {hetero_data}")
+        from data.utils import visualize_graph
+        visualize_graph(graph=graph)    
 
         
         if self.return_graph:
@@ -320,8 +326,8 @@ if __name__ == "__main__":
 
 
     print( f"Data index is          {DATA_INDEX}" )
-    print( f"Has wait time is       {HAS_WAIT_TIME}" )
     print( f"Is heterogenous graph  {IS_HETERO}" )
+    print( f"Has wait time is       {HAS_WAIT_TIME}" )
 
     DATASET_DIR = "data/training_data"
 
@@ -331,26 +337,26 @@ if __name__ == "__main__":
                 return_graph=True, 
                 has_wait_time=HAS_WAIT_TIME)
 
-    print(f"\n------Checking all files in the dataset------")
-    list_of_edge_type = []
-    for idx, (data, (index_dict, graph)) in enumerate(dataset):
+    # print(f"\n------Checking all files in the dataset------")
+    # list_of_edge_type = []
+    # for idx, (data, (index_dict, graph)) in enumerate(dataset):
 
-        for src, dst, edge in graph.edges(data=True):
-            src_type = graph.nodes[src]["type"]
-            dst_type = graph.nodes[dst]["type"]
+    #     for src, dst, edge in graph.edges(data=True):
+    #         src_type = graph.nodes[src]["type"]
+    #         dst_type = graph.nodes[dst]["type"]
 
-            edge_type = f"{src_type}_to_{dst_type}"
+    #         edge_type = f"{src_type}_to_{dst_type}"
 
-            if edge_type not in list_of_edge_type:
-                print(f"New edge type found: {edge_type}")
-                list_of_edge_type.append(edge_type)
+    #         if edge_type not in list_of_edge_type:
+    #             print(f"New edge type found: {edge_type}")
+    #             list_of_edge_type.append(edge_type)
 
         
-        pass
-    print(f"[Passed] All files are valid\n")
+    #     pass
+    # print(f"[Passed] All files are valid\n")
 
-    data, (index_dict, graph) = dataset[DATA_INDEX]
-    print(f"Data in index {DATA_INDEX} is \n{data}")
+    # data, (index_dict, graph) = dataset[DATA_INDEX]
+    # print(f"Data in index {DATA_INDEX} is \n{data}")
 
     print(f"\n\n----------------------DataLoader Test----------------------")
     BATCH_SIZE = 10
@@ -361,7 +367,7 @@ if __name__ == "__main__":
                                                 is_hetero           = IS_HETERO, 
                                                 batch_size          = BATCH_SIZE,
                                                 has_wait_time       = HAS_WAIT_TIME
-                                            )
+                                        )
 
     # Debugging: Print the keys of the first batch
     for batch in train_loader:
