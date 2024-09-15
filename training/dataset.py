@@ -111,6 +111,10 @@ class CustomDataset(Dataset):
             2. target_data  : the output features of the graph. From data/training_data/target/task_graph_idx.json
 
         returns a tuple of HeteroData and a dictionary containing global to local indexing
+
+        The graph will have task and dependency nodes by default. 
+        If has_wait_time is True, the graph will also have task_depend nodes.
+
         """
         hetero_data = HeteroData()
 
@@ -194,14 +198,11 @@ class CustomDataset(Dataset):
             hetero_data["dependency", require_edge_type, "task_depend"].edge_index  = [[], []]
             hetero_data["task_depend", require_edge_type, "task_depend"].edge_index = [[], []]
 
-            # if has_task_node:
             hetero_data["task_depend", require_edge_type, "task"].edge_index    = [[], []]
             hetero_data["task", require_edge_type, "task_depend"].edge_index    = [[], []]
 
-
         else: 
 
-            # if has_task_node:
             hetero_data["dependency", require_edge_type, "task"].edge_index         = [[], []]
 
         # from data.utils import visualize_graph
@@ -227,9 +228,11 @@ class CustomDataset(Dataset):
 
         # Converting edge indices [list] to tensors
         for edge_type in hetero_data.edge_types:
+
             hetero_data[edge_type].edge_index = torch.tensor(
-                hetero_data[edge_type].edge_index, dtype=torch.long
-            ).contiguous()
+                                                    hetero_data[edge_type].edge_index, 
+                                                    dtype=torch.long
+                                                ).contiguous()
 
         hetero_data = ToUndirected()(hetero_data)  # To leverage message passing in both directions
         
@@ -289,7 +292,16 @@ def load_data(
 if __name__ == "__main__":
 
     """
-    Usage: python3 -m training.dataset 10, True
+    Usage: python3 -m training.dataset 10 True True
+    Conditions to Test: 
+        1. Homogenous 
+            python3 -m training.dataset 10 False False
+
+        2. Heterogenous
+            a. Without wait time
+                python3 -m training.dataset 10 True False
+            b. With wait time
+                python3 -m training.dataset 10 True True
     """
 
     import sys
@@ -298,107 +310,76 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1:   
         DATA_INDEX      = int(sys.argv[1])
-        HAS_WAIT_TIME   = sys.argv[2].lower() in ['true', '1']
+        IS_HETERO       = sys.argv[2].lower() in ['true', '1']
+        HAS_WAIT_TIME   = sys.argv[3].lower() in ['true', '1']
 
     else:                   
         DATA_INDEX      = 2
+        IS_HETERO       = False
         HAS_WAIT_TIME   = False
 
-    print( f"Data index is {DATA_INDEX}" )
-    print( f"Has wait time is {HAS_WAIT_TIME}" )
+
+    print( f"Data index is          {DATA_INDEX}" )
+    print( f"Has wait time is       {HAS_WAIT_TIME}" )
+    print( f"Is heterogenous graph  {IS_HETERO}" )
 
     DATASET_DIR = "data/training_data"
 
-    # print(f"\n\n----------------------Homogenous Graph----------------------")
+    dataset = CustomDataset(
+                DATASET_DIR, 
+                is_hetero=IS_HETERO, 
+                return_graph=True, 
+                has_wait_time=HAS_WAIT_TIME)
 
-    # is_hetero                   = False
-    # homogenous_dataset          = CustomDataset(DATASET_DIR, is_hetero=False, return_graph=True, has_wait_time=HAS_WAIT_TIME)
-    # data, (index_dict, graph)   = homogenous_dataset[DATA_INDEX]
+    print(f"\n------Checking all files in the dataset------")
+    list_of_edge_type = []
+    for idx, (data, (index_dict, graph)) in enumerate(dataset):
 
-    # target_path     = homogenous_dataset.get_file_path(DATA_INDEX)[1]
-    # compute_list    = get_compute_list_from_json(target_path)
+        for src, dst, edge in graph.edges(data=True):
+            src_type = graph.nodes[src]["type"]
+            dst_type = graph.nodes[dst]["type"]
 
-    # print(f"Data is {data}")
-    # print(f"Feature matrix \n{data.x}\n")
-    # print(f"\nedge_index \n{data.edge_index}\n")
-    # print(f"edge_attr \n{data.edge_attr}\n")
+            edge_type = f"{src_type}_to_{dst_type}"
 
-    # visualize_graph(graph=graph, compute_list=compute_list)
+            if edge_type not in list_of_edge_type:
+                print(f"New edge type found: {edge_type}")
+                list_of_edge_type.append(edge_type)
 
-    print(f"\n\n----------------------Heterogenous Graph----------------------")
+        
+        pass
+    print(f"[Passed] All files are valid\n")
 
-    is_hetero                           = True
-    heterogenous_dataset                = CustomDataset(DATASET_DIR, is_hetero=True ,return_graph=True, has_wait_time=HAS_WAIT_TIME)
-    hetero_data, (index_dict, graph)    = heterogenous_dataset[DATA_INDEX]
-
-
-    
-
-    # for idx, (hetero_data, (index_dict, graph)) in enumerate(heterogenous_dataset):
-        # print(f"\n\nData index is {idx}")
-        # print(f"\nHeteroData is {hetero_data}")
-        # if idx == 2: 
-        #     break
-        # pass
-        # print(idx)
-
-    # exit()
-
-    print(f"\nHeteroData is {hetero_data}")
-    # print(f"\nOutput feature matrix \n{hetero_data['task'].y}")
-    # print(f"\nLatency is {torch.max(hetero_data['task'].y) * 100}")
-    print(f"Latency is {hetero_data.y}")
-    print(f"\nNode types are {hetero_data.node_types}")
-    print(f"Edge types are {hetero_data.edge_types}")
-    print(f"Meta information is {hetero_data.metadata}")
-
-    for node_type in hetero_data.node_types:
-        print(
-            f"Node type {node_type} has feature "
-            f"matrix \n{hetero_data[node_type].x}\n")
-
-    for edge_type in hetero_data.edge_types:
-        print(
-            f"Edge type {edge_type} has edge index "
-            f"\n{hetero_data[edge_type].edge_index}\n")
-
-    # visualize_graph(graph=graph, compute_list=compute_list)
-
+    data, (index_dict, graph) = dataset[DATA_INDEX]
+    print(f"Data in index {DATA_INDEX} is \n{data}")
 
     print(f"\n\n----------------------DataLoader Test----------------------")
     BATCH_SIZE = 10
+    print(f"\nLoading data with batch size {BATCH_SIZE}")
 
-    homo_train_loader, val_loader           = load_data(
+    train_loader, val_loader           = load_data(
                                                 training_data_dir   = DATASET_DIR, 
-                                                is_hetero           = False, 
+                                                is_hetero           = IS_HETERO, 
                                                 batch_size          = BATCH_SIZE,
                                                 has_wait_time       = HAS_WAIT_TIME
                                             )
 
-    hetero_train_loader, hetero_val_loader  = load_data(
-                                                training_data_dir   = DATASET_DIR, 
-                                                is_hetero           = True, 
-                                                batch_size          = BATCH_SIZE,
-                                                has_wait_time       = HAS_WAIT_TIME
-                                            )
+    # Debugging: Print the keys of the first batch
+    for batch in train_loader:
+        print(f"Batch data: {batch}")
+        break
+
+
+
 
     print(f"\n For homogenous graph")
     print(f"\nData loader information")
-    print(f"Number of training batches:     {len(homo_train_loader)}")
-    print(f"Batch size:                     {homo_train_loader.batch_size}")
-    print(f"Training samples                {len(homo_train_loader) * homo_train_loader.batch_size}")
+    print(f"Number of training batches:     {len(train_loader)}")
+    print(f"Batch size:                     {train_loader.batch_size}")
+    print(f"Training samples                {len(train_loader) * train_loader.batch_size}")
     print(f"Number of validation batches:   {len(val_loader)}")
 
-    print(f"DataLoader is                   {homo_train_loader}")
-    print(f"Data from DataLoader            {next(iter(homo_train_loader))}")
+    print(f"DataLoader is                   {train_loader}")
+    
 
+    # print(f"Data from DataLoader            {next(iter(train_loader))}")
 
-    print(f"\n For Heterogenous graph")
-    print(f"\nData loader information")
-    print(f"Number of training batches:     {len(hetero_train_loader)}")
-    print(f"Batch size:                     {hetero_train_loader.batch_size}")
-    print(f"Training samples                {len(hetero_train_loader) * hetero_train_loader.batch_size}")
-    print(f"Number of validation batches:   {len(hetero_val_loader )}")
-
-    print(f"Hetero train data is            {hetero_train_loader}")
-    print(f"Data from DataLoader            {next(iter(hetero_val_loader['val']))}")
