@@ -31,17 +31,22 @@ def print_parameter_count(model):
     print(f"Number of parameters: {num_params}")
 
 
-def get_metadata(dataset_path):
+def get_metadata(dataset_path, has_wait_time):
     from training.dataset import CustomDataset
 
-    dataset = CustomDataset(dataset_path, is_hetero=True)
-    data, _ = dataset[0]
+    dataset = CustomDataset(
+                dataset_path, 
+                is_hetero       = True, 
+                has_wait_time   = has_wait_time, 
+                return_graph    = False)
+
+    data    = dataset[0]
 
     return data.metadata()
 
 def initialize_model(model, dataloader):
     """Necessary since GraphConv is lazily initialized"""
-    data, _ = next(iter(dataloader))
+    data = next(iter(dataloader))
     model(data)
 
 def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):

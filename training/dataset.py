@@ -129,6 +129,7 @@ class CustomDataset(Dataset):
         dependency_input_feature    = []
 
         task_target                 = [] # list of start and end cycle for each task
+        task_depend_target          = [] # list of start and end cycle for each task_depend
 
         global_to_local_indexing    = {"task": {}, "dependency": {}}
 
@@ -157,14 +158,15 @@ class CustomDataset(Dataset):
                 target_end_cycle    = task_target_feature["end_cycle"] / self.max_cycle
 
                 # target is the same for both task and task_depend nodes
-                task_target.append([target_start_cycle, target_end_cycle])
 
                 if node_type == "task_depend":
                     wait_time = node_data["wait_time"] / self.max_cycle
-                    task_depend_input_feature.append([generate, processing_time, wait_time])
+                    task_depend_input_feature.append([generate, processing_time, target_end_cycle])
+                    task_depend_target.append([target_start_cycle, target_end_cycle])
 
                 elif node_type == "task":
                     task_input_feature.append([generate, processing_time])
+                    task_target.append([target_start_cycle, target_end_cycle])
 
             if node_type == "dependency":
                 generate = node_data["generate"] / self.max_generate
@@ -193,7 +195,7 @@ class CustomDataset(Dataset):
 
         if self.has_wait_time:
             hetero_data["task_depend"].x    = torch.tensor(task_depend_input_feature, dtype=torch.float)
-            hetero_data["task_depend"].y    = torch.tensor(task_target, dtype=torch.float)
+            hetero_data["task_depend"].y    = torch.tensor(task_depend_target, dtype=torch.float)
 
         # Creating edge indices
         require_edge_type = "requires"
@@ -243,7 +245,7 @@ class CustomDataset(Dataset):
         hetero_data.y = float(target_data["latency"])
         self._do_checks(hetero_data)
 
-        # # [debugging] Uncomment to visualize the graph
+        # [debugging] Uncomment to visualize the graph
         # from data.utils import visualize_graph
         # visualize_graph(graph=graph)    
         
@@ -271,13 +273,14 @@ def load_data(
 
     ) -> tuple[DataLoader, DataLoader]:
 
-    print(f"[load_data] Is heterogenous graph: {is_hetero}")
+    print(f"\n[load_data] Is heterogenous graph: {is_hetero}")
     print(f"[load_data] Has wait time: {has_wait_time}")
 
-    dataset             = CustomDataset(training_data_dir, 
-                                        is_hetero, 
-                                        has_wait_time, 
-                                        return_graph=False)
+    dataset             = CustomDataset(
+                            training_data_dir=training_data_dir, 
+                            is_hetero=is_hetero, 
+                            has_wait_time=has_wait_time, 
+                            return_graph=False)
 
     validation_size     = int(validation_split * len(dataset))
 
@@ -320,13 +323,15 @@ if __name__ == "__main__":
 
     import sys
 
+    from data.utils import visualize_graph
+
     if len(sys.argv) > 1:   
         DATA_INDEX      = int(sys.argv[1])
         IS_HETERO       = sys.argv[2].lower() in ['true', '1']
         HAS_WAIT_TIME   = sys.argv[3].lower() in ['true', '1']
 
     else:                   
-        DATA_INDEX      = 2
+        DATA_INDEX      = 10
         IS_HETERO       = False
         HAS_WAIT_TIME   = False
 
@@ -362,10 +367,11 @@ if __name__ == "__main__":
 
         print(f"[Passed] All files are valid\n")
 
-    check_all_files_in_dataset()
-    data = dataset[DATA_INDEX]
-    print(f"Data in index {DATA_INDEX} is \n{data}")
+    # check_all_files_in_dataset()
+    data, (index, graph) = dataset[DATA_INDEX]
+    # visualize_graph(graph=graph)
 
+    print(f"Data in index {DATA_INDEX} is \n{data}")
 
     print(f"\n\n----------------------DataLoader Test----------------------")
 

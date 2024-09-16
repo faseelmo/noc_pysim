@@ -49,19 +49,46 @@ TRAINING_PARAMS = yaml.safe_load(open(params_path))
 
 print(f"\nTraining on {DEVICE}")
 
-def train_fn(train_loader, model, optimizer, loss_fn, is_pooling_model):
+def process_batch(data, model, loss_fn, is_pooling_model, has_wait_time):
+        
+    data    = data.to(DEVICE)
+    output  = model(data)
+    
+    if is_pooling_model:
+        loss = loss_fn(output, data.y)
+
+    elif has_wait_time and not is_pooling_model: 
+        
+        is_task_empty = data['task'].y.numel() == 0
+        
+        if not is_task_empty:
+            target_task         = data['task'].y
+            pred_task           = output['task']
+            loss_task           = loss_fn(target_task, pred_task)
+        
+        target_task_depend  = data['task_depend'].y
+        pred_task_depend    = output['task_depend']
+        loss_task_depend    = loss_fn(target_task_depend, pred_task_depend)
+        
+        if not is_task_empty:
+            loss = loss_task + loss_task_depend
+        else: 
+            loss = loss_task_depend
+
+    if loss.isnan():
+        print("Loss is NaN")
+        exit()
+
+    return loss
+
+
+def train_fn(train_loader, model, optimizer, loss_fn, is_pooling_model, has_wait_time):
     loop        = tqdm(train_loader, leave=True)
     mean_loss   = []
 
-    for batch_idx, (data, _) in enumerate(loop):
+    for batch_idx, data in enumerate(loop):
 
-        data    = data.to(DEVICE)
-        output  = model(data).squeeze(1)
-        
-        if is_pooling_model:
-            loss    = loss_fn(output, data.y)
-        else: 
-            loss    = loss_fn(output, data['task'].y)
+        loss = process_batch(data, model, loss_fn, is_pooling_model, has_wait_time)
 
         optimizer.zero_grad()
         loss.backward()
@@ -78,20 +105,12 @@ def train_fn(train_loader, model, optimizer, loss_fn, is_pooling_model):
     return train_loss
 
 
-def validation_fn(valid_loader, model, loss_fn, epoch, is_pooling_model):
+def validation_fn(valid_loader, model, loss_fn, is_pooling_model, has_wait_time):
     mean_loss = []
 
-    for (data, _) in valid_loader:
+    for data in valid_loader:
 
-        data    = data.to(DEVICE)
-        output  = model(data).squeeze(1)
-        
-        if is_pooling_model:
-            loss    = loss_fn(output, data.y)
-
-        else: 
-            loss    = loss_fn(output, data['task'].y)
-
+        loss = process_batch(data, model, loss_fn, is_pooling_model, has_wait_time)
         mean_loss.append(loss.item())
 
     if is_pooling_model:
@@ -101,21 +120,39 @@ def validation_fn(valid_loader, model, loss_fn, epoch, is_pooling_model):
 
     return validation_set_loss
 
-def test_fn(test_loader, model, is_pooling_model):
+def test_fn(test_loader, model, is_pooling_model, has_wait_time):
     ground_truth_latency_list = []
     predicted_latency_list = []
 
-    for (data, _) in test_loader:
+    for data in test_loader:
         data    = data.to(DEVICE)
-        output  = model(data).squeeze(1)
+        output  = model(data)
 
         if is_pooling_model:
             latency_truth   = data.y.item()
             latency_pred    = output.item()
 
-        else: 
+        elif not has_wait_time and not is_pooling_model: 
             latency_truth   = torch.max(data['task'].y).detach().cpu().numpy()
-            latency_pred    = torch.max(output).detach().cpu().numpy()
+            latency_pred    = torch.max(output).detach().cpu().numpy() 
+
+        elif has_wait_time and not is_pooling_model:
+            if data['task'].y.numel() > 0:
+                task_latency_truth = torch.max(data['task'].y).detach().cpu().numpy()
+                task_latency_pred = torch.max(output['task']).detach().cpu().numpy()
+            else:
+                task_latency_truth = 0
+                task_latency_pred = 0
+        
+            if data['task_depend'].y.numel() > 0:
+                task_depend_latency_truth = torch.max(data['task_depend'].y).detach().cpu().numpy()
+                task_depend_latency_pred = torch.max(output['task_depend']).detach().cpu().numpy()
+            else:
+                task_depend_latency_truth = 0
+                task_depend_latency_pred = 0
+        
+            latency_truth = max(task_latency_truth, task_depend_latency_truth)
+            latency_pred = max(task_latency_pred, task_depend_latency_pred)
 
         ground_truth_latency_list.append(latency_truth)
         predicted_latency_list.append(latency_pred)
@@ -132,7 +169,6 @@ def main():
     EPOCHS          = TRAINING_PARAMS["EPOCHS"]
     DATA_DIR        = TRAINING_PARAMS["DATA_DIR"]
     BATCH_SIZE      = TRAINING_PARAMS["BATCH_SIZE"]
-    INPUT_FEATURES  = TRAINING_PARAMS["INPUT_FEATURES"]
     WEIGHT_DECAY    = TRAINING_PARAMS["WEIGHT_DECAY"]
     LOAD_MODEL      = TRAINING_PARAMS["LOAD_MODEL"]
     MODEL_PATH      = TRAINING_PARAMS["MODEL_PATH"]
@@ -145,6 +181,7 @@ def main():
     CREATE_DATASET  = TRAINING_PARAMS["CREATE_DATASET"]
     GEN_COUNT       = TRAINING_PARAMS["GEN_COUNT"]   
     MAX_NODES       = TRAINING_PARAMS["MAX_NODES"]
+    HAS_WAIT_TIME   = TRAINING_PARAMS["HAS_WAIT_TIME"]
 
     start_time = time.time()
 
@@ -159,19 +196,21 @@ def main():
 
     train_loader, valid_loader  = load_data(
                                     DATA_DIR, 
-                                    is_hetero=IS_HETERO, 
-                                    batch_size=BATCH_SIZE, 
-                                    validation_split=0.1)
+                                    is_hetero       = IS_HETERO, 
+                                    batch_size      = BATCH_SIZE, 
+                                    has_wait_time   = HAS_WAIT_TIME,
+                                    validation_split= 0.1)
 
     test_loader, _              = load_data(
                                     f"{DATA_DIR}/test", 
-                                    is_hetero=IS_HETERO, 
-                                    batch_size=1, 
+                                    is_hetero       = IS_HETERO, 
+                                    has_wait_time   = HAS_WAIT_TIME,
+                                    batch_size      = 1, 
                                     validation_split=0.0)
 
     if IS_HETERO:
 
-        metadata    = get_metadata(DATA_DIR)
+        metadata    = get_metadata(DATA_DIR, HAS_WAIT_TIME)
 
         if DO_POOLING:
 
@@ -209,9 +248,9 @@ def main():
 
     for epoch in range(EPOCHS):
 
-        train_loss          = train_fn(train_loader, model, optimizer, loss_fn, DO_POOLING)
-        valid_loss          = validation_fn(valid_loader, model, loss_fn, epoch, DO_POOLING)
-        test_metric, pvalue = test_fn(test_loader, model, DO_POOLING)
+        train_loss          = train_fn(train_loader, model, optimizer, loss_fn, DO_POOLING, HAS_WAIT_TIME)
+        valid_loss          = validation_fn(valid_loader, model, loss_fn, DO_POOLING, HAS_WAIT_TIME)
+        test_metric, pvalue = test_fn(test_loader, model, DO_POOLING, HAS_WAIT_TIME)
 
         print(f"Epoch {epoch+1}/{EPOCHS}, Validation Loss: {valid_loss}, Kendall's Tau: {test_metric}, P-Value: {round(pvalue,5)}")
 
