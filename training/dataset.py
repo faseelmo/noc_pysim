@@ -273,8 +273,8 @@ def load_data(
 
     ) -> tuple[DataLoader, DataLoader]:
 
-    print(f"\n[load_data] Is heterogenous graph: {is_hetero}")
-    print(f"[load_data] Has wait time: {has_wait_time}")
+    print(f"\n[load_data] Is hetero graph: \t{is_hetero}")
+    print(f"[load_data] Has wait time: \t{has_wait_time}")
 
     dataset             = CustomDataset(
                             training_data_dir=training_data_dir, 
