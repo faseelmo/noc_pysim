@@ -64,7 +64,8 @@ def visualize_graph(
         for node in graph.nodes
     ]
 
-    pos = nx.spring_layout(graph)
+    seed = 0
+    pos = nx.spring_layout(graph, seed=seed)
     # color_light_gray = 
     nx.draw(
         graph,

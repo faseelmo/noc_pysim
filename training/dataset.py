@@ -160,7 +160,7 @@ class CustomDataset(Dataset):
                 # target is the same for both task and task_depend nodes
 
                 if node_type == "task_depend":
-                    wait_time = node_data["wait_time"] / self.max_cycle
+                    # wait_time = node_data["wait_time"] / self.max_cycle
                     task_depend_input_feature.append([generate, processing_time, target_end_cycle])
                     task_depend_target.append([target_start_cycle, target_end_cycle])
 

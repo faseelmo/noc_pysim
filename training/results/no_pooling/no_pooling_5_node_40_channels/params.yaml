@@ -4,6 +4,7 @@ NUM_MPN_LAYERS      : 3     # Number of conv layers in MPN
 HIDDEN_CHANNELS     : 40     # Number of output node embeddings 
 IS_HETERO           : True  # Converts using to_hetero() if True
 DO_POOLING          : False  # Applies pooling to the output node embeddings
+HAS_WAIT_TIME       : False  # Adds wait time as a feature
 
 # Dataset 
 CREATE_DATASET      : True

@@ -70,13 +70,14 @@ if __name__ == "__main__":
         HIDDEN_CHANNELS = training_params["HIDDEN_CHANNELS"]
         NUM_MPN_LAYERS  = training_params["NUM_MPN_LAYERS"]
         MAX_CYCLE       = training_params["MAX_CYCLE"]
+        HAS_WAIT_TIME   = training_params["HAS_WAIT_TIME"]
 
         print(f"\nModel Parameters: \n IS_HETERO: {IS_HETERO} \n "
               f"DO_POOLING: {DO_POOLING} \n HIDDEN_CHANNELS: {HIDDEN_CHANNELS} \n "
               f"NUM_MPN_LAYERS: {NUM_MPN_LAYERS}")   
 
         if IS_HETERO:
-            metadata    = get_metadata(data_dir)
+            metadata    = get_metadata(data_dir, HAS_WAIT_TIME)
 
             if DO_POOLING:
                 print(f"\nGNNHeteroPooling Model Loaded")
@@ -90,7 +91,7 @@ if __name__ == "__main__":
             model       = GNN(HIDDEN_CHANNELS, NUM_MPN_LAYERS).to(device)
 
         # Initialize model since GraphConv is lazily initialized
-        dataset             = CustomDataset(data_dir, is_hetero=IS_HETERO, return_graph=True)
+        dataset             = CustomDataset(data_dir, is_hetero=IS_HETERO, return_graph=True, has_wait_time=HAS_WAIT_TIME)
         data_for_init, _    = next(iter(dataset))
         model(data_for_init)
 
@@ -103,8 +104,16 @@ if __name__ == "__main__":
         for data, index_graph_tuple in dataset:
 
             data.to(device)
-            output      = model(data) * MAX_CYCLE
-            truth       = data["task"].y * MAX_CYCLE
+            # output      = model(data) * MAX_CYCLE
+            output      = model(data) 
+            
+            task_output         = output["task"] * MAX_CYCLE
+            task_truth          = data["task"].y * MAX_CYCLE
+
+            if HAS_WAIT_TIME:
+                task_depend_output  = output["task_depend"] * MAX_CYCLE
+                task_depend_truth   = data["task_depend"].y * MAX_CYCLE
+
 
             nx_graph    = index_graph_tuple[1]
             graph_index = index_graph_tuple[0]
@@ -114,17 +123,35 @@ if __name__ == "__main__":
 
             for idx, node in nx_graph.nodes(data=True):
 
+                if not HAS_WAIT_TIME:
+                    if node["type"] == "task_depend":
+                        node["type"] = "task"
+
                 if node["type"] == "task":
                     tensor_idx              = graph_index["task"][idx] 
 
                     truth_compute_list[idx] = {
-                        "start_cycle"   : int(truth[tensor_idx][0].item()),
-                        "end_cycle"     : int(truth[tensor_idx][1].item())
+                        "start_cycle"   : int(task_truth[tensor_idx][0].item()),
+                        "end_cycle"     : int(task_truth[tensor_idx][1].item())
                     }
 
                     pred_compute_list[idx]  = {
-                        "start_cycle"   : int(output[tensor_idx][0].item()),
-                        "end_cycle"     : int(output[tensor_idx][1].item())
+                        "start_cycle"   : int(task_output[tensor_idx][0].item()),
+                        "end_cycle"     : int(task_output[tensor_idx][1].item())
+                    }
+
+                if node["type"] == "task_depend":
+                    
+                    tensor_idx              = graph_index["task_depend"][idx] 
+
+                    truth_compute_list[idx] = {
+                        "start_cycle"   : int(task_depend_truth[tensor_idx][0].item()),
+                        "end_cycle"     : int(task_depend_truth[tensor_idx][1].item())
+                    }
+
+                    pred_compute_list[idx]  = {
+                        "start_cycle"   : int(task_depend_output[tensor_idx][0].item()),
+                        "end_cycle"     : int(task_depend_output[tensor_idx][1].item())
                     }
 
             visualize_graph(nx_graph, compute_list=truth_compute_list, pred_compute_list=pred_compute_list)
