@@ -2,9 +2,7 @@ from data.utils import load_graph_from_json, visualize_graph, get_compute_list_f
 
 import os
 
-from natsort             import natsorted
-
-import matplotlib.pyplot as plt
+from natsort import natsorted
 
 import networkx as nx
 
@@ -58,7 +56,6 @@ if __name__ == "__main__":
     packet_list_test_files      = natsorted(os.listdir(packet_list_test_path))
     target_list_test_files      = natsorted(os.listdir(target_test_data_path))
 
-
     for input_idx, target_idx, packet_list_idx in zip(input_training_data_files, target_training_input_files, packet_list_training_files):
         
         graph           = load_graph_from_json(os.path.join(input_training_data_path, input_idx))
@@ -80,7 +77,7 @@ if __name__ == "__main__":
         # Logic Starts Here
         node_list = []
 
-        # Assign minimum_wait_time to all the dependent nodes
+        # Assign minimum_wait_time to all applicable dependent nodes
         # and finding the node that will start the earliest
         print(f"\nFinding the node that will start the earliest")
         for idx, node in graph.nodes(data=True):
@@ -98,12 +95,17 @@ if __name__ == "__main__":
 
                     # Check if the successor node has any other dependency
                     dependent_list = []
+                    has_other_dependency = False
                     predecessor_nodes    = list(graph.predecessors(successor_node))
                     for predecessor_node in predecessor_nodes:
                         if predecessor_node != idx:
                             depend = DependOn(id = predecessor_node, end_cycle = None)
+                            has_other_dependency = True
                             dependent_list.append(depend)
 
+                    if has_other_dependency:
+                        minimum_start_cycle = None
+                    
                     # Creating a node object
                     node = Node(id = successor_node,
                                 type = "task_depend",
@@ -122,8 +124,8 @@ if __name__ == "__main__":
                 init_assign_flag = False
                 for idx, node in enumerate(list_of_successor_nodes):
 
-
                     if len(node.depend_list) != 0:
+                        # You can also do node.minimum_start_cycle is None
                         continue
 
                     if not init_assign_flag:
@@ -138,12 +140,46 @@ if __name__ == "__main__":
 
                 assert list_of_successor_nodes[start_cycle_node_idx_value[0]].actual_start_cylce == list_of_successor_nodes[start_cycle_node_idx_value[0]].minimum_start_cycle
 
-                print(f"List of Successor Nodes")
-                for node in list_of_successor_nodes:
-                    print(node)
+                node_list.extend(list_of_successor_nodes)
+
+        # Assigning the end_cycle to the first executed node
+        executed_node = node_list[start_cycle_node_idx_value[0]]
+        processing_time = graph.nodes[executed_node.id]['processing_time']
+        generate = graph.nodes[executed_node.id]['generate']
+        executed_node.end_cycle = executed_node.actual_start_cylce + ( processing_time * generate ) 
+
+        # Check if the node above is a dependent node for any other node
+        # if yes, then update DependOn.end_cycle
+        for node in node_list:
+            for depend in node.depend_list:
+                if depend.id == executed_node.id:
+                    depend.end_cycle = executed_node.end_cycle
+
+        # For nodes that have all the dependencies assigned (with end_cycle). 
+        # Assign the minimum end_cycle to the minimum_start_cycle
+        for node in node_list:
+            all_depend_have_end_cycle = False
+            for depend in node.depend_list:
+                if depend.end_cycle is None:
+                    all_depend_have_end_cycle = False
+                    break
+                all_depend_have_end_cycle = True
+
+            if all_depend_have_end_cycle:
+                # Assign the maximum end_cycle of the dependecy list to the minimum_start_cycle
+                node.minimum_start_cycle = max([depend.end_cycle for depend in node.depend_list])
+
+        print(f"List of Successor Nodes")
+        for node in node_list:
+            print(node)
+
 
             
+        # Condition where there is nothing in the dependecy list of the rest of the nodes.
 
+        # Condition where there is a mix of nodes with dependency list and without dependency list
+
+        # Loop to check if the list contains all the nodes
 
 
 
