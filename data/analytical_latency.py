@@ -1,6 +1,5 @@
 
 import os
-import json
 
 import networkx as nx
 
@@ -11,7 +10,6 @@ from data.utils import (
     load_graph_from_json, 
     visualize_graph, 
     get_compute_list_from_json)
-
 
 @dataclass
 class DependOn:
@@ -98,14 +96,13 @@ def get_list_of_successor_nodes_as_node_obj(successor_nodes: list, graph: nx.DiG
 
         # Creating a node object
         node = Node(id = successor_node,
-                    type = graph.nodes[successor_node]['type'],
-                    processing_time=graph.nodes[successor_node]['processing_time'],
-                    generate=graph.nodes[successor_node]['generate'],
+                    type                = graph.nodes[successor_node]['type'],
+                    processing_time     = graph.nodes[successor_node]['processing_time'],
+                    generate            = graph.nodes[successor_node]['generate'],
                     minimum_start_cycle = minimum_start_cycle,
-                    actual_start_cylce = None, 
-                    end_cycle = None,
-                    depend_list=dependent_list,
-                    )
+                    actual_start_cylce  = None, 
+                    end_cycle           = None,
+                    depend_list         = dependent_list)
 
         list_of_successor_nodes.append(node)
 
@@ -132,6 +129,7 @@ def init_first_dependency_node( graph: nx.DiGraph ) -> tuple[list, int]:
             # to assign the actual_start_cycle
             start_cycle_node_idx_value = (None, None) # (index, start_cycle)
             init_assign_flag = False
+
             for idx, node in enumerate(list_of_successor_nodes):
 
                 if len(node.depend_list) != 0:
@@ -139,8 +137,8 @@ def init_first_dependency_node( graph: nx.DiGraph ) -> tuple[list, int]:
                     continue
 
                 if not init_assign_flag:
-                    init_assign_flag = True
-                    start_cycle_node_idx_value = (idx, node.minimum_start_cycle)
+                    init_assign_flag            = True
+                    start_cycle_node_idx_value  = (idx, node.minimum_start_cycle)
 
                 if node.minimum_start_cycle < start_cycle_node_idx_value[1]:
                     start_cycle_node_idx_value = (idx, node.minimum_start_cycle)
@@ -165,6 +163,7 @@ def node_list_has_all_nodes(node_list: list[Node], num_nodes: int) -> bool:
     return True
 
 def check_all_nodes_assigned(node_list: list[Node]) -> bool:
+    
     for node in node_list:
         if not node.is_assigned:
             return False
@@ -187,8 +186,6 @@ def is_node_in_node_list(node_list: list[Node], node_id: int) -> bool:
     return False
 
 def get_node_with_least_minimum_start_cycle(node_list: list[Node]) -> Node:
-
-    print(f"Nodes ready to execute {node_list}")
 
     minimum_index = None
     first_flag = True
@@ -299,60 +296,80 @@ def get_minimum_start_cycle_from_assigned_nodes(node_list: list[Node]) -> int:
 
     return max(list_of_start_cycles)
 
-
-def main(graph):
-    
-    num_nodes = graph.number_of_nodes()    
-    
-    node_list, start_node_index = init_first_dependency_node(graph)
-
-    start_node = node_list[start_node_index]
-
-    executed_node = update_end_cylce(start_node) 
-
-    update_depend_on_end_cycle_for_all_nodes(node_list, executed_node)
-
-    assign_minimum_start_cycle_as_depend_cycle(node_list)
-
-    # Checking if the nodes in node_list has all its dependendents in the node_list
+def check_if_all_successor_nodes_in_node_list(node_list: list[Node]) -> list[Node]:
     new_node_list = []
     for node in node_list:
-
         has_successor, successor_nodes = check_if_node_has_successor(graph, node.id)
         if has_successor:
-
             for successor_node in successor_nodes:
-
                 if not is_node_in_node_list(node_list, successor_node):
-                    
                     if not is_node_in_node_list(new_node_list, successor_node):
                         list_of_new_nodes = get_list_of_successor_nodes_as_node_obj(successor_nodes, graph, node.id)
                         new_node_list.extend(list_of_new_nodes)
+    return new_node_list
 
-    update_depend_on_for_new_node_list(node_list, new_node_list)
-    node_list.extend(new_node_list)
+def convert_node_list_to_compute_dict(node_list: list[Node]) -> dict:
+
+    compute_dict = {}
+    for node in node_list:
+        compute_dict[node.id] = {
+            "start_cycle": node.actual_start_cylce,
+            "end_cycle": node.end_cycle
+        }
+
+    return compute_dict
+
+def get_non_dependency_nodes_count(graph: nx.DiGraph) -> int:
+
+    non_dependency_nodes_count = 0
+    for idx, node in graph.nodes(data=True):
+        if node["type"] != "dependency":
+            non_dependency_nodes_count += 1
+
+    return non_dependency_nodes_count
 
 
-    while not check_all_nodes_assigned(node_list):
+def main(graph):
+    
+    # Finding the first node to execute
+    non_dependency_nodes_count = get_non_dependency_nodes_count(graph)
+    node_list, start_node_index = init_first_dependency_node(graph)
+    start_node                  = node_list[start_node_index]
+    executed_node               = update_end_cylce(start_node) 
+
+    update_depend_on_end_cycle_for_all_nodes(node_list, executed_node)
+    assign_minimum_start_cycle_as_depend_cycle(node_list)
+
+    # Finding the next node to execute
+    while True:   
+
+        if node_list_has_all_nodes(node_list, non_dependency_nodes_count):
+            if check_all_nodes_assigned(node_list):
+                break
+
+        new_node_list = check_if_all_successor_nodes_in_node_list(node_list)
+
+        update_depend_on_for_new_node_list(node_list, new_node_list)
+
+        node_list.extend(new_node_list)
+
         assign_minimum_start_cycle_as_depend_cycle(node_list)
-        nodes_ready_to_execute  = get_list_nodes_ready_to_execute(node_list)
 
+        nodes_ready_to_execute          = get_list_nodes_ready_to_execute(node_list)
         start_node                      = get_node_with_least_minimum_start_cycle(nodes_ready_to_execute)
         possible_minimum_start_cycle    = get_minimum_start_cycle_from_assigned_nodes(node_list)
 
         if possible_minimum_start_cycle > start_node.minimum_start_cycle:
-            start_node.actual_start_cylce = possible_minimum_start_cycle
+            start_node.actual_start_cylce = possible_minimum_start_cycle + 1
 
         else: 
-            start_node.actual_start_cylce = start_node.minimum_start_cycle
+            start_node.actual_start_cylce = start_node.minimum_start_cycle + 1
 
         update_end_cylce(start_node)    
         update_depend_on_end_cycle_for_all_nodes(node_list, start_node)
 
 
-    print(f"\nNodes in node_list")
-    for node in node_list:
-        print(node)
+    return node_list
 
 
 PACKET_SIZE = 4 # flits
@@ -368,7 +385,7 @@ if __name__ == "__main__":
     target_test_data_path       = "data/training_data/test/target"
 
     input_analytical_latency_path   = "data/analytical_test_data/input"
-    input_analytical_files          = natsorted(os.listdir(input_analytical_latency_path))
+    target_analytical_latency_path  = "data/analytical_test_data/target"
 
     input_training_data_files   = natsorted(os.listdir(input_training_data_path))
     packet_list_training_files  = natsorted(os.listdir(packet_list_training_path))
@@ -376,13 +393,15 @@ if __name__ == "__main__":
 
     input_test_data_files       = natsorted(os.listdir(input_test_data_path))
     packet_list_test_files      = natsorted(os.listdir(packet_list_test_path))
-    target_list_test_files      = natsorted(os.listdir(target_test_data_path))
+    target_test_files           = natsorted(os.listdir(target_test_data_path))
 
-    for input_idx in input_analytical_files:
-        
-        graph = load_graph_from_json(os.path.join(input_analytical_latency_path, input_idx))
+    input_analytical_files      = natsorted(os.listdir(input_analytical_latency_path))
+    target_analytical_files     = natsorted(os.listdir(target_analytical_latency_path))
 
-        print(f"\n--------Graph: {input_idx}--------")
+    for input_idx, target_idx in zip(input_test_data_files, target_test_files):
+
+        graph           = load_graph_from_json(os.path.join(input_test_data_path, input_idx))
+        schedule_list   = get_compute_list_from_json(os.path.join(target_test_data_path, target_idx))
 
         dependency_node_count = 0
 
@@ -393,20 +412,10 @@ if __name__ == "__main__":
         # Skip Graphs with more than 1 dependency node
         if dependency_node_count > 1:
             continue
-
         
-        main(graph)
+        node_list = main(graph)
 
-        visualize_graph(graph)
+        analytical_scheudle_list = convert_node_list_to_compute_dict(node_list)
 
-
-
-
-
-
-        
-    # for input_idx, target_idx, packet_list_idx in zip(input_training_data_files, target_training_input_files, packet_list_training_files):
-        # compute_list    = get_compute_list_from_json(os.path.join(target_training_data_path, target_idx)) 
-        # packet_list     = json.load(open(os.path.join(packet_list_training_path, packet_list_idx)))
-        # visualize_graph(graph, packet_list=packet_list, compute_list=compute_list)
+        visualize_graph(graph, compute_list=schedule_list, pred_compute_list=analytical_scheudle_list)
 

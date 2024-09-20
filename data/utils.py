@@ -27,7 +27,7 @@ def compute_list_to_node_dict(compute_list):
     return node_dict
 
 
-def get_compute_list_from_json(filename: str):
+def get_compute_list_from_json(filename: str) -> dict:
     """
     Converts the node cycle information from the json file to a dictionary
     used in inspect_data.py
