@@ -288,19 +288,20 @@ class LinearModel(nn.Module):
 if __name__ == "__main__":
 
     """
-    Usage: python3 -m training.model True False False
+    Usage: python3 -m training.model True False False False
     Conditions to Test: 
         1. Homogenous GNN Model
-            python3 -m training.model 0 0 0 
+            python3 -m training.model 0 0 0 0 
 
         2. Heterogenous GNN Model
-            python3 -m training.model 1 0 0 
-            python3 -m training.model 1 0 1
+            python3 -m training.model 1 0 0 0 
+            python3 -m training.model 1 0 1 0 (w/ wait time)
+            python3 -m training.model 1 0 1 1 (w/ scheduler node and wait time)
 
         3. Heterogenous Pooling GNN Model
             [Works only for dataloader and not directly from CustomDataset. Issue with Batching]
-            python3 -m training.model 1 1 0 
-            python3 -m training.model 1 1 1
+            python3 -m training.model 1 1 0 0 
+            python3 -m training.model 1 1 1 0
     """
 
     import sys
@@ -312,15 +313,18 @@ if __name__ == "__main__":
         HETERO_MODEL    = sys.argv[1].lower() in ['true', '1']
         DO_POOLING      = sys.argv[2].lower() in ['true', '1']
         HAS_WAIT_TIME   = sys.argv[3].lower() in ['true', '1']
+        CONNECT_TASK    = sys.argv[4].lower() in ['true', '1']
 
     else:                   
         HETERO_MODEL    = False
         DO_POOLING      = False
         HAS_WAIT_TIME   = False
+        CONNECT_TASK    = False
 
-    print( f"Hetero Model   = {HETERO_MODEL}")
-    print( f"Do Pooling     = {DO_POOLING}")
-    print( f"Has Wait Time  = {HAS_WAIT_TIME}")
+    print( f"Hetero Model   = {HETERO_MODEL}" )
+    print( f"Do Pooling     = {DO_POOLING}" )
+    print( f"Has Wait Time  = {HAS_WAIT_TIME}" )
+    print( f"Connect Task   = {CONNECT_TASK}" )
 
     IDX             = 10
     BATCH_SIZE      = 10
@@ -330,18 +334,19 @@ if __name__ == "__main__":
 
     dataloader, _ = load_data(
                         "data/training_data",
-                        is_hetero=HETERO_MODEL,
-                        has_wait_time=HAS_WAIT_TIME,
-                        batch_size=BATCH_SIZE)
+                        is_hetero           = HETERO_MODEL,
+                        has_wait_time       = HAS_WAIT_TIME,
+                        batch_size          = BATCH_SIZE,
+                        connect_task_nodes  = CONNECT_TASK )
 
     data = next(iter(dataloader))
 
     dataset     = CustomDataset(
                     "data/training_data", 
-                    is_hetero=HETERO_MODEL, 
-                    has_wait_time=HAS_WAIT_TIME, 
-                    return_graph=True
-                    )
+                    is_hetero           = HETERO_MODEL, 
+                    has_wait_time       = HAS_WAIT_TIME, 
+                    connect_task_nodes  = CONNECT_TASK,
+                    return_graph        = True)
 
     data_from_dataset, (index, graph) = dataset[IDX]
     visualize_graph(graph)

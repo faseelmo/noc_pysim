@@ -182,6 +182,7 @@ def main():
     GEN_COUNT       = TRAINING_PARAMS["GEN_COUNT"]   
     MAX_NODES       = TRAINING_PARAMS["MAX_NODES"]
     HAS_WAIT_TIME   = TRAINING_PARAMS["HAS_WAIT_TIME"]
+    HAS_SCHEDULER   = TRAINING_PARAMS["CONNECT_TASK_NODES"]
 
     start_time = time.time()
 
@@ -197,14 +198,16 @@ def main():
     train_loader, valid_loader  = load_data(
                                     DATA_DIR, 
                                     is_hetero       = IS_HETERO, 
-                                    batch_size      = BATCH_SIZE, 
                                     has_wait_time   = HAS_WAIT_TIME,
+                                    connect_task_nodes=HAS_SCHEDULER,
+                                    batch_size      = BATCH_SIZE, 
                                     validation_split= 0.1)
 
     test_loader, _              = load_data(
                                     f"{DATA_DIR}/test", 
                                     is_hetero       = IS_HETERO, 
                                     has_wait_time   = HAS_WAIT_TIME,
+                                    connect_task_nodes=HAS_SCHEDULER, 
                                     batch_size      = 1, 
                                     validation_split=0.0)
 
@@ -264,7 +267,7 @@ def main():
             test_metric_list, 
             args.name)
 
-        if (epoch + 1) % 50 == 0 or (epoch + 1) == 1:
+        if (epoch + 1) % 10 == 0 or (epoch + 1) == 1:
 
             torch.save(model, f"{SAVE_RESULTS}/LatNet_{epoch+1}.pth")
             torch.save(

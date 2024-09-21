@@ -277,8 +277,8 @@ class CustomDataset(Dataset):
         # [debugging] Uncomment to visualize the graph
         # from data.utils import visualize_graph
         # visualize_graph(graph=graph)    
-        from training.utils import log_hetero_data
-        log_hetero_data(hetero_data)
+        # from training.utils import log_hetero_data
+        # log_hetero_data(hetero_data)
         
         if self.return_graph:
             return (hetero_data, (global_to_local_indexing, graph))
@@ -298,10 +298,11 @@ class CustomDataset(Dataset):
 
 def load_data(
         training_data_dir, 
-        is_hetero: bool, 
-        has_wait_time: bool, 
-        batch_size: int =32, 
-        validation_split: float =0.1
+        is_hetero           : bool, 
+        has_wait_time       : bool, 
+        connect_task_nodes  : bool,     
+        batch_size          : int =32, 
+        validation_split    : float =0.1
 
     ) -> tuple[DataLoader, DataLoader]:
 
@@ -309,31 +310,32 @@ def load_data(
     print(f"[load_data] Has wait time: \t{has_wait_time}")
 
     dataset             = CustomDataset(
-                            training_data_dir=training_data_dir, 
-                            is_hetero=is_hetero, 
-                            has_wait_time=has_wait_time, 
-                            return_graph=False)
+                            training_data_dir   = training_data_dir, 
+                            is_hetero           = is_hetero, 
+                            has_wait_time       = has_wait_time, 
+                            connect_task_nodes  = connect_task_nodes,
+                            return_graph        = False)
 
-    validation_size     = int(validation_split * len(dataset))
+    validation_size     = int( validation_split * len( dataset ) )
 
     if validation_size == 0: # ensure at least one validation sample
         validation_size = 1  
 
-    train_size = len(dataset) - validation_size
+    train_size = len( dataset ) - validation_size
 
     if train_size <= 0:
-        raise ValueError("Training dataset size is too small after splitting.")
+        raise ValueError( "Training dataset size is too small after splitting." )
 
-    train_dataset, val_dataset = random_split(dataset, [train_size, validation_size])
+    train_dataset, val_dataset = random_split( dataset, [train_size, validation_size] )
 
-    print(f"\nTraining dataset size: \t\t{len(train_dataset)}")
-    print(f"Validation dataset size: \t{len(val_dataset)}")
+    print( f"\nTraining dataset size: \t\t{len(train_dataset)}" )
+    print( f"Validation dataset size: \t{len(val_dataset)}" )
 
     train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+        train_dataset, batch_size=batch_size, shuffle=True, drop_last=True )
 
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False, drop_last=True)
+        val_dataset, batch_size=batch_size, shuffle=False, drop_last=True )
 
     return train_loader, val_loader
 
@@ -341,16 +343,19 @@ def load_data(
 if __name__ == "__main__":
 
     """
-    Usage: python3 -m training.dataset 10 True True
+    Usage: python3 -m training.dataset 10 True True True
     Conditions to Test: 
         1. Homogenous 
-            python3 -m training.dataset 10 False False
+            python3 -m training.dataset 10 False False False
 
         2. Heterogenous
             a. Without wait time
-                python3 -m training.dataset 10 True False
+                python3 -m training.dataset 10 True False False
             b. With wait time
-                python3 -m training.dataset 10 True True
+                python3 -m training.dataset 10 True True False
+            c. With  wait time and connecting task nodes
+                python3 -m training.dataset 10 True True True
+            
     """
 
     import sys
@@ -386,10 +391,10 @@ if __name__ == "__main__":
 
     def check_all_files_in_dataset():
         # Inside a def for scoping
-        print(f"\n------Checking all files in the dataset------")
+        print( f"\n------Checking all files in the dataset------" )
         list_of_edge_type = []
 
-        for idx, (data, (index_dict, graph)) in enumerate(dataset):
+        for idx, ( data, ( index_dict, graph ) ) in enumerate( dataset ):
         
             for src, dst, edge in graph.edges(data=True):
                 src_type = graph.nodes[src]["type"]
@@ -398,38 +403,35 @@ if __name__ == "__main__":
                 edge_type = f"{src_type}_to_{dst_type}"
     
                 if edge_type not in list_of_edge_type:
-                    print(f"New edge type found: {edge_type}")
-                    list_of_edge_type.append(edge_type)
+                    print( f"New edge type found: {edge_type}" )
+                    list_of_edge_type.append( edge_type )
 
-        print(f"[Passed] All files are valid\n")
+        print( f"[Passed] All files are valid\n" )
 
-    # check_all_files_in_dataset()
-    data, (index, graph) = dataset[DATA_INDEX]
-    visualize_graph(graph=graph)
+    check_all_files_in_dataset()
+    data, ( index, graph ) = dataset[DATA_INDEX]
 
-    exit()
-
-    print(f"Data in index {DATA_INDEX} is \n{data}")
-
-    print(f"\n\n----------------------DataLoader Test----------------------")
+    print( f"\n\n----------------------DataLoader Test----------------------" )
 
     BATCH_SIZE = 10
-    print(f"\nLoading data with batch size {BATCH_SIZE}")
+    print( f"\nLoading data with batch size {BATCH_SIZE}" )
 
     train_loader, val_loader           = load_data(
                                                 training_data_dir   = DATASET_DIR, 
                                                 is_hetero           = IS_HETERO, 
                                                 batch_size          = BATCH_SIZE,
-                                                has_wait_time       = HAS_WAIT_TIME
+                                                has_wait_time       = HAS_WAIT_TIME,
+                                                connect_task_nodes  = CONNECT_TASK
                                         )
 
-    print(f"\n For homogenous graph")
-    print(f"Data from DataLoader            {next(iter(train_loader))}")
-    print(f"DataLoader is                   {train_loader}")
-    print(f"Number of training batches:     {len(train_loader)}")
-    print(f"Batch size:                     {train_loader.batch_size}")
-    print(f"Training samples                {len(train_loader) * train_loader.batch_size}")
-    print(f"Number of validation batches:   {len(val_loader)}")
+    # print(f"Data from DataLoader            {next(iter(train_loader))}")
+    print( f"DataLoader is                   {train_loader}" )
+    print( f"Number of training batches:     {len(train_loader)}" )  
+    print( f"Batch size:                     {train_loader.batch_size}" ) 
+    print( f"Training samples                {len(train_loader) * train_loader.batch_size}" ) 
+    print( f"Number of validation batches:   {len(val_loader)}" )
+    
+    print( f"CustomDatasert and DataLoader looking good! 😎" )
     
 
 
