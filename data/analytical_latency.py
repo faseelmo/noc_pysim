@@ -33,46 +33,20 @@ class Node:
 
 PACKET_SIZE = 4 # flits
     
-def update_depend_on_end_cycle_for_all_nodes(node_list: list[Node], executed_node:Node) -> None:
-    """ 
-    Check if the executed node is a dependent node for any other node
-    if yes, then update DependOn.end_cycle """
-    for node in node_list:
 
-        if node.is_assigned:
-            continue
 
-        for depend in node.depend_list:
-            if depend.id == executed_node.id:
-                depend.end_cycle = executed_node.end_cycle
-
-def assign_minimum_start_cycle_as_depend_cycle(node_list: list[Node]) -> None:
-    """ 
-    For nodes that have full dependency list [DependOn.end_cycle != None] 
-    Assign the minimum start_cycle to the DependOn.end_cycle """
-    for node in node_list:
-
-        if node.is_assigned:
-            continue
-
-        all_depend_have_end_cycle = False
-
-        for depend in node.depend_list:
-
-            if depend.end_cycle is None:
-                all_depend_have_end_cycle = False
-                break
-
-            all_depend_have_end_cycle = True
-
-        if all_depend_have_end_cycle:
-            # Assign the maximum end_cycle of the dependecy list to the minimum_start_cycle
-            node.minimum_start_cycle = max([depend.end_cycle for depend in node.depend_list])
-
-def get_list_of_successor_nodes_as_node_obj(successor_nodes: list, graph: nx.DiGraph, node_id: int) -> list:
+def get_list_of_successor_nodes_as_node_obj(graph: nx.DiGraph, node_id: int) -> list:
+    """
+    Returns a list of Node objects that are successors to the node_id.  
+    The Node object has the following attributes:  (only the relevant attributes are mentioned)
+        1. Depend_list is assigned with the dependent nodes  
+        2. minimum_start_cycle is assigned (to PACKET_SIZE * require) if the successor node has no other dependencies  
+    """
 
     # Assign minimum_wait_time to all the successor nodes
+    
     list_of_successor_nodes = []
+    successor_nodes = list(graph.successors(node_id))
     
     for successor_node in successor_nodes:
         require             = graph.edges[node_id, successor_node]['weight']
@@ -108,11 +82,27 @@ def get_list_of_successor_nodes_as_node_obj(successor_nodes: list, graph: nx.DiG
 
     return list_of_successor_nodes
 
+def get_non_dependency_nodes_count(graph: nx.DiGraph) -> int:
+
+    non_dependency_nodes_count = 0
+    for idx, node in graph.nodes(data=True):
+        if node["type"] != "dependency":
+            non_dependency_nodes_count += 1
+
+    return non_dependency_nodes_count
+
 def init_first_dependency_node( graph: nx.DiGraph ) -> tuple[list, int]:
     """
-    Find the dependecy node, 
-    Iterate through the successor nodes and assign minimum_start_cycle (if applicable)
-    Find the node that will start the earliest
+    Find the dependecy node (assuming there is only one dependency node)  
+    Iterate through the successor nodes and assign minimum_start_cycle (if conditions are met)  
+
+        Note: Conditions to assign minimum_start_cycle, 
+            1. If the successor to the `dependency` node has no other   
+                dependencirs than the `dependency` node. 
+
+    Returns   
+        1. a list of Node objects, these are successor nodes of the `dependency` node.  
+        2. Index of the node (of type 'task_depend') with the least minimum_start_cycle and no other dependencies.
     """
 
     # Assign minimum_wait_time to all applicable dependent nodes
@@ -123,12 +113,12 @@ def init_first_dependency_node( graph: nx.DiGraph ) -> tuple[list, int]:
 
             successor_nodes         = list(graph.successors(idx))
 
-            list_of_successor_nodes = get_list_of_successor_nodes_as_node_obj(successor_nodes, graph, idx)
+            list_of_successor_nodes = get_list_of_successor_nodes_as_node_obj(graph, idx)
 
             # Finding the node with least minimum_start_cycle
             # to assign the actual_start_cycle
             start_cycle_node_idx_value = (None, None) # (index, start_cycle)
-            init_assign_flag = False
+            not_initialized_flag = True
 
             for idx, node in enumerate(list_of_successor_nodes):
 
@@ -136,8 +126,8 @@ def init_first_dependency_node( graph: nx.DiGraph ) -> tuple[list, int]:
                     # You can also do node.minimum_start_cycle is None
                     continue
 
-                if not init_assign_flag:
-                    init_assign_flag            = True
+                if not_initialized_flag:
+                    init_assign_flag            = False
                     start_cycle_node_idx_value  = (idx, node.minimum_start_cycle)
 
                 if node.minimum_start_cycle < start_cycle_node_idx_value[1]:
@@ -156,6 +146,57 @@ def update_end_cylce(executed_node: Node) -> Node:
     executed_node.is_assigned = True
 
     return executed_node
+
+def update_depend_on_end_cycle_for_all_nodes(node_list: list[Node], executed_node:Node) -> None:
+    """ 
+    Updates the DependOn.end_cycle for all the nodes in the node_list
+    that are dependent on the executed_node """
+
+    for node in node_list:
+        if node.is_assigned:
+            continue
+
+        for depend in node.depend_list:
+            if depend.id == executed_node.id:
+                depend.end_cycle = executed_node.end_cycle
+
+
+def check_if_all_successor_nodes_in_node_list(node_list: list[Node]) -> list[Node]:
+    """Check if the nodes in the node_list have all their successors in the node_list"""
+    new_node_list = []
+
+    for node in node_list:
+        has_successor, successor_nodes = check_if_node_has_successor(graph, node.id)
+
+        if has_successor:
+            for successor_node in successor_nodes:
+
+                if not is_node_in_node_list(node_list, successor_node):
+
+                    if not is_node_in_node_list(new_node_list, successor_node):
+                        list_of_new_nodes = get_list_of_successor_nodes_as_node_obj(graph, node.id)
+                        new_node_list.extend(list_of_new_nodes)
+
+    return new_node_list
+
+
+def update_depend_on_for_new_node_list(node_list: list[Node], new_node_list: list[Node]) -> None:    
+    """
+    Update the end
+    """
+
+    for new_node in new_node_list: 
+
+        for depend in new_node.depend_list:
+            depend_id = depend.id
+
+            for node in node_list:
+
+                if not node.is_assigned:
+                    continue
+                if node.id == depend_id:
+                    depend.end_cycle = node.end_cycle
+
 
 def node_list_has_all_nodes(node_list: list[Node], num_nodes: int) -> bool:
     if len(node_list) != num_nodes:
@@ -185,6 +226,30 @@ def is_node_in_node_list(node_list: list[Node], node_id: int) -> bool:
 
     return False
 
+def assign_minimum_start_cycle_as_depend_cycle(node_list: list[Node]) -> None:
+    """ 
+    For nodes that have full dependency list [DependOn.end_cycle != None],    
+    Assign the minimum start_cycle to the DependOn.end_cycle """
+    for node in node_list:
+
+        if node.is_assigned:
+            continue
+
+        all_depend_have_end_cycle = False
+
+        for depend in node.depend_list:
+
+            if depend.end_cycle is None:
+                all_depend_have_end_cycle = False
+                break
+
+            all_depend_have_end_cycle = True
+
+        if all_depend_have_end_cycle:
+            # Assign the maximum end_cycle of the dependecy list to the minimum_start_cycle
+            node.minimum_start_cycle = max([depend.end_cycle for depend in node.depend_list])
+
+
 def get_node_with_least_minimum_start_cycle(node_list: list[Node]) -> Node:
 
     minimum_index = None
@@ -206,19 +271,6 @@ def get_node_with_least_minimum_start_cycle(node_list: list[Node]) -> Node:
 
     return node_list[minimum_index]
 
-def update_depend_on_for_new_node_list(node_list: list[Node], new_node_list: list[Node]) -> None:    
-
-    for new_node in new_node_list: 
-
-        for depend in new_node.depend_list:
-            depend_id = depend.id
-
-            for node in node_list:
-
-                if not node.is_assigned:
-                    continue
-                if node.id == depend_id:
-                    depend.end_cycle = node.end_cycle
 
 def get_list_nodes_ready_to_execute(node_list: list[Node]) -> list[Node]: 
 
@@ -296,17 +348,6 @@ def get_minimum_start_cycle_from_assigned_nodes(node_list: list[Node]) -> int:
 
     return max(list_of_start_cycles)
 
-def check_if_all_successor_nodes_in_node_list(node_list: list[Node]) -> list[Node]:
-    new_node_list = []
-    for node in node_list:
-        has_successor, successor_nodes = check_if_node_has_successor(graph, node.id)
-        if has_successor:
-            for successor_node in successor_nodes:
-                if not is_node_in_node_list(node_list, successor_node):
-                    if not is_node_in_node_list(new_node_list, successor_node):
-                        list_of_new_nodes = get_list_of_successor_nodes_as_node_obj(successor_nodes, graph, node.id)
-                        new_node_list.extend(list_of_new_nodes)
-    return new_node_list
 
 def convert_node_list_to_compute_dict(node_list: list[Node]) -> dict:
 
@@ -319,26 +360,17 @@ def convert_node_list_to_compute_dict(node_list: list[Node]) -> dict:
 
     return compute_dict
 
-def get_non_dependency_nodes_count(graph: nx.DiGraph) -> int:
-
-    non_dependency_nodes_count = 0
-    for idx, node in graph.nodes(data=True):
-        if node["type"] != "dependency":
-            non_dependency_nodes_count += 1
-
-    return non_dependency_nodes_count
 
 
 def main(graph):
     
     # Finding the first node to execute
-    non_dependency_nodes_count = get_non_dependency_nodes_count(graph)
+    non_dependency_nodes_count  = get_non_dependency_nodes_count(graph)
     node_list, start_node_index = init_first_dependency_node(graph)
     start_node                  = node_list[start_node_index]
     executed_node               = update_end_cylce(start_node) 
 
     update_depend_on_end_cycle_for_all_nodes(node_list, executed_node)
-    assign_minimum_start_cycle_as_depend_cycle(node_list)
 
     # Finding the next node to execute
     while True:   
@@ -348,7 +380,6 @@ def main(graph):
                 break
 
         new_node_list = check_if_all_successor_nodes_in_node_list(node_list)
-
         update_depend_on_for_new_node_list(node_list, new_node_list)
 
         node_list.extend(new_node_list)
