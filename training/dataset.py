@@ -16,19 +16,23 @@ from torch_geometric.transforms import ToUndirected
 
 
 class CustomDataset(Dataset):
-    def __init__(self, training_data_dir, is_hetero=False, has_wait_time=False, return_graph=False):
+    def __init__(self, training_data_dir, is_hetero=False, has_wait_time=False, connect_task_nodes=False, return_graph=False):
         """
         Args 
-        1. is_hetero     : If True, the dataset will return a HeteroData object, else a Data object  
-        2. has_wait_time : If True, the dataset will contain wait time feature for task_depend nodes.
-                           This is only relevant for heterogenous graphs. In homogenous graphs, all nodes
-                           have the same features. 
-        3. return_graph  : If True, the __get__item__ will return the graph along with the data object. 
-                           Useful for visualization.  
+        1. is_hetero            : If True, the dataset will return a HeteroData object, else a Data object  
+        2. has_wait_time        : If True, the dataset will contain wait time feature for task_depend nodes.
+                                  This is only relevant for heterogenous graphs. In homogenous graphs, all nodes
+                                  have the same features. 
+        3. connect_task_nodes   : If True, the dataset will connect all task nodes ('task' and 'task_depend')  
+                                  to one single node.   
+        3. return_graph         : If True, the __get__item__ will return the graph along with the data object. 
+                                  Useful for visualization.  
         """
         self.is_hetero              = is_hetero
         self.has_wait_time          = has_wait_time
+        self.connect_task_nodes     = connect_task_nodes
         self.return_graph           = return_graph
+
         self.input_dir              = os.path.join(training_data_dir, "input")
         self.target_dir             = os.path.join(training_data_dir, "target")
 
@@ -136,6 +140,17 @@ class CustomDataset(Dataset):
         if self.has_wait_time:
             global_to_local_indexing["task_depend"] = {}    
 
+        if self.connect_task_nodes:
+            # Create a scheduler node to connect all task nodes
+            global_to_local_indexing["scheduler"] = {}
+
+            scheduler_node = "scheduler"
+            graph.add_node(scheduler_node, type="scheduler")
+
+            for node_idx, node_data in graph.nodes(data=True):
+                if node_data["type"] in ["task", "task_depend"]:
+                    graph.add_edge(scheduler_node, node_idx, type="requires")
+
         # Creating node features + global to local indexing
         for node_idx, node_data in graph.nodes(data=True):
             node_type = node_data["type"]
@@ -158,7 +173,6 @@ class CustomDataset(Dataset):
                 target_end_cycle    = task_target_feature["end_cycle"] / self.max_cycle
 
                 # target is the same for both task and task_depend nodes
-
                 if node_type == "task_depend":
                     # wait_time = node_data["wait_time"] / self.max_cycle
                     task_depend_input_feature.append([generate, processing_time, target_end_cycle])
@@ -197,6 +211,9 @@ class CustomDataset(Dataset):
             hetero_data["task_depend"].x    = torch.tensor(task_depend_input_feature, dtype=torch.float)
             hetero_data["task_depend"].y    = torch.tensor(task_depend_target, dtype=torch.float)
 
+        if self.connect_task_nodes: 
+            hetero_data["scheduler"].x = torch.ones( (1, 1), dtype=torch.float)
+
         # Creating edge indices
         require_edge_type = "requires"
 
@@ -213,6 +230,13 @@ class CustomDataset(Dataset):
 
             hetero_data["dependency", require_edge_type, "task"].edge_index         = [[], []]
 
+        scheduling_edge_type = "schedules"    
+    
+        if self.connect_task_nodes:
+            hetero_data["scheduler", scheduling_edge_type, "task"].edge_index = [[], []]
+            hetero_data["scheduler", scheduling_edge_type, "task_depend"].edge_index = [[], []]
+
+
 
         for edge in graph.edges(data=True):
             src, dst, _ = edge
@@ -225,11 +249,16 @@ class CustomDataset(Dataset):
                 src_type = "task" if src_type == "task_depend" else src_type
                 dst_type = "task" if dst_type == "task_depend" else dst_type 
 
+            if src_type == "scheduler": 
+                edge_type = scheduling_edge_type
+            else: 
+                edge_type = require_edge_type
+        
                             
-            hetero_data[src_type, require_edge_type, dst_type].edge_index[0].append(
+            hetero_data[src_type, edge_type, dst_type].edge_index[0].append(
                 global_to_local_indexing[src_type][src])
 
-            hetero_data[src_type, require_edge_type, dst_type].edge_index[1].append(
+            hetero_data[src_type, edge_type, dst_type].edge_index[1].append(
                 global_to_local_indexing[dst_type][dst])
 
         # Converting edge indices [list] to tensors
@@ -248,6 +277,8 @@ class CustomDataset(Dataset):
         # [debugging] Uncomment to visualize the graph
         # from data.utils import visualize_graph
         # visualize_graph(graph=graph)    
+        from training.utils import log_hetero_data
+        log_hetero_data(hetero_data)
         
         if self.return_graph:
             return (hetero_data, (global_to_local_indexing, graph))
@@ -263,6 +294,7 @@ class CustomDataset(Dataset):
         assert data.has_isolated_nodes() is False, "Data contains isolated nodes"
         assert data.has_self_loops() is False, "Data contains self loops"
         # assert data.is_directed() is True, "Data is not directed"
+
 
 def load_data(
         training_data_dir, 
@@ -329,24 +361,28 @@ if __name__ == "__main__":
         DATA_INDEX      = int(sys.argv[1])
         IS_HETERO       = sys.argv[2].lower() in ['true', '1']
         HAS_WAIT_TIME   = sys.argv[3].lower() in ['true', '1']
+        CONNECT_TASK    = sys.argv[4].lower() in ['true', '1']
 
     else:                   
         DATA_INDEX      = 10
         IS_HETERO       = False
         HAS_WAIT_TIME   = False
+        CONNECT_TASK    = False
 
 
-    print( f"Data index is          {DATA_INDEX}" )
-    print( f"Is heterogenous graph  {IS_HETERO}" )
-    print( f"Has wait time is       {HAS_WAIT_TIME}" )
+    print( f"Data index is          : {DATA_INDEX}" )
+    print( f"Is heterogenous graph  : {IS_HETERO}" )
+    print( f"Has wait time is       : {HAS_WAIT_TIME}" )
+    print( f"Connecting task nodes  : {HAS_WAIT_TIME}" )
 
     DATASET_DIR = "data/training_data"
 
     dataset = CustomDataset(
                 DATASET_DIR, 
-                is_hetero       = IS_HETERO, 
-                has_wait_time   = HAS_WAIT_TIME, 
-                return_graph    = True)   
+                is_hetero           = IS_HETERO, 
+                has_wait_time       = HAS_WAIT_TIME, 
+                connect_task_nodes  = CONNECT_TASK,
+                return_graph        = True)   
 
     def check_all_files_in_dataset():
         # Inside a def for scoping
@@ -369,7 +405,9 @@ if __name__ == "__main__":
 
     # check_all_files_in_dataset()
     data, (index, graph) = dataset[DATA_INDEX]
-    # visualize_graph(graph=graph)
+    visualize_graph(graph=graph)
+
+    exit()
 
     print(f"Data in index {DATA_INDEX} is \n{data}")
 

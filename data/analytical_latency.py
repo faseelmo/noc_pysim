@@ -182,7 +182,8 @@ def check_if_all_successor_nodes_in_node_list(node_list: list[Node]) -> list[Nod
 
 def update_depend_on_for_new_node_list(node_list: list[Node], new_node_list: list[Node]) -> None:    
     """
-    Update the end
+    For the new_node_list, 
+    update the DependOn.end_cycle with the end_cycle of the node it is dependent on.
     """
 
     for new_node in new_node_list: 

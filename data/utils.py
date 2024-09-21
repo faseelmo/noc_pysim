@@ -58,7 +58,7 @@ def visualize_graph(
     import matplotlib.pyplot as plt
     import networkx as nx
 
-    color_map = {"dependency": "skyblue", "task": "lightgreen", "task_depend": "yellow"}
+    color_map = {"dependency": "skyblue", "task": "lightgreen", "task_depend": "yellow", "scheduler": "red"}
     node_colors = [
         color_map.get(graph.nodes[node].get("type", "task"), "lightgreen")
         for node in graph.nodes

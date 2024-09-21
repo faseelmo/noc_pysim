@@ -1,3 +1,16 @@
+
+def log_hetero_data(data) -> None:
+
+        from torch_geometric.data import HeteroData
+        assert isinstance(data, HeteroData), "Data is not of type HeteroData"
+
+        print(f"\n---HeteroData---")
+        print(f"Data.x: {data.x_dict}")
+        print(f"\nEdges")
+        for edge_index in data.edge_index_dict:
+            print(f"\nEdge index: {edge_index} \n{data.edge_index_dict[edge_index]}")
+
+
 def does_path_exist(model_name):
     import os
     import yaml
