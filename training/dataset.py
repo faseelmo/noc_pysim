@@ -16,21 +16,21 @@ from torch_geometric.transforms import ToUndirected
 
 
 class CustomDataset(Dataset):
-    def __init__(self, training_data_dir, is_hetero=False, has_wait_time=False, connect_task_nodes=False, return_graph=False):
+    def __init__(self, training_data_dir, is_hetero=False, has_wait_time=False, has_scheduler_node=False, return_graph=False):
         """
         Args 
         1. is_hetero            : If True, the dataset will return a HeteroData object, else a Data object  
         2. has_wait_time        : If True, the dataset will contain wait time feature for task_depend nodes.
                                   This is only relevant for heterogenous graphs. In homogenous graphs, all nodes
                                   have the same features. 
-        3. connect_task_nodes   : If True, the dataset will connect all task nodes ('task' and 'task_depend')  
+        3. has_scheduler_node   : If True, the dataset will connect all task nodes ('task' and 'task_depend')  
                                   to one single node.   
         3. return_graph         : If True, the __get__item__ will return the graph along with the data object. 
                                   Useful for visualization.  
         """
         self.is_hetero              = is_hetero
         self.has_wait_time          = has_wait_time
-        self.connect_task_nodes     = connect_task_nodes
+        self.has_scheduler_node     = has_scheduler_node
         self.return_graph           = return_graph
 
         self.input_dir              = os.path.join(training_data_dir, "input")
@@ -140,16 +140,19 @@ class CustomDataset(Dataset):
         if self.has_wait_time:
             global_to_local_indexing["task_depend"] = {}    
 
-        if self.connect_task_nodes:
+        if self.has_scheduler_node:
             # Create a scheduler node to connect all task nodes
             global_to_local_indexing["scheduler"] = {}
 
-            scheduler_node = "scheduler"
-            graph.add_node(scheduler_node, type="scheduler")
+            scheduler_node_id   = graph.number_of_nodes()
+            scheduler_edge_type = "schedules"    
+
+            graph.add_node(scheduler_node_id, type="scheduler")
 
             for node_idx, node_data in graph.nodes(data=True):
+
                 if node_data["type"] in ["task", "task_depend"]:
-                    graph.add_edge(scheduler_node, node_idx, type="requires")
+                    graph.add_edge(scheduler_node_id, node_idx, type=scheduler_edge_type)
 
         # Creating node features + global to local indexing
         for node_idx, node_data in graph.nodes(data=True):
@@ -211,7 +214,7 @@ class CustomDataset(Dataset):
             hetero_data["task_depend"].x    = torch.tensor(task_depend_input_feature, dtype=torch.float)
             hetero_data["task_depend"].y    = torch.tensor(task_depend_target, dtype=torch.float)
 
-        if self.connect_task_nodes: 
+        if self.has_scheduler_node: 
             hetero_data["scheduler"].x = torch.ones( (1, 1), dtype=torch.float)
 
         # Creating edge indices
@@ -230,12 +233,10 @@ class CustomDataset(Dataset):
 
             hetero_data["dependency", require_edge_type, "task"].edge_index         = [[], []]
 
-        scheduling_edge_type = "schedules"    
     
-        if self.connect_task_nodes:
-            hetero_data["scheduler", scheduling_edge_type, "task"].edge_index = [[], []]
-            hetero_data["scheduler", scheduling_edge_type, "task_depend"].edge_index = [[], []]
-
+        if self.has_scheduler_node:
+            hetero_data["scheduler", scheduler_edge_type, "task"].edge_index = [[], []]
+            hetero_data["scheduler", scheduler_edge_type, "task_depend"].edge_index = [[], []]
 
 
         for edge in graph.edges(data=True):
@@ -250,7 +251,7 @@ class CustomDataset(Dataset):
                 dst_type = "task" if dst_type == "task_depend" else dst_type 
 
             if src_type == "scheduler": 
-                edge_type = scheduling_edge_type
+                edge_type = scheduler_edge_type
             else: 
                 edge_type = require_edge_type
         
@@ -300,7 +301,7 @@ def load_data(
         training_data_dir, 
         is_hetero           : bool, 
         has_wait_time       : bool, 
-        connect_task_nodes  : bool,     
+        has_scheduler_node  : bool,     
         batch_size          : int =32, 
         validation_split    : float =0.1
 
@@ -313,7 +314,7 @@ def load_data(
                             training_data_dir   = training_data_dir, 
                             is_hetero           = is_hetero, 
                             has_wait_time       = has_wait_time, 
-                            connect_task_nodes  = connect_task_nodes,
+                            has_scheduler_node  = has_scheduler_node,
                             return_graph        = False)
 
     validation_size     = int( validation_split * len( dataset ) )
@@ -366,13 +367,13 @@ if __name__ == "__main__":
         DATA_INDEX      = int(sys.argv[1])
         IS_HETERO       = sys.argv[2].lower() in ['true', '1']
         HAS_WAIT_TIME   = sys.argv[3].lower() in ['true', '1']
-        CONNECT_TASK    = sys.argv[4].lower() in ['true', '1']
+        HAS_SCHEDULER   = sys.argv[4].lower() in ['true', '1']
 
     else:                   
         DATA_INDEX      = 10
         IS_HETERO       = False
         HAS_WAIT_TIME   = False
-        CONNECT_TASK    = False
+        HAS_SCHEDULER   = False
 
 
     print( f"Data index is          : {DATA_INDEX}" )
@@ -386,7 +387,7 @@ if __name__ == "__main__":
                 DATASET_DIR, 
                 is_hetero           = IS_HETERO, 
                 has_wait_time       = HAS_WAIT_TIME, 
-                connect_task_nodes  = CONNECT_TASK,
+                has_scheduler_node  = HAS_SCHEDULER,
                 return_graph        = True)   
 
     def check_all_files_in_dataset():
@@ -421,7 +422,7 @@ if __name__ == "__main__":
                                                 is_hetero           = IS_HETERO, 
                                                 batch_size          = BATCH_SIZE,
                                                 has_wait_time       = HAS_WAIT_TIME,
-                                                connect_task_nodes  = CONNECT_TASK
+                                                has_scheduler_node  = HAS_SCHEDULER
                                         )
 
     # print(f"Data from DataLoader            {next(iter(train_loader))}")

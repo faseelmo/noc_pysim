@@ -313,18 +313,18 @@ if __name__ == "__main__":
         HETERO_MODEL    = sys.argv[1].lower() in ['true', '1']
         DO_POOLING      = sys.argv[2].lower() in ['true', '1']
         HAS_WAIT_TIME   = sys.argv[3].lower() in ['true', '1']
-        CONNECT_TASK    = sys.argv[4].lower() in ['true', '1']
+        HAS_SCHEDULER    = sys.argv[4].lower() in ['true', '1']
 
     else:                   
         HETERO_MODEL    = False
         DO_POOLING      = False
         HAS_WAIT_TIME   = False
-        CONNECT_TASK    = False
+        HAS_SCHEDULER    = False
 
     print( f"Hetero Model   = {HETERO_MODEL}" )
     print( f"Do Pooling     = {DO_POOLING}" )
     print( f"Has Wait Time  = {HAS_WAIT_TIME}" )
-    print( f"Connect Task   = {CONNECT_TASK}" )
+    print( f"Connect Task   = {HAS_SCHEDULER}" )
 
     IDX             = 10
     BATCH_SIZE      = 10
@@ -337,7 +337,7 @@ if __name__ == "__main__":
                         is_hetero           = HETERO_MODEL,
                         has_wait_time       = HAS_WAIT_TIME,
                         batch_size          = BATCH_SIZE,
-                        connect_task_nodes  = CONNECT_TASK )
+                        has_scheduler_node  = HAS_SCHEDULER )
 
     data = next(iter(dataloader))
 
@@ -345,7 +345,7 @@ if __name__ == "__main__":
                     "data/training_data", 
                     is_hetero           = HETERO_MODEL, 
                     has_wait_time       = HAS_WAIT_TIME, 
-                    connect_task_nodes  = CONNECT_TASK,
+                    has_scheduler_node  = HAS_SCHEDULER,
                     return_graph        = True)
 
     data_from_dataset, (index, graph) = dataset[IDX]

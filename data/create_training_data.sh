@@ -15,6 +15,8 @@ if [ ! -z "$2" ]; then
   NUM_NODES=$2
 fi
 
+echo "Generating $GEN_COUNT graph tasks with $NUM_NODES nodes"
+
 # Run the command to generate graph tasks
 python3 -m data.create_graph_tasks --generate --gen_count $GEN_COUNT --num_nodes $NUM_NODES
 

@@ -75,7 +75,8 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
             raise ValueError("Dangling node detected")
 
     for node in graph.nodes:
-        # - Changing the type of the dependency node to task_depend
+        # - Changing nodes that have 'dependency' predecessors to 'task_depend',
+        #   from type 'task' to 'task_depend'
         # - Changing the wait time of the task_depend node to 
         #   max( 4 * require_value ) of its predecessors. 
         #  Note: 4 is the packet size in flit
@@ -92,7 +93,11 @@ def modify_graph_to_task_graph(graph: nx.DiGraph):
             
             graph.nodes[successor]["type"] = "task_depend"
 
-            require_value   = graph[node][successor]["weight"]
+            # require_value   = graph[node][successor]["weight"]
+            
+            predecessors    = list(graph.predecessors(successor))
+            require_value   = sum([graph[predecessor][successor]["weight"] for predecessor in predecessors])
+
             wait_time       = 4 * require_value # 4 is the packet size in flit
 
             current_node_wait_time = graph.nodes[successor]["wait_time"]
@@ -158,7 +163,7 @@ if __name__ == "__main__":
 
     import argparse
 
-    random.seed(3)
+    random.seed(11)
 
     parser = argparse.ArgumentParser()
     parser.add_argument(

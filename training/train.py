@@ -25,11 +25,13 @@ from training.utils     import (
 torch.manual_seed(1)
 
 parser  = argparse.ArgumentParser(description="Train the GCN model")
+
 parser.add_argument(
     "name",
     type=str,
     help="Name of the experiment/Training." 
     "Results will be saved in training/results/<name>")
+
 args    = parser.parse_args()
 
 does_path_exist(args.name)
@@ -121,8 +123,8 @@ def validation_fn(valid_loader, model, loss_fn, is_pooling_model, has_wait_time)
     return validation_set_loss
 
 def test_fn(test_loader, model, is_pooling_model, has_wait_time):
-    ground_truth_latency_list = []
-    predicted_latency_list = []
+    ground_truth_latency_list   = []
+    predicted_latency_list      = []
 
     for data in test_loader:
         data    = data.to(DEVICE)
@@ -182,7 +184,7 @@ def main():
     GEN_COUNT       = TRAINING_PARAMS["GEN_COUNT"]   
     MAX_NODES       = TRAINING_PARAMS["MAX_NODES"]
     HAS_WAIT_TIME   = TRAINING_PARAMS["HAS_WAIT_TIME"]
-    HAS_SCHEDULER   = TRAINING_PARAMS["CONNECT_TASK_NODES"]
+    HAS_SCHEDULER   = TRAINING_PARAMS["HAS_SCHEDULER"]
 
     start_time = time.time()
 
@@ -197,19 +199,19 @@ def main():
 
     train_loader, valid_loader  = load_data(
                                     DATA_DIR, 
-                                    is_hetero       = IS_HETERO, 
-                                    has_wait_time   = HAS_WAIT_TIME,
-                                    connect_task_nodes=HAS_SCHEDULER,
-                                    batch_size      = BATCH_SIZE, 
-                                    validation_split= 0.1)
+                                    is_hetero           = IS_HETERO, 
+                                    has_wait_time       = HAS_WAIT_TIME,
+                                    has_scheduler_node  = HAS_SCHEDULER,
+                                    batch_size          = BATCH_SIZE, 
+                                    validation_split    = 0.1)
 
     test_loader, _              = load_data(
                                     f"{DATA_DIR}/test", 
-                                    is_hetero       = IS_HETERO, 
-                                    has_wait_time   = HAS_WAIT_TIME,
-                                    connect_task_nodes=HAS_SCHEDULER, 
-                                    batch_size      = 1, 
-                                    validation_split=0.0)
+                                    is_hetero           = IS_HETERO, 
+                                    has_wait_time       = HAS_WAIT_TIME,
+                                    has_scheduler_node  = HAS_SCHEDULER, 
+                                    batch_size          = 1, 
+                                    validation_split    = 0.0)
 
     if IS_HETERO:
 
