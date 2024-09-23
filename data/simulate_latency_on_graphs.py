@@ -58,6 +58,17 @@ if __name__ == "__main__":
         help="Get latency of test graph in /data/test_task_graph.json",
     )
     parser.add_argument(
+        "--analytical",
+        action="store_true",
+        help="Get latency of graph in /data/analytical_test_data/input/index.json, default index is 0",
+    )
+    parser.add_argument(
+        "--index",
+        type=int,
+        help="Index of the graph in /data/analytical_test_data/input/index.json",
+        default=0,
+    )
+    parser.add_argument(
         "--max_cycle",
         type=int,
         help="Max cycles to run the simulation for in test mode. Default is 1000",
@@ -70,13 +81,13 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if not args.test and not args.sim:
-        print("Please specify --test or --sim")
+    if not args.test and not args.sim and not args.analytical:
+        print("Please specify --test, --analytical or --sim")
         exit()
 
     if args.test:
-        # graph_path = "data/training_data/input/task_graph_0.json"
         graph_path  = "data/test_task_graph.json"
+
         graph       = load_graph_from_json(graph_path)
 
         latency, packet_list, computing_list = simlate_latency_from_graph(
@@ -87,7 +98,24 @@ if __name__ == "__main__":
             print(f"Task {task.task_id} starts at {task.start_cycle} and ends at {task.end_cycle}")
 
         print(f"\nLatency of the test graph in {graph_path} is {latency}")
-        
+
+    if args.analytical:
+        analytical_idx = args.index
+        graph_path      = f"data/analytical_test_data/input/{analytical_idx}.json"
+
+        graph       = load_graph_from_json(graph_path)
+
+        latency, packet_list, computing_list = simlate_latency_from_graph(
+            graph, debug_mode=True, max_cycles=args.max_cycle
+        )
+
+        with open(f"data/analytical_test_data/target/{analytical_idx}.json", "w") as f:
+            node_time_info = compute_list_to_node_dict(computing_list)
+            target_json = {"latency": latency}
+            target_json.update(node_time_info)
+            f.write(json.dumps(target_json))
+
+        visualize_graph(graph, latency_value=latency, compute_list=computing_list, packet_list=packet_list)
 
     if args.sim:
 

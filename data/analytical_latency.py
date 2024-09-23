@@ -3,7 +3,7 @@ import os
 
 import networkx as nx
 
-from natsort import natsorted
+from natsort        import natsorted
 from dataclasses    import dataclass 
 
 from data.utils import (
@@ -32,8 +32,6 @@ class Node:
     is_assigned         : bool = False
 
 PACKET_SIZE = 4 # flits
-    
-
 
 def get_list_of_successor_nodes_as_node_obj(graph: nx.DiGraph, node_id: int) -> list:
     """
@@ -127,7 +125,7 @@ def init_first_dependency_node( graph: nx.DiGraph ) -> tuple[list, int]:
                     continue
 
                 if not_initialized_flag:
-                    init_assign_flag            = False
+                    not_initialized_flag        = False
                     start_cycle_node_idx_value  = (idx, node.minimum_start_cycle)
 
                 if node.minimum_start_cycle < start_cycle_node_idx_value[1]:
@@ -268,7 +266,14 @@ def get_node_with_least_minimum_start_cycle(node_list: list[Node]) -> Node:
             minimum_index = idx
 
         if node.minimum_start_cycle < node_list[minimum_index].minimum_start_cycle:
-            minimum_index = idx 
+            minimum_index = idx    
+
+    print(f"\nNode list ")
+    for node in node_list:
+        print(node)
+
+    print(f"Starting node {node_list[minimum_index]}")
+
 
     return node_list[minimum_index]
 
@@ -362,7 +367,6 @@ def convert_node_list_to_compute_dict(node_list: list[Node]) -> dict:
     return compute_dict
 
 
-
 def main(graph):
     
     # Finding the first node to execute
@@ -408,32 +412,32 @@ PACKET_SIZE = 4 # flits
 
 if __name__ == "__main__":
 
-    input_training_data_path    = "data/training_data/input"
-    packet_list_training_path   = "data/training_data/packet_list"
-    target_training_data_path   = "data/training_data/target"
+    import sys
 
-    input_test_data_path        = "data/training_data/test/input"
-    packet_list_test_path       = "data/training_data/test/packet_list"
-    target_test_data_path       = "data/training_data/test/target"
+    if len(sys.argv) > 1:   
+        use_analytical_test_data    = sys.argv[1].lower() in ['true', '1']
 
-    input_analytical_latency_path   = "data/analytical_test_data/input"
-    target_analytical_latency_path  = "data/analytical_test_data/target"
+    else:                   
+        use_analytical_test_data    = False
 
-    input_training_data_files   = natsorted(os.listdir(input_training_data_path))
-    packet_list_training_files  = natsorted(os.listdir(packet_list_training_path))
-    target_training_input_files = natsorted(os.listdir(target_training_data_path))
+    if use_analytical_test_data:
+        input_data_path     = "data/analytical_test_data/input"
+        target_path         = "data/analytical_test_data/target"
 
-    input_test_data_files       = natsorted(os.listdir(input_test_data_path))
-    packet_list_test_files      = natsorted(os.listdir(packet_list_test_path))
-    target_test_files           = natsorted(os.listdir(target_test_data_path))
+    else: 
+        input_data_path     = "data/training_data/test/input"
+        target_path         = "data/training_data/test/target"
 
-    input_analytical_files      = natsorted(os.listdir(input_analytical_latency_path))
-    target_analytical_files     = natsorted(os.listdir(target_analytical_latency_path))
+    input_data_files    = natsorted( os.listdir( input_data_path ) )
+    target_files        = natsorted( os.listdir( target_path ) )
 
-    for input_idx, target_idx in zip(input_test_data_files, target_test_files):
+    for input_idx, target_idx in zip(input_data_files, target_files):
 
-        graph           = load_graph_from_json(os.path.join(input_test_data_path, input_idx))
-        schedule_list   = get_compute_list_from_json(os.path.join(target_test_data_path, target_idx))
+        graph           = load_graph_from_json( 
+                            os.path.join(input_data_path, input_idx))
+
+        schedule_list   = get_compute_list_from_json( 
+                            os.path.join(target_path, target_idx))
 
         dependency_node_count = 0
 
@@ -447,7 +451,7 @@ if __name__ == "__main__":
         
         node_list = main(graph)
 
-        analytical_scheudle_list = convert_node_list_to_compute_dict(node_list)
-
-        visualize_graph(graph, compute_list=schedule_list, pred_compute_list=analytical_scheudle_list)
+        analytical_schedule_list = convert_node_list_to_compute_dict(node_list)
+        
+        visualize_graph(graph,  compute_list=schedule_list, pred_compute_list=analytical_schedule_list)
 

@@ -178,7 +178,7 @@ class ProcessingElement:
 
                 self.compute_is_busy = True
                 self._reset_received_packet_task(compute_task)
-                self._debug_print(f"Task {compute_task.task_id} received all required packets for task {compute_task.task_id} to start computing")
+                self._debug_print(f"Task {compute_task.task_id} received all required packets to start computing")
 
                 return 
 
