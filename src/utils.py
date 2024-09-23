@@ -113,6 +113,85 @@ def update_current_packet(current_packet: Packet, packet_list: list[Packet]) -> 
     return current_packet
 
 
+def get_ordered_packet_list(graph: nx.DiGraph) -> list:
+
+    from dataclasses import dataclass
+    from src.packet import Packet
+
+    @dataclass
+    class TaskDepend: 
+        minimum_wait_time:  int
+        types_of_packets:   list[int]
+
+    @dataclass
+    class PacketCount: 
+        id: int 
+        max_count : int
+
+
+    task_depend_nodes = []
+    packet_count_list = []
+
+    for node_id, node in graph.nodes(data=True):
+
+        if node["type"] == "task_depend":
+            # Fills the task_depend_nodes list
+
+            wait_time       = node["wait_time"]
+            packet_types    = []
+            predecessors    = list(graph.predecessors(node_id))
+            
+            for predecessor_id in predecessors:
+                if graph.nodes[predecessor_id]["type"] == "dependency":
+                    packet_types.append(predecessor_id)
+
+            task_depend = TaskDepend(
+                minimum_wait_time   = wait_time,
+                types_of_packets    = packet_types
+            )
+
+            task_depend_nodes.append(task_depend)
+
+        if node["type"] == "dependency":
+            # Fills the packet_count_list
+
+            packet_id = node_id
+            maxcount = node["generate"]
+
+            packet = PacketCount(
+                id=packet_id,
+                max_count=maxcount
+            )
+
+            packet_count_list.append(packet)
+
+    # Sort the task_depend_nodes by minimum_wait_time. Asceding order. 
+    ordered_task_depend_nodes = sorted(task_depend_nodes, key=lambda x: x.minimum_wait_time)
+
+    # Also sorting the packet list by the order of the task_depend_nodes
+    # and removing duplicates
+    ordered_packet_list = []
+    for task_depend in ordered_task_depend_nodes:
+
+        for packet in packet_count_list:
+            if packet.id in task_depend.types_of_packets:
+                
+                if packet.id not in [packet.id for packet in ordered_packet_list]:
+                    ordered_packet_list.append(packet)
+
+    # Generate packets for each packet in the ordered_packet_list
+    # upto the max_count
+    packet_list = []
+    for ordered_packet in ordered_packet_list:
+        for i in range(ordered_packet.max_count):
+
+            packet = Packet(source_xy=(0, 0), dest_xy=(1, 1), source_task_id=ordered_packet.id)
+            packet_list.append(packet)  
+
+    return packet_list
+
+
+
 def get_random_packet_list(graph: nx.DiGraph, shuffle=False) -> list:
     # > Look into here
 
