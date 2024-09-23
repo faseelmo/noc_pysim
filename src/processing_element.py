@@ -153,6 +153,8 @@ class ProcessingElement:
         Checks if all the required packets for a task have been received
             Processing can only start if all required packets (w/ task_id) have been received
             > Room for optimization here
+        Also does scheduling based on the number of required packets. 
+        Priority is given to the task that requires the least number of packets. 
         """
 
         tasks_ready_to_execute = []
