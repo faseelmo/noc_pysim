@@ -6,7 +6,7 @@ from natsort import natsorted
 
 from src.utils import simulate
 from src.utils import graph_to_task_list
-from src.utils import get_random_packet_list
+from src.utils import get_random_packet_list, get_ordered_packet_list
 
 from data.utils import (
     load_graph_from_json, 
@@ -18,7 +18,8 @@ from data.utils import (
 def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycles: int):
     random.seed(0)
     computing_list  = graph_to_task_list(nx_graph)
-    packet_list     = get_random_packet_list(nx_graph)
+    packet_list     = get_ordered_packet_list(nx_graph)
+    # packet_list     = get_random_packet_list(nx_graph)
 
     packet_list_copy = []
     for packet in packet_list:
@@ -60,13 +61,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--analytical",
         action="store_true",
-        help="Get latency of graph in /data/analytical_test_data/input/index.json, default index is 0",
+        help="Get latency of graph in /data/analytical_test_data/input/index.json, default index is 1",
     )
     parser.add_argument(
         "--index",
         type=int,
         help="Index of the graph in /data/analytical_test_data/input/index.json",
-        default=0,
+        default=1,
     )
     parser.add_argument(
         "--max_cycle",
@@ -86,7 +87,8 @@ if __name__ == "__main__":
         exit()
 
     if args.test:
-        graph_path  = "data/test_task_graph.json"
+        # graph_path  = "data/test_task_graph.json"
+        graph_path  = "data/training_data/input/task_graph_0.json"
 
         graph       = load_graph_from_json(graph_path)
 
@@ -96,6 +98,8 @@ if __name__ == "__main__":
 
         for task in computing_list:
             print(f"Task {task.task_id} starts at {task.start_cycle} and ends at {task.end_cycle}")
+
+        visualize_graph(graph, latency_value=latency, compute_list=computing_list, packet_list=packet_list)
 
         print(f"\nLatency of the test graph in {graph_path} is {latency}")
 
