@@ -27,7 +27,7 @@ def compute_list_to_node_dict(compute_list):
     return node_dict
 
 
-def get_compute_list_from_json(filename: str):
+def get_compute_list_from_json(filename: str) -> dict:
     """
     Converts the node cycle information from the json file to a dictionary
     used in inspect_data.py
@@ -44,7 +44,6 @@ def get_compute_list_from_json(filename: str):
     return compute_list
 
 
-
 def visualize_graph(
         graph: nx.DiGraph, 
         latency_value=None, 
@@ -59,13 +58,15 @@ def visualize_graph(
     import matplotlib.pyplot as plt
     import networkx as nx
 
-    color_map = {"dependency": "skyblue", "task": "lightgreen"}
+    node_color_map = {"dependency": "skyblue", "task": "lightgreen", "task_depend": "yellow", "scheduler": "tomato"}
+
     node_colors = [
-        color_map.get(graph.nodes[node].get("type", "task"), "lightgreen")
+        node_color_map.get(graph.nodes[node].get("type", "task"), "lightgreen")
         for node in graph.nodes
     ]
 
-    pos = nx.spring_layout(graph)
+    seed = 0
+    pos = nx.spring_layout(graph, seed=seed)
     # color_light_gray = 
     nx.draw(
         graph,
@@ -89,6 +90,10 @@ def visualize_graph(
             label_parts.append(f"P: {graph.nodes[node]['processing_time']}")
         if "generate" in graph.nodes[node]:
             label_parts.append(f"G: {graph.nodes[node]['generate']}")
+        if "wait_time" in graph.nodes[node]:
+            wait_time = graph.nodes[node]["wait_time"]
+            if wait_time != 0:
+                label_parts.append(f"W: {wait_time}")
         if node in node_cycle_dict:
             
             truth_start_cycle   = node_cycle_dict[node]['start_cycle']
@@ -150,5 +155,3 @@ def does_path_contains_files(path: str):
         else:
             print(f"Files in '{path}' not deleted. Appending new files.")
 
-
-# def inference(model, data): 

@@ -127,11 +127,14 @@ class ProcessingElement:
         Checks if the packet received is required by the PE
         Updates the packet status and location  
         """
-        if packet.source_task_id not in self.required_packet_types:
-            raise ValueError(f"Packet type {packet.source_task_id} not required in this PE")
+
+        packet_source_task_id = packet.get_source_task_id()
+
+        if packet_source_task_id not in self.required_packet_types:
+            raise ValueError(f"Packet type {packet_source_task_id} not required in this PE")
 
         packet.increment_flits()
-        self._debug_print(f"{self} Recieving flits (type: {packet.source_task_id}) {packet.flits_transmitted}/{packet.size}")
+        self._debug_print(f"{self} Recieving flits (type: {packet_source_task_id}) {packet.get_flits_transmitted()}/{packet.get_size()}")
         is_transmitted, recieved_packet_task_id = packet.check_transmission_status()
         
         if is_transmitted:
@@ -150,12 +153,16 @@ class ProcessingElement:
         Checks if all the required packets for a task have been received
             Processing can only start if all required packets (w/ task_id) have been received
             > Room for optimization here
+        Also does scheduling based on the number of required packets. 
+        Priority is given to the task that requires the least number of packets. 
         """
+
+        tasks_ready_to_execute = []
 
         for compute_task in self.compute_list:
             readiness_check     = []
-            require_list_len    = len(compute_task.require_list)
 
+            require_list_len    = len(compute_task.require_list)
 
             if compute_task.expected_generated_packets == compute_task.sent_generated_packets:
                 # if task has generated all the packets required for 
@@ -163,21 +170,31 @@ class ProcessingElement:
                 # compute task  
                 continue
 
+            total_require_count = 0  # for scheduling
             for require in compute_task.require_list:
+                total_require_count += require.required_packets
                 if compute_task.status is TaskStatus.IDLE:
                     if require.received_packet_count == require.required_packets:
                         readiness_check.append(True)
 
+
             if len(readiness_check) == require_list_len:
+                tasks_ready_to_execute.append( (total_require_count, compute_task) ) 
 
-                compute_task.status         = TaskStatus.PROCESSING
-                compute_task.start_cycle    = self.current_processing_cycle
 
-                self.compute_is_busy = True
-                self._reset_received_packet_task(compute_task)
-                self._debug_print(f"Task {compute_task.task_id} received all required packets for task {compute_task.task_id} to start computing")
+        if tasks_ready_to_execute:
 
-                return 
+            execute_task = min(tasks_ready_to_execute, key=lambda x: x[0])[1]
+            execute_task.status = TaskStatus.PROCESSING 
+            execute_task.start_cycle = self.current_processing_cycle
+
+            if self.debug_mode:
+                tasks_ready_to_execute = [(task_info.task_id, count) for count, task_info in tasks_ready_to_execute]
+                self._debug_print(f"Tasks ready to execute (id, require count): {tasks_ready_to_execute}")
+
+            self.compute_is_busy = True
+            self._reset_received_packet_task(execute_task)
+            self._debug_print(f"Scheduling task {execute_task.task_id} for processing")
 
 
     def _update_task_as_complete(self, compute_task: TaskInfo) -> None:

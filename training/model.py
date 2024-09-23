@@ -8,9 +8,6 @@ from torch_geometric.nn     import (
                                 SAGEConv,
                                 GraphConv,
                                 to_hetero,
-                                global_mean_pool,
-                                Set2Set,
-                                HeteroConv
                             )
 
 from training.utils         import get_norm_adj
@@ -113,6 +110,8 @@ class GNNHeteroPooling(torch.nn.Module):
         """
         super().__init__()
 
+        self.hidden_channels = hidden_channels  
+
         mpn             = MPN(hidden_channels, num_conv_layers=num_mpn_layers)
         self.mpn_hetero = to_hetero(mpn, metadata, aggr="sum")
 
@@ -130,18 +129,58 @@ class GNNHeteroPooling(torch.nn.Module):
         x_dict          = data.x_dict
         edge_index_dict = data.edge_index_dict
         batch_dict      = data.batch_dict
-        x_mpn_dict      = self.mpn_hetero(x_dict, edge_index_dict)
 
-        out_list = []
+        x_mpn_dict      = self.mpn_hetero(x_dict, edge_index_dict)
+        out_dict        = {}
+
+        # Getting the batch size so that we can create a tensor of zeros
+        # if 'task' node is not present in the batch
+        batch_size     = torch.unique(batch_dict['dependency']).numel()
+        print(f"Batch Size is {batch_size}")
 
         for node_type in self.nodes_type:
             x_mpn       = x_mpn_dict[node_type]
             batch       = batch_dict[node_type]
 
-            global_max  = global_max_pool(x_mpn, batch)
-            mlp_out     = self.mlp[node_type](global_max)  # Forward pass through MLP
+            print(f"\nNode type is {node_type}")
+            print(f"X MPN shape {x_mpn.shape}")
 
-            out_list.append(mlp_out)
+            if node_type == 'task':
+                target_shape = (batch_size, self.hidden_channels)
+
+                if x_mpn.numel() == 0:
+                    # print(f"Node type {node_type} is not present in the batch")
+                    global_max = torch.zeros(target_shape, dtype=torch.float)
+                else:
+                    print(f"X MPN shape {x_mpn.shape}")
+                    padding = torch.zeros((target_shape[0] - x_mpn.shape[0], target_shape[1]), dtype=x_mpn.dtype)
+                    global_max = torch.cat((x_mpn, padding), dim=0)                
+
+            else: 
+                global_max = global_max_pool(x_mpn, batch)
+                # if node_type == 'task':
+                #     print(f"X MPN is {x_mpn}")
+                #     print(f"Global Max is {global_max}")
+
+            print(f"Global Max shape {global_max.shape}")
+
+            out_dict[node_type] = self.mlp[node_type](global_max)  # Forward pass through MLP
+
+            print(f"MLP output is {out_dict[node_type].shape}")
+
+
+        
+        # To ensure node order during the forward pass of the last MLP 
+        out_list    = []
+        node_order  = ['task', 'dependency', 'task_depend']
+
+        for node_type in node_order:
+
+            if node_type in out_dict:
+                out_list.append(out_dict[node_type])
+
+        # print(f"Out Dict is {out_dict}")
+        # print(f"Out List is {out_list}")
 
         out_tensor  = torch.cat(out_list, dim=1)  # Concatenate the output of MLPs
         out         = self.output_mlp(out_tensor)  # Forward pass through the output MLP
@@ -154,8 +193,7 @@ class GNNHetero(torch.nn.Module):
         Note:  
         1. Message Passing Network (MPN) is lazily initialized  
         2. Uses HeteroConv to create a multi-layered model  
-        3. Global Max pooling  
-        4. Forward pass requires torch_geometric.data.HeteroData object
+        3. Forward pass requires torch_geometric.data.HeteroData object
         5. Forward pass outputs start and end cycle for each task node  
 
         args:  
@@ -175,7 +213,7 @@ class GNNHetero(torch.nn.Module):
 
         out_dict = self.mpn_hetero(x_dict, edge_index_dict)
 
-        return out_dict['task']
+        return out_dict
 
 class DirGCNConv(torch.nn.Module):
     def __init__(self, input_dim, output_dim, alpha):
@@ -249,61 +287,122 @@ class LinearModel(nn.Module):
 
 if __name__ == "__main__":
 
-    from training.dataset import CustomDataset, load_data
+    """
+    Usage: python3 -m training.model True False False False
+    Conditions to Test: 
+        1. Homogenous GNN Model
+            python3 -m training.model 0 0 0 0 
 
-    IDX             = 1000
-    BATCH_SIZE      = 1
-    HIDDEN_CHANNELS = 5
+        2. Heterogenous GNN Model
+            python3 -m training.model 1 0 0 0 
+            python3 -m training.model 1 0 1 0 (w/ wait time)
+            python3 -m training.model 1 0 1 1 (w/ scheduler node and wait time)
+
+        3. Heterogenous Pooling GNN Model
+            [Works only for dataloader and not directly from CustomDataset. Issue with Batching]
+            python3 -m training.model 1 1 0 0 
+            python3 -m training.model 1 1 1 0
+    """
+
+    import sys
+
+    from training.dataset import CustomDataset, load_data
+    from data.utils import visualize_graph
+
+    if len(sys.argv) > 1:   
+        HETERO_MODEL    = sys.argv[1].lower() in ['true', '1']
+        DO_POOLING      = sys.argv[2].lower() in ['true', '1']
+        HAS_WAIT_TIME   = sys.argv[3].lower() in ['true', '1']
+        HAS_SCHEDULER    = sys.argv[4].lower() in ['true', '1']
+
+    else:                   
+        HETERO_MODEL    = False
+        DO_POOLING      = False
+        HAS_WAIT_TIME   = False
+        HAS_SCHEDULER    = False
+
+    print( f"Hetero Model   = {HETERO_MODEL}" )
+    print( f"Do Pooling     = {DO_POOLING}" )
+    print( f"Has Wait Time  = {HAS_WAIT_TIME}" )
+    print( f"Connect Task   = {HAS_SCHEDULER}" )
+
+    IDX             = 10
+    BATCH_SIZE      = 10
+    HIDDEN_CHANNELS = 40
 
     torch.manual_seed(0)
 
-    print(f"\n----Homogenous GNN----")
+    dataloader, _ = load_data(
+                        "data/training_data",
+                        is_hetero           = HETERO_MODEL,
+                        has_wait_time       = HAS_WAIT_TIME,
+                        batch_size          = BATCH_SIZE,
+                        has_scheduler_node  = HAS_SCHEDULER )
 
-    homogenous_dataset  = CustomDataset("data/training_data", is_hetero=False)
-    data, _             = homogenous_dataset[IDX]
+    data = next(iter(dataloader))
 
-    print(f"Data is \n{data}")
-    print(f"Edge index is \n{data.edge_index}")
+    dataset     = CustomDataset(
+                    "data/training_data", 
+                    is_hetero           = HETERO_MODEL, 
+                    has_wait_time       = HAS_WAIT_TIME, 
+                    has_scheduler_node  = HAS_SCHEDULER,
+                    return_graph        = True)
 
-    gnn_model   = GNN(hidden_channels=HIDDEN_CHANNELS, num_mpn_layers=HIDDEN_CHANNELS)
-    output      = gnn_model(data)
+    data_from_dataset, (index, graph) = dataset[IDX]
+    visualize_graph(graph)
 
-    print(f"Output {output}")
+    # data = data_from_dataset
 
-    print(f"\n----Heterogenous Pooling GNN----")
+    if not HETERO_MODEL:
 
-    hetero_pooling_dataset      = CustomDataset("data/training_data", is_hetero=True)
-    data, _                     = hetero_pooling_dataset[IDX]
+        print(f"Using GNN Model (Homogenous)")
 
-    hetero_gnn_pooling_model    = GNNHeteroPooling(
-                                    hidden_channels=HIDDEN_CHANNELS,
-                                    num_mpn_layers=3, 
-                                    metadata=data.metadata())
+        model   = GNN(hidden_channels=HIDDEN_CHANNELS, 
+                      num_mpn_layers=HIDDEN_CHANNELS)
 
-    train_loader, _             = load_data(
-                                    "data/training_data", 
-                                    is_hetero=True, 
-                                    batch_size=BATCH_SIZE, 
-                                    validation_split=0.1)
+    elif HETERO_MODEL: 
 
-    input_data, _               = next(iter(train_loader))
-    output                      = hetero_gnn_pooling_model(input_data)
+        if DO_POOLING:
 
-    print(f"Input data is \n{input_data}")
+            print(f"Using Heterogenous Pooling GNN Model")
 
-    assert (
-        output.size()[0] == input_data.batch_size
-    ), f"Batch size is {input_data.batch_size} != output size is {output.size()[0]}"
+            metadata = data_from_dataset.metadata()
+            model = GNNHeteroPooling(
+                        hidden_channels = HIDDEN_CHANNELS,
+                        num_mpn_layers  = 3,
+                        metadata        = metadata)
 
-    print(f"\n----Heterogenous GNN----")
+        else: 
+        
+            print(f"Using Heterogenous GNN Model")
+    
+            metadata = data_from_dataset.metadata()
+            model = GNNHetero(
+                        hidden_channels = HIDDEN_CHANNELS,
+                        num_mpn_layers  = 3,
+                        metadata        = metadata)
 
-    hetero_gnn_model            = GNNHetero(
-                                    hidden_channels=HIDDEN_CHANNELS, 
-                                    num_mpn_layers=3,
-                                    metadata=data.metadata())
+    if HETERO_MODEL:
+        print(f"Metadata is {metadata}\n")
+        print(f"\nData(Target) is ")
 
-    output                      = hetero_gnn_model(input_data)
+        print(f"[TASK]")
+        print(f"Input {data['task'].x}")
+        print(f"Output is {data['task'].y}\n")
 
-    print(f"Output is {output} of shape {output.shape}")
+        if HAS_WAIT_TIME:
+            print(f"[TASK_DEPEND]")
+            print(f"Input is {data['task_depend'].x}")
+            print(f"Output is {data['task_depend'].y}\n")
+
+    output = model(data)
+
+    if DO_POOLING:
+        print(f"\nPredicted Output is {output}")
+
+    else: 
+        print(f"\nPredicted Output is ")
+        for key,value in output.items():
+            print(f"{key}: {value}")
 
     
