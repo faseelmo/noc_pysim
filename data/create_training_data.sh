@@ -21,7 +21,7 @@ echo "Generating $GEN_COUNT graph tasks with $NUM_NODES nodes"
 python3 -m data.create_graph_tasks --generate --gen_count $GEN_COUNT --num_nodes $NUM_NODES
 
 # Simulate latency on graphs
-python3 -m data.simulate_latency_on_graphs --sim
+python3 -m data.simulate_latency_on_graphs --sim --sjf
 
 # Create test data
 python3 -m data.create_test_data

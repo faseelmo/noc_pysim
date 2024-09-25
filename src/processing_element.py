@@ -40,14 +40,16 @@ class TaskInfo:
 class ProcessingElement:
     def __init__(
             self, 
-            xy:             tuple   [int, int], 
-            computing_list: list    [TaskInfo], 
-            debug_mode:     bool    =  False
+            xy                  : tuple [int, int], 
+            computing_list      : list  [TaskInfo], 
+            debug_mode          : bool  =  False, 
+            shortest_job_first  : bool  = False
         ):
 
         self.xy                         = xy 
         self.compute_list               = computing_list
         self.compute_is_busy            = False
+        self.shortest_job_first         = shortest_job_first    
         self.debug_mode                 = debug_mode
         self.current_processing_cycle   = 0   # Might have to move this to instantiation later
 
@@ -177,24 +179,38 @@ class ProcessingElement:
                     if require.received_packet_count == require.required_packets:
                         readiness_check.append(True)
 
-
             if len(readiness_check) == require_list_len:
-                tasks_ready_to_execute.append( (total_require_count, compute_task) ) 
+
+                if self.shortest_job_first:
+                    # For Shortest Job First Scheduling
+                    tasks_ready_to_execute.append( (total_require_count, compute_task) ) 
+
+                else:
+                    # Randomly scheduling the task for processing
+                    compute_task.status         = TaskStatus.PROCESSING
+                    compute_task.start_cycle    = self.current_processing_cycle
+
+                    self.compute_is_busy = True
+                    self._reset_received_packet_task(compute_task)
+                    self._debug_print(f"Scheduling (random) task {compute_task.task_id} for processing")
+
+                    return 
 
 
-        if tasks_ready_to_execute:
+        # Shortest Job First Scheduling 
+        if self.shortest_job_first and  tasks_ready_to_execute:
 
             execute_task = min(tasks_ready_to_execute, key=lambda x: x[0])[1]
             execute_task.status = TaskStatus.PROCESSING 
             execute_task.start_cycle = self.current_processing_cycle
 
             if self.debug_mode:
-                tasks_ready_to_execute = [(task_info.task_id, count) for count, task_info in tasks_ready_to_execute]
-                self._debug_print(f"Tasks ready to execute (id, require count): {tasks_ready_to_execute}")
+                debug_tasks_ready_to_execute = [(task_info.task_id, count) for count, task_info in tasks_ready_to_execute]
+                self._debug_print(f"Tasks ready to execute (id, require count): {debug_tasks_ready_to_execute}")
 
             self.compute_is_busy = True
             self._reset_received_packet_task(execute_task)
-            self._debug_print(f"Scheduling task {execute_task.task_id} for processing")
+            self._debug_print(f"Scheduling (SJF) task {execute_task.task_id} for processing")
 
 
     def _update_task_as_complete(self, compute_task: TaskInfo) -> None:
@@ -396,7 +412,7 @@ if __name__ == "__main__":
     )
     computing_list = [task_1, task_3]
 
-    pe_1 = ProcessingElement((0, 0), computing_list, debug_mode=True)
+    pe_1 = ProcessingElement((0, 0), computing_list, debug_mode=True, )
 
     # The Packet (src and dest does not matter for now)
     packet_0 = Packet(

@@ -15,7 +15,7 @@ from data.utils import (
     compute_list_to_node_dict
 )
 
-def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycles: int):
+def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycles: int, sjf_scheduling: bool):
     random.seed(0)
     computing_list  = graph_to_task_list(nx_graph)
     packet_list     = get_ordered_packet_list(nx_graph)
@@ -41,8 +41,9 @@ def simlate_latency_from_graph(nx_graph: nx.DiGraph, debug_mode: bool, max_cycle
     latency     = simulate(
         computing_list, 
         packet_list, 
-        debug_mode=debug_mode, 
-        max_cycles=max_cycles
+        debug_mode      = debug_mode, 
+        max_cycles      = max_cycles,
+        sjf_scheduling  = sjf_scheduling
     )
 
     return latency, packet_list_copy, computing_list
@@ -80,6 +81,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Get latency of all the graphs in data/pe_task_graphs/",
     )
+    parser.add_argument(
+        "--sjf",
+        action="store_true",
+        help="Use Shortest Job First scheduling"
+    )
     args = parser.parse_args()
 
     if not args.test and not args.sim and not args.analytical:
@@ -93,7 +99,7 @@ if __name__ == "__main__":
         graph       = load_graph_from_json(graph_path)
 
         latency, packet_list, computing_list = simlate_latency_from_graph(
-            graph, debug_mode=True, max_cycles=args.max_cycle
+            graph, debug_mode=True, max_cycles=args.max_cycle, sjf_scheduling=args.sjf
         )
 
         for task in computing_list:
@@ -110,7 +116,7 @@ if __name__ == "__main__":
         graph       = load_graph_from_json(graph_path)
 
         latency, packet_list, computing_list = simlate_latency_from_graph(
-            graph, debug_mode=True, max_cycles=args.max_cycle
+            graph, debug_mode=True, max_cycles=args.max_cycle, sjf_scheduling=args.sjf
         )
 
         with open(f"data/analytical_test_data/target/{analytical_idx}.json", "w") as f:
@@ -138,7 +144,7 @@ if __name__ == "__main__":
             graph = load_graph_from_json(f"{INPUT_DATA_DIR}/{file}")
 
             latency, packet_list, computing_list = simlate_latency_from_graph(
-                graph, debug_mode=False, max_cycles=args.max_cycle
+                graph, debug_mode=False, max_cycles=args.max_cycle, sjf_scheduling=args.sjf
             )
 
             assert (

@@ -412,6 +412,8 @@ if __name__ == "__main__":
     check_all_files_in_dataset()
     data, ( index, graph ) = dataset[DATA_INDEX]
 
+    visualize_graph( graph=graph )
+
     print( f"\n\n----------------------DataLoader Test----------------------" )
 
     BATCH_SIZE = 10

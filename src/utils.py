@@ -59,7 +59,8 @@ def simulate(
     computing_list: list[TaskInfo], 
     packet_list: list[Packet], 
     debug_mode=False, 
-    max_cycles=1000
+    max_cycles=1000, 
+    sjf_scheduling=False
 ) -> int:
     """
     Simulation of the processing element
@@ -83,7 +84,7 @@ def simulate(
 
     from src.processing_element import ProcessingElement
 
-    pe = ProcessingElement((0, 0), computing_list, debug_mode=debug_mode)
+    pe = ProcessingElement((0, 0), computing_list, debug_mode=debug_mode, shortest_job_first=sjf_scheduling)
     current_packet = packet_list.pop(0)
 
     for cycle in range(max_cycles):
