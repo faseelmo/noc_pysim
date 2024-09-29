@@ -33,7 +33,7 @@ class Packet:
             "packet_content" is a member variable of the Packet class.
         """
 
-        uid        = uuid.uuid4()
+        uid         = uuid.uuid4()
 
         header_flit = HeaderFlit( src_xy=source_xy, dest_xy=dest_xy, packet_uid=uid )
         packet_content.append(header_flit)

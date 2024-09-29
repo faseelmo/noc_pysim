@@ -78,4 +78,10 @@ class TailFlit:
         return self._header_flit
 
     def __str__(self):
-        return f"[Tail Flit] UUID: {self._packet_uid}"
+        # return f"[Tail Flit] UUID: {self._packet_uid}"
+        return f"[Tail Flit]"
+
+
+class EmptyFlit:
+    def __str__(self):
+        return f"[Empty Flit]"

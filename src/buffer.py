@@ -2,82 +2,71 @@ from enum           import Enum
 from typing         import Union
 from collections    import deque
 
-from .flit import HeaderFlit, PayloadFlit, TailFlit
-
-class BufferStatus(Enum):
-    EMPTY       = "empty"
-    AVAILABLE   = "available"
-    FULL        = "full"
+from .flit import HeaderFlit, PayloadFlit, TailFlit, EmptyFlit
 
 class Buffer:
     def __init__(self, size: int):
-        self.size   = size
-        self.queue  = deque(maxlen=size)
-        self.status = BufferStatus.EMPTY
+        self.size               = size
+        self.queue              = deque(maxlen=size)
+        self._in_transmit_mode   = False
+        self.fill_with_empty_flits()
 
     def add_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> None:
-        """
-        Adds flit to the buffer if there is space available.
-        Updates the status of the buffer.
-        State transitions:
-            EMPTY      -> AVAILABLE, for the first flit.
-            AVAILABLE  -> FULL, when the buffer is full.
-        
-        """
-        if self.status in (BufferStatus.EMPTY, BufferStatus.AVAILABLE ): # Basically or condition
-
-            self.queue.append(flit)
-
-            if self.status == BufferStatus.EMPTY:
-                self.status = BufferStatus.AVAILABLE
-
-            if len(self.queue) == self.size:
-                self.status = BufferStatus.FULL
-
-        else:
+        """Adds flit to the buffer if it is not full."""
+        if self._is_full(): 
             raise Exception("Cannot add to full buffer")
+        else: 
+            self.queue.append(flit)
 
     def remove(self) -> Union[HeaderFlit, PayloadFlit, TailFlit, None]:
         """
         Removes flits from the buffer if there are any.
-        - Updates the status of the buffer.
-        Returns the flit that was removed or if the buffer is not fully populated, 
-            returns False.
-        State transitions:
-            FULL        -> AVAILABLE,   when the buffer is not full.
-            AVAILABLE   -> EMPTY,       when the buffer is empty.
+        Returns the flit that was removed.
+            if there is no flit, returns None.
+            else returns the flit that was removed.
         """
-
-        if self.status == BufferStatus.EMPTY:
-            raise Exception("Cannot remove from empty buffer")
-
-        if self.status == BufferStatus.AVAILABLE:
-            # Last element in the buffer is empty. Returns False.
+        flit = self.queue.popleft()
+        if isinstance(flit, EmptyFlit):
             return None
 
-
-        if self.status == BufferStatus.FULL:
-
-            flit = self.queue.popleft()
-
-            if len(self.queue) == 0:
-                self.status = BufferStatus.EMPTY
-
-            if self.status == BufferStatus.FULL:
-                self.status = BufferStatus.AVAILABLE
-
-            return flit
+        return flit
 
     def can_do_routing(self) -> bool:
-        if self.status == BufferStatus.FULL:
+        """ Checks if the buffer has the complete packet
+        to do routing. """
+        if self._is_full():
             if isinstance(self.queue[0], HeaderFlit):
                 return True
         return False
 
+    def can_transmit_flits(self) -> bool:
+        if self.can_do_routing():
+            self._in_transmit_mode = True
+
+        if isinstance(self.queue[0], TailFlit):
+            self._in_transmit_mode = False
+            return True
+
+        return self._in_transmit_mode
+
+    def fill_with_empty_flits(self) -> None:
+        """Fill non occupied spaces with Empty Flits"""
+        non_occupied_space = self.size - len(self.queue)
+        for _ in range(non_occupied_space):
+            self.queue.append(EmptyFlit())
+
+    def _is_full(self) -> bool:
+        non_empty_flit_count = 0
+        for flit in self.queue:
+            if not isinstance(flit, EmptyFlit):
+                non_empty_flit_count += 1
+
+        return non_empty_flit_count == self.size
+
+
     def __str__(self):
         queue_str = [str(item) for item in self.queue]
-        return f"{self.status} -> {queue_str}"
-
+        return f"{queue_str}"
 
 if __name__ == "__main__":
 
@@ -100,9 +89,10 @@ if __name__ == "__main__":
         buffer.add_flit(flit)
         print(f"{buffer}")
 
-    print(f"\nRemoving\n{buffer}")
+    print(f"\nRemoving from \n{buffer}\nStarting")
     for i in range(4):
         buffer.remove()
+        buffer.fill_with_empty_flits()
         print(f"{buffer}")
 
     """
@@ -116,12 +106,11 @@ if __name__ == "__main__":
 
     buffer = Buffer(4)
 
+    print(f"\nAdding to \n{buffer}\nStarting")
     for i in range(2):
         packet_is_transmitted, flit = packet.transmit_flit()
         buffer.add_flit(flit)
         print(f"{buffer}")
-
-    print( f"Buffer after adding 2 flits: {buffer}" )
 
     flit = buffer.remove()
     print( f"Buffer after removing 1 flit: {buffer}, removed flit {flit}" )
