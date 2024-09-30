@@ -21,9 +21,6 @@ class Buffer:
         else: 
             self.queue.append(flit)
 
-        # print(f"Buffer after adding flit")
-        # for flit in self.queue:
-        #     print(f"{flit}")
 
     def peek(self) -> Union[HeaderFlit, PayloadFlit, TailFlit, None]:
         """Returns the flit at the front/left of the queue without removing it."""

@@ -10,7 +10,6 @@ class Router:
             "pos"           : tuple, coordinates of the router  
             "buffer_size"   : int, number of flits that can be stored in a buffer
         """
-
         self._x = pos[0]
         self._y = pos[1]
 
@@ -35,14 +34,14 @@ class Router:
         self._populate_buffer_lists()
 
 
-    def process( self, receive_flit_list: list) -> None:
+    def process( self, receive_flit_list: list, router_lookup: dict) -> None:
         """ - Process the flits in the input buffer first 
                 - forward_output_buffer_flits()
                 - forward_input_buffer_flits()
             - Receive New flits 
                 - receive_flits() """
 
-        self._forward_output_buffer_flits()
+        self._forward_output_buffer_flits(router_lookup)
 
         self._forward_input_buffer_flits()
 
@@ -50,7 +49,7 @@ class Router:
             self._receive_flit( flit )
 
 
-    def _forward_output_buffer_flits( self ) -> None:
+    def _forward_output_buffer_flits( self, router_lookup: dict ) -> None:
         """
         Check if the output has any flits to be forwarded to the next router.
         If there are, check if the next router has space in the input buffer.
@@ -59,6 +58,20 @@ class Router:
         print(f"[{self}](Output Buffer -> Router Forward)")
 
         for buffer in self._output_buffers:
+            top_flit = buffer.peek()
+
+            if top_flit is None:
+                continue
+
+            next_hop_x  = top_flit.get_routing_info().x
+            next_hop_y  = top_flit.get_routing_info().y
+            next_hop    = (next_hop_x, next_hop_y)
+            print(f"\t\t-> Next Hop: {next_hop}")
+
+            next_router = router_lookup.get( next_hop )
+            print(f"\t\t-> Next Router: {next_router}")
+            exit()
+
             buffer.fill_with_empty_flits()  
        
 
@@ -103,7 +116,7 @@ class Router:
         assert not buffer_in_curr_router.is_full(), f"Buffer {buffer_location} is full. Cannot receive flit."
 
         buffer_in_curr_router.add_flit( flit )
-        print(f"\t\t{buffer_location} -> Buffer status: {buffer_in_curr_router}")
+        print(f"\t\t->{buffer_location} -> Buffer status: {buffer_in_curr_router}")
 
         if buffer_in_curr_router.can_do_routing(): 
             self._do_routing( flit )
@@ -182,7 +195,6 @@ class Router:
                 if isinstance( attr_value, Buffer ):
                     self._output_buffers.append( attr_value )
 
-
     def __eq__(self, other):
         """
         Overriding the equality operator to compare the x and y coordinates of the router.
@@ -215,8 +227,9 @@ if __name__ == "__main__":
         [x] Implement copying the packet to the buffer.
         [x] Implement the routing algorithm.
         [x] Implement the moving to the next buffer.
-        [x] Implement looking at the output buffers and moving the flits to the input 
-            of the destination router's input buffer. 
+        [ ] Implement looking at the output of all the routers and 
+            appending the flits to a list which can be processed in the 
+            next cycle.
 
     """
 
@@ -260,7 +273,7 @@ if __name__ == "__main__":
 
             # print(f"\n • Router: {router}")
             if router == (0,0):
-                router.process( flit_list )
+                router.process( flit_list, router_lookup )
 
             # else : 
             #     router.process( [] )
