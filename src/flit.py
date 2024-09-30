@@ -12,9 +12,19 @@ class BufferLocation(Enum):
 
 @dataclass
 class NextHop:
-    x       : int 
-    y       : int 
-    buffer  : BufferLocation
+    """
+    'next_input_buffer' is the buffer of the next router. 
+        if the flit is coming from a PE it is set to LOCAL 
+
+    'output_buffer' is the output buffer of the current router 
+    which the flit will be sent before it reaches the 'next_input_buffer' 
+    of the next router.
+    """
+    x                   : int 
+    y                   : int 
+    next_input_buffer   : BufferLocation 
+    output_buffer       : BufferLocation = BufferLocation.UNASSIGNED 
+    # buffer  : BufferLocation
 
 class HeaderFlit: 
     def __init__( self, src_xy: tuple, dest_xy: tuple, packet_uid: uuid.UUID ): 
@@ -30,7 +40,10 @@ class HeaderFlit:
         self._src_xy        = src_xy
         self._dest_xy       = dest_xy
         self._packet_uid    = packet_uid
-        self._next_hop      = NextHop( x=src_xy[0], y=src_xy[1], buffer=BufferLocation.LOCAL )
+        self._next_hop      = NextHop( 
+                                x=src_xy[0], 
+                                y=src_xy[1], 
+                                next_input_buffer=BufferLocation.LOCAL )
 
     
     def update_routing_info( self, next_hop: NextHop ) -> None:

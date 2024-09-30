@@ -41,15 +41,22 @@ class Router:
             - Receive New flits 
                 - receive_flits() """
 
-        self._forward_output_buffer_flits(router_lookup)
+        new_flit_list = self._forward_output_buffer_flits(router_lookup)
 
         self._forward_input_buffer_flits()
 
         for flit in receive_flit_list:
             self._receive_flit( flit )
 
+        if new_flit_list: 
+            print(f"\tNew Flits: ")
+            for flit in new_flit_list:
+                print(f"\t{flit}")
 
-    def _forward_output_buffer_flits( self, router_lookup: dict ) -> None:
+        return new_flit_list
+
+
+    def _forward_output_buffer_flits( self, router_lookup: dict ) -> Union[ HeaderFlit, PayloadFlit, TailFlit ]:
         """
         Check if the output has any flits to be forwarded to the next router.
         If there are, check if the next router has space in the input buffer.
@@ -57,24 +64,29 @@ class Router:
         """
         print(f"[{self}](Output Buffer -> Router Forward)")
 
+        flit_list = []
+
         for buffer in self._output_buffers:
             top_flit = buffer.peek()
 
             if top_flit is None:
                 continue
 
-            next_hop_x  = top_flit.get_routing_info().x
-            next_hop_y  = top_flit.get_routing_info().y
-            next_hop    = (next_hop_x, next_hop_y)
-            print(f"\t\t-> Next Hop: {next_hop}")
+            next_hop_x      = top_flit.get_routing_info().x
+            next_hop_y      = top_flit.get_routing_info().y
+            next_hop_loc    = (next_hop_x, next_hop_y)
+            next_hop_buffer = top_flit.get_routing_info().output_buffer
 
-            next_router = router_lookup.get( next_hop )
-            print(f"\t\t-> Next Router: {next_router}")
-            exit()
+            next_router = router_lookup.get( next_hop_loc )
+            next_router_input_buffer = next_router._get_buffer( direction = next_hop_buffer, is_input = True )
+
+            if not next_router_input_buffer.is_full():
+                flit = buffer.remove()
+                flit_list.append( flit )
 
             buffer.fill_with_empty_flits()  
-       
 
+        return flit_list 
 
     def _forward_input_buffer_flits( self ) -> None:
         """
@@ -90,13 +102,13 @@ class Router:
             if top_flit is None:
                 continue
 
-            next_hop_location   = top_flit.get_routing_info().buffer.value
+            next_hop_location   = top_flit.get_routing_info().output_buffer
             next_buffer         = self._get_buffer( direction = next_hop_location, is_input = False )
 
             if not next_buffer.is_full():
                 flit = buffer.remove()
                 next_buffer.add_flit( flit )    
-                print(f"\t\t-> {next_hop_location} buffer: {next_buffer}")
+                print(f"\t\t-> {next_hop_location.value} output: {next_buffer}")
 
             buffer.fill_with_empty_flits()
 
@@ -109,43 +121,48 @@ class Router:
         print(f"[{self}](Receive Flits)")
 
         current_routing_info    = flit.get_routing_info()
-        buffer_location         = current_routing_info.buffer.value
+        buffer_location         = current_routing_info.next_input_buffer
 
-        buffer_in_curr_router   = getattr( self, f"_{buffer_location}_input_buffer" )
+        input_buffer            = self._get_buffer( direction = buffer_location, is_input = True )  
 
-        assert not buffer_in_curr_router.is_full(), f"Buffer {buffer_location} is full. Cannot receive flit."
+        assert not input_buffer.is_full(), f"Buffer {buffer_location.value} is full. Cannot receive flit."
 
-        buffer_in_curr_router.add_flit( flit )
-        print(f"\t\t->{buffer_location} -> Buffer status: {buffer_in_curr_router}")
+        input_buffer.add_flit( flit )
+        print(f"\t\t->{buffer_location} input: {input_buffer}")
 
-        if buffer_in_curr_router.can_do_routing(): 
-            self._do_routing( flit )
+        if input_buffer.can_do_routing(): 
+            self._update_routing( flit )
 
 
-    def _do_routing( self, flit: TailFlit) -> None: 
+    def _update_routing( self, flit: TailFlit) -> None: 
+        """
+        Updates the routing information of the flit based on the header flit destination.
+        Calls _xy_routing function
+        """
 
         if not isinstance( flit, TailFlit ):
             raise Exception("Error in Packet. Last flit in the packet is not a TailFlit. Cannot do routing.")
 
         header_flit_pointer = flit.get_header_pointer() # Flit here is a TailFlit
 
-        next_hop_info       = self._get_routing_information( header_flit_pointer )
+        next_hop_info       = self._xy_routing( header_flit_pointer )
 
         header_flit_pointer.update_routing_info( next_hop_info )
         print(f"\t\t\tRouting Information Updated: {next_hop_info}")
 
-    def _get_buffer(self, direction:str, is_input:bool) -> Buffer:
+    def _get_buffer(self, direction:BufferLocation, is_input:bool) -> Buffer:
         """Returns the buffer based on the direction(str) and input/output flag (bool)."""
+        direction_str = direction.value
         attributes = vars( self )
         for attr_name, attr_value in attributes.items():
             if isinstance( attr_value, Buffer ):
-                if direction in attr_name:
+                if direction_str in attr_name:
                     if is_input and "input" in attr_name:
                         return attr_value
                     elif not is_input and "output" in attr_name:
                         return attr_value
 
-    def _get_routing_information( self, header_flit: HeaderFlit) -> NextHop:
+    def _xy_routing( self, header_flit: HeaderFlit) -> NextHop:
         """ 
         Returns the routing information from the flit.
         Computes the x and y coordinates of the next hop based on the destination.
@@ -154,31 +171,49 @@ class Router:
 
         dest_x, dest_y = header_flit.get_destination()
         
+        # For X-axis
         if dest_x > self._x:    # Destination on east
             next_hop_x  = self._x + 1
-            next_buffer = BufferLocation.EAST
-            return NextHop( x = next_hop_x, y = self._y, buffer = next_buffer )
+            return NextHop( 
+                x                   = next_hop_x, 
+                y                   = self._y, 
+                output_buffer       = BufferLocation.EAST, 
+                next_input_buffer   = BufferLocation.WEST )
             
         elif dest_x < self._x:  # Destination on west
             next_hop_x  = self._x - 1
-            next_buffer = BufferLocation.WEST
-            return NextHop( x = next_hop_x, y = self._y, buffer = next_buffer )
+            return NextHop( 
+                x                   = next_hop_x, 
+                y                   = self._y, 
+                output_buffer       = BufferLocation.WEST, 
+                next_input_buffer   = BufferLocation.EAST )
 
         else:                   # Destination on the same x-axis
             next_hop_x = self._x
 
+        # For Y-axis
         if dest_y > self._y:    # Destination on north
             next_hop_y  = self._y + 1
-            next_buffer = BufferLocation.NORTH
-            return NextHop( x = next_hop_x, y = next_hop_y, buffer = next_buffer )
+            return NextHop( 
+                x                   = next_hop_x, 
+                y                   = next_hop_y, 
+                output_buffer       = BufferLocation.NORTH, 
+                next_input_buffer   = BufferLocation.SOUTH )
 
         elif dest_y < self._y:  # Destination on south
             next_hop_y  = self._y - 1
-            next_buffer = BufferLocation.SOUTH
-            return NextHop( x = next_hop_x, y = next_hop_y, buffer = "south" )
+            return NextHop( 
+                x                   = next_hop_x, 
+                y                   = next_hop_y, 
+                output_buffer       = BufferLocation.SOUTH, 
+                next_input_buffer   = BufferLocation.NORTH )
 
         else:                   # Destination on the same y-axis
-            return NextHop( x = next_hop_x, y = next_hop_y, buffer = "local" )
+            return NextHop( 
+                x                   = next_hop_x, 
+                y                   = next_hop_y, 
+                output_buffer       = BufferLocation.LOCAL, 
+                next_input_buffer   = BufferLocation.UNASSIGNED ) # Going to the PE
 
 
     def _populate_buffer_lists( self ) -> None:
@@ -194,6 +229,7 @@ class Router:
             elif "output_buffer" in attr_name:
                 if isinstance( attr_value, Buffer ):
                     self._output_buffers.append( attr_value )
+
 
     def __eq__(self, other):
         """
@@ -250,7 +286,7 @@ if __name__ == "__main__":
                      source_task_id = 0     )
     print( f"\n - Packet initialized: {packet}\n" )
 
-    max_sim_cycle           = 10
+    max_sim_cycle           = 15
     cycle                   = 0 
 
     # Idea of flit list is that, when multiple flits from different routers are received,
