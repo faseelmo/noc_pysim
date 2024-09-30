@@ -13,7 +13,7 @@ def test_fill_and_empty():
                     source_task_id=0)
 
     assert buffer.can_do_routing()  == False
-    assert buffer._is_full()        == False
+    assert buffer.is_full()        == False
 
     packet_size = packet.get_size()
     for _ in range(packet_size):
@@ -22,7 +22,7 @@ def test_fill_and_empty():
         buffer.fill_with_empty_flits()
         assert len(buffer.queue) == 4
 
-    assert buffer._is_full()        == True
+    assert buffer.is_full()        == True
     assert buffer.can_do_routing()  == True
 
 def test_return_none(): 
@@ -42,7 +42,7 @@ def test_return_none():
         assert len(buffer.queue) == 4
 
     assert buffer.can_do_routing()  == False
-    assert buffer._is_full()        == False
+    assert buffer.is_full()        == False
 
     flit = buffer.remove()
     assert flit is None

@@ -12,11 +12,26 @@ class Buffer:
         self.fill_with_empty_flits()
 
     def add_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> None:
-        """Adds flit to the buffer if it is not full."""
-        if self._is_full(): 
+        """
+        Adds flit to the buffer if it is not full.
+        Full is defined as having all non-empty flits.
+        """
+        if self.is_full(): 
             raise Exception("Cannot add to full buffer")
         else: 
             self.queue.append(flit)
+
+        # print(f"Buffer after adding flit")
+        # for flit in self.queue:
+        #     print(f"{flit}")
+
+    def peek(self) -> Union[HeaderFlit, PayloadFlit, TailFlit, None]:
+        """Returns the flit at the front/left of the queue without removing it."""
+        flit = self.queue[0]
+        if isinstance(flit, EmptyFlit):
+            return None
+        else:
+            return flit
 
     def remove(self) -> Union[HeaderFlit, PayloadFlit, TailFlit, None]:
         """
@@ -34,7 +49,7 @@ class Buffer:
     def can_do_routing(self) -> bool:
         """ Checks if the buffer has the complete packet
         to do routing. """
-        if self._is_full():
+        if self.is_full():
             if isinstance(self.queue[0], HeaderFlit):
                 return True
         return False
@@ -55,7 +70,7 @@ class Buffer:
         for _ in range(non_occupied_space):
             self.queue.append(EmptyFlit())
 
-    def _is_full(self) -> bool:
+    def is_full(self) -> bool:
         non_empty_flit_count = 0
         for flit in self.queue:
             if not isinstance(flit, EmptyFlit):
