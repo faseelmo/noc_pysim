@@ -34,14 +34,14 @@ class Router:
         self._populate_buffer_lists()
 
 
-    def process( self, receive_flit_list: list, router_lookup: dict) -> None:
+    def process( self, receive_flit_list: list, router_lookup: dict) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
         """ - Process the flits in the input buffer first 
                 - forward_output_buffer_flits()
                 - forward_input_buffer_flits()
             - Receive New flits 
                 - receive_flits() """
 
-        new_flit_list = self._forward_output_buffer_flits(router_lookup)
+        new_flit_list = self._forward_output_buffer_flits( router_lookup )
 
         self._forward_input_buffer_flits()
 
@@ -56,13 +56,13 @@ class Router:
         return new_flit_list
 
 
-    def _forward_output_buffer_flits( self, router_lookup: dict ) -> Union[ HeaderFlit, PayloadFlit, TailFlit ]:
+    def _forward_output_buffer_flits( self, router_lookup: dict ) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
         """
         Check if the output has any flits to be forwarded to the next router.
         If there are, check if the next router has space in the input buffer.
         If it does, remove the flit from the output buffer and return it. 
         """
-        print(f"[{self}](Output Buffer -> Router Forward)")
+        print(f"[{self}](Output Buffer -> next Router Forward)")
 
         flit_list = []
 
@@ -78,6 +78,12 @@ class Router:
             next_hop_buffer = top_flit.get_routing_info().output_buffer
 
             next_router = router_lookup.get( next_hop_loc )
+            
+            if next_router == self:
+                # Condition when the flit has reached the destination router
+                # think about how to move the flit to the PE
+                continue
+
             next_router_input_buffer = next_router._get_buffer( direction = next_hop_buffer, is_input = True )
 
             if not next_router_input_buffer.is_full():
@@ -211,7 +217,7 @@ class Router:
         else:                   # Destination on the same y-axis
             return NextHop( 
                 x                   = next_hop_x, 
-                y                   = next_hop_y, 
+                y                   = self._y, 
                 output_buffer       = BufferLocation.LOCAL, 
                 next_input_buffer   = BufferLocation.UNASSIGNED ) # Going to the PE
 
@@ -251,8 +257,6 @@ if __name__ == "__main__":
 
     from .packet import Packet
 
-    max_sim_cycle = 100
-
     """
     Condition 1 : 
         - Packet comes from a IP Core, without any routing information.  
@@ -263,15 +267,13 @@ if __name__ == "__main__":
         [x] Implement copying the packet to the buffer.
         [x] Implement the routing algorithm.
         [x] Implement the moving to the next buffer.
-        [ ] Implement looking at the output of all the routers and 
+        [x] Implement looking at the output of all the routers and 
             appending the flits to a list which can be processed in the 
-            next cycle.
+            next router at the next cycle. 
+        [ ] Use the flit from the list to process at the next router. 
 
     """
 
-    print(f"\nStarting Simulation with {max_sim_cycle} cycles.\n")
-    
-    
     router_00 = Router( pos = (0, 0) )
     router_10 = Router( pos = (1, 0) )
     router_11 = Router( pos = (1, 1) )
@@ -283,40 +285,43 @@ if __name__ == "__main__":
 
     packet = Packet( source_xy      = (0, 0), 
                      dest_xy        = (1, 1), 
-                     source_task_id = 0     )
+                     source_task_id = 0 )
     print( f"\n - Packet initialized: {packet}\n" )
 
-    max_sim_cycle           = 15
-    cycle                   = 0 
+    max_sim_cycle   = 25
+    cycle           = 0 
+
+    print(f"\nStarting Simulation with {max_sim_cycle} cycles.\n")
 
     # Idea of flit list is that, when multiple flits from different routers are received,
     # they can be processed in a single cycle.
-    flit_list               = []
-    stop_sending_flits      = False
+    flit_list                           = []
+    init_packet_injection_complete_flag = False
 
     while cycle < max_sim_cycle:  
 
         print(f"\n - Cycle [{cycle + 1}]")
         cycle += 1
 
-        packet_is_transmitted, flit = packet.transmit_flit() 
-        dest_router = (flit.get_routing_info().x, flit.get_routing_info().y) 
+        init_packet_is_transmitted, init_flit   = packet.transmit_flit() 
+        dest_router                             = ( init_flit.get_routing_info().x, init_flit.get_routing_info().y ) 
 
-        if not stop_sending_flits:
-            flit_list = [flit]
 
         for router in router_lookup.values():
 
-            # print(f"\n • Router: {router}")
-            if router == (0,0):
-                router.process( flit_list, router_lookup )
+            # Initial packet injection
+            if not init_packet_injection_complete_flag:
+                if not init_packet_is_transmitted:
+                    if router == (0,0):
+                        router.process( [ init_flit ], router_lookup )
+                else : 
+                    if router == (0,0):
+                        router.process( [ init_flit ], router_lookup )
+                        init_packet_injection_complete_flag = True
 
-            # else : 
-            #     router.process( [] )
-    
-            if packet_is_transmitted: 
-                stop_sending_flits = True
-                flit_list = []
+            # Processign all routers 
+            else: 
+                flit_list = router.process( flit_list, router_lookup )
 
 
 
