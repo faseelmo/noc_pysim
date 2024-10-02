@@ -24,7 +24,13 @@ class NextHop:
     y                   : int 
     next_input_buffer   : BufferLocation 
     output_buffer       : BufferLocation = BufferLocation.UNASSIGNED 
-    # buffer  : BufferLocation
+
+    def __str__(self):
+        return (
+            f"Next Hop -> R({self.x}, {self.y}) " 
+            f"next_input_buffer: {self.next_input_buffer.value}, "
+            f"output_buffer: {self.output_buffer.value}"
+        )
 
 class HeaderFlit: 
     def __init__( self, src_xy: tuple, dest_xy: tuple, packet_uid: uuid.UUID ): 

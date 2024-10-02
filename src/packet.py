@@ -111,9 +111,9 @@ class Packet:
 
     def __str__(self) -> str:
         return (
-            f"[Packet] Src: {self._source_task_id}, "
-            f"Routing: {self._packet_content[0].get_routing_info()} "
-            f"UID: {self._packet_content[0].get_uid()}"
+            f"[Packet] Task id: {self._source_task_id}, "
+            f"{self._packet_content[0].get_routing_info()} "
+            # f"UID: {self._packet_content[0].get_uid()}"
         )
 
 

@@ -48,11 +48,6 @@ class Router:
         for flit in receive_flit_list:
             self._receive_flit( flit )
 
-        if new_flit_list: 
-            print(f"\tNew Flits: ")
-            for flit in new_flit_list:
-                print(f"\t{flit}")
-
         return new_flit_list
 
 
@@ -62,7 +57,6 @@ class Router:
         If there are, check if the next router has space in the input buffer.
         If it does, remove the flit from the output buffer and return it. 
         """
-        print(f"[{self}](Output Buffer -> next Router Forward)")
 
         flit_list = []
 
@@ -100,7 +94,6 @@ class Router:
         Functionality: Iterates through the input buffers and pops a flit from the buffer.
         if the flit is not None, it is forwarded to the next buffer.
         """
-        print(f"[{self}](Input Buffer -> Output Buffer Forward)")
 
         for buffer in self._input_buffers:
             top_flit   = buffer.peek()
@@ -114,7 +107,8 @@ class Router:
             if not next_buffer.is_full():
                 flit = buffer.remove()
                 next_buffer.add_flit( flit )    
-                print(f"\t\t-> {next_hop_location.value} output: {next_buffer}")
+                print(f"[{self}](Input Buffer -> Output Buffer Forward)")
+                print(f"\t-> {next_hop_location.value} output: {next_buffer}")
 
             buffer.fill_with_empty_flits()
 
@@ -134,7 +128,7 @@ class Router:
         assert not input_buffer.is_full(), f"Buffer {buffer_location.value} is full. Cannot receive flit."
 
         input_buffer.add_flit( flit )
-        print(f"\t\t->{buffer_location} input: {input_buffer}")
+        print(f"\t->{buffer_location.value} input: {input_buffer}")
 
         if input_buffer.can_do_routing(): 
             self._update_routing( flit )
@@ -270,7 +264,8 @@ if __name__ == "__main__":
         [x] Implement looking at the output of all the routers and 
             appending the flits to a list which can be processed in the 
             next router at the next cycle. 
-        [ ] Use the flit from the list to process at the next router. 
+        [x] Use the flit from the list to process at the next router. 
+        [ ] Improve logging. 
 
     """
 
