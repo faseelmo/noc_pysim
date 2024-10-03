@@ -14,18 +14,19 @@ class PacketStatus(Enum):
 
 class Packet:
     def __init__( self, source_xy: tuple, dest_xy: tuple, source_task_id: int ):
-        self._payload_size      = 2
-        num_header_tail_flits   = 2
+        self._payload_size              = 2
+        num_header_tail_flits           = 2
 
-        self._size              = self._payload_size + num_header_tail_flits 
-        self._packet_content    = deque( maxlen=self._size )
+        self._size                      = self._payload_size + num_header_tail_flits 
+        self._packet_content            = deque( maxlen=self._size )
 
         self._init_packet( self._packet_content, source_xy, dest_xy )
 
-        self._status            = PacketStatus.IDLE
-        self._flits_transmitted = 0
-        self._source_task_id    = source_task_id
-        self._pointer           = 0
+        self._status                    = PacketStatus.IDLE
+        self._source_task_id            = source_task_id
+        self._pointer                   = 0
+
+        self._flits_transmitted_count   = 0
 
 
     def _init_packet( self, packet_content: deque, source_xy: tuple , dest_xy: tuple ) -> None: 
@@ -73,25 +74,25 @@ class Packet:
 
     def increment_flits(self) -> None:
         """Increment the number of flits transmitted by the packet."""
-        if self._status is PacketStatus.IDLE and self._flits_transmitted == 0:
-            self._flits_transmitted = 1
+        if self._status is PacketStatus.IDLE and self._flits_transmitted_count == 0:
+            self._flits_transmitted_count = 1
             self._status = PacketStatus.TRANSMITTING
         elif (
             self._status is PacketStatus.TRANSMITTING
-            and self._flits_transmitted < self._size
+            and self._flits_transmitted_count < self._size
         ):
-            self._flits_transmitted += 1
+            self._flits_transmitted_count += 1
         else:
             return
 
     def check_transmission_status(self) -> tuple[bool, Optional[int]]:
         """Check if the packet has been transmitted completely."""
         if (self._status is PacketStatus.TRANSMITTING) and (
-            self._flits_transmitted == self._size
+            self._flits_transmitted_count == self._size
         ):
             self._status = PacketStatus.IDLE
             # print(f"{self} has been transmitted")
-            self._flits_transmitted = 0
+            self._flits_transmitted_count = 0
             return True, self._source_task_id
         else:
             return False, None
@@ -99,8 +100,8 @@ class Packet:
     def get_source_task_id(self) -> int:
         return self._source_task_id
 
-    def get_flits_transmitted(self) -> int:
-        return self._flits_transmitted
+    def get_flits_transmitted_count(self) -> int:
+        return self._flits_transmitted_count
 
     def get_size(self) -> int:
         return self._size

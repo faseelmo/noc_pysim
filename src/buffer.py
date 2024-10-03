@@ -3,13 +3,24 @@ from typing         import Union
 from collections    import deque
 
 from .flit import HeaderFlit, PayloadFlit, TailFlit, EmptyFlit
+from .packet import Packet
 
 class Buffer:
     def __init__(self, size: int):
         self.size               = size
         self.queue              = deque(maxlen=size)
-        self._in_transmit_mode   = False
+        self._in_transmit_mode   = False # maybe this is not needed. Check with router. 
+        
         self.fill_with_empty_flits()
+
+
+    def fill_with_packet(self, packet: Packet) -> None:
+        while True: 
+            packet_is_transmitted, flit = packet.transmit_flit()
+            self.add_flit(flit)
+            if packet_is_transmitted:
+                break
+
 
     def add_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> None:
         """
@@ -68,12 +79,31 @@ class Buffer:
             self.queue.append(EmptyFlit())
 
     def is_full(self) -> bool:
+        """
+        Returns True if the buffer is full
+        Full is defined as having all non - EmptyFlit.
+        """
         non_empty_flit_count = 0
         for flit in self.queue:
             if not isinstance(flit, EmptyFlit):
                 non_empty_flit_count += 1
 
         return non_empty_flit_count == self.size
+
+    def is_empty(self) -> bool:
+        """
+        Returns True if the buffer is all EmptyFlit.
+        """
+        empty_flit_count = 0
+        for flit in self.queue:
+            if isinstance(flit, EmptyFlit):
+                empty_flit_count += 1
+        return empty_flit_count == self.size
+
+    def empty(self) -> None:
+        """Empty the buffer"""
+        for _ in range(len(self.queue)):
+            self.queue.append(EmptyFlit())
 
 
     def __str__(self):
