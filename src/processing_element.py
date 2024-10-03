@@ -69,7 +69,7 @@ class ProcessingElement:
     def _debug_print(self, string: str) -> None: 
 
         if self.debug_mode:
-            print(string)
+            print(f"{self}{string}")
 
     def _increment_processing_cycle(self) -> None:
         """Increments the processing cycle for the PE"""
@@ -120,7 +120,7 @@ class ProcessingElement:
             raise ValueError(f"Packet type {packet_source_task_id} not required in this PE")
 
         packet.increment_flits()
-        self._debug_print(f"{self} Recieving flits (type: {packet_source_task_id}) {packet.get_flits_transmitted_count()}/{packet.get_size()}")
+        self._debug_print(f"Recieving flits (type: {packet_source_task_id}) {packet.get_flits_transmitted_count()}/{packet.get_size()}")
         is_transmitted, recieved_packet_task_id = packet.check_transmission_status()
         
         if is_transmitted:
@@ -259,38 +259,35 @@ class ProcessingElement:
             # Check if the buffer has been emptied 
             is_buffer_empty = self.output_network_interface.is_empty()
 
+            if not is_buffer_empty:
+                                
+                if self.router_lookup is not None:
+                    is_packet_moved = self._move_flits_to_router_buffer()
+                    if is_packet_moved:
+                        is_buffer_empty = True
+
             if is_buffer_empty:
                 self._debug_print(
                     f" -> Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
                     f"packets in task {compute_task.task_id}"
                 )
-
                 if compute_task.generated_packet_count < compute_task.expected_generated_packets:
                     compute_task.current_processing_cycle   = 0 
-                    compute_task.status = TaskStatus.PROCESSING
+                    compute_task.status                     = TaskStatus.PROCESSING
                 
                 elif compute_task.generated_packet_count == compute_task.expected_generated_packets:
                     self._update_task_as_complete(compute_task)
-
                 else:
                     raise ValueError("Generated packet count is greater than expected generated packets")
 
             else:
-                                
-                if self.router_lookup is not None:
-                    self._move_flits_to_router_buffer()
-
-                # If the buffer is full, the task can still compute until 
-                # it has to move the packets to the output buffer
-                if not compute_task.current_processing_cycle == compute_task.processing_cycles:
+                if compute_task.current_processing_cycle != compute_task.processing_cycles:
                     compute_task.current_processing_cycle += 1
                     self._debug_print(
                         f"Task {compute_task.task_id} is processing at cycle "
                         f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                     )
-
-                else:
-                    self._debug_print(f"PE output NI is not empty {self.output_network_interface}")
+                self._debug_print(f"NI[Output] is occupied")
 
 
         if compute_task.status is TaskStatus.PROCESSING:
@@ -328,18 +325,22 @@ class ProcessingElement:
                     f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                 )
 
-    def _move_flits_to_router_buffer(self) -> None:
+    def _move_flits_to_router_buffer(self) -> bool:
 
         router = self.router_lookup[self.xy]
 
         if not router.is_local_input_buffer_full():
             flit = self.output_network_interface.remove()
+            self.output_network_interface.fill_with_empty_flits()
             router.add_flit_to_local_input_buffer(flit)
 
+            self._debug_print(f"Moving flits to router buffer {router._local_input_buffer}")
+
+            if isinstance(flit, TailFlit):
+                return True
+        
+        return False
             
-
-            print(f"Moving flits to router buffer {router._local_input_buffer}")
-
 
     def _process_trasmit_generate_packets(self, compute_task: TaskInfo) -> Packet:
         self._debug_print(f"Task {compute_task.task_id} is a terminating task")
@@ -348,16 +349,16 @@ class ProcessingElement:
         assert packet_dest_xy is not None, "Destination of the packet is not set"
 
         packet = Packet(
-                    source_xy=self.xy,
-                    dest_xy=packet_dest_xy,
-                    source_task_id=compute_task.task_id
+                    source_xy       = self.xy,
+                    dest_xy         = packet_dest_xy,
+                    source_task_id  = compute_task.task_id
                 )
                 
         self.output_network_interface.fill_with_packet(packet)
 
         compute_task.status = TaskStatus.IN_BUFFER
 
-        print(f"Packet copied to output buffer {self.output_network_interface}")
+        self._debug_print(f"Packet copying (Task -> NI)")
 
     def _can_generate_packets(self) -> bool:
         output_buffer_full = self.output_network_interface.is_full()    
@@ -378,13 +379,13 @@ class ProcessingElement:
             self._process_compute_task(compute_task)
 
     def _get_packet_count(self) -> None:
-        print(f"Require List:")
+        print(f"{self}Require List:")
         for compute_task in self.compute_list:
-            print(f" - Task {compute_task.task_id}")
+            print(f"\t\t\t- Task {compute_task.task_id}")
             for require in compute_task.require_list:
 
                 self._debug_print(
-                    f"   • type {require.require_type_id} "
+                    f"\t\t\t • type {require.require_type_id} "
                     f"({require.received_packet_count}/{require.required_packets})"
                 )
 
@@ -417,13 +418,17 @@ class ProcessingElement:
         if self.compute_is_busy:
             self._process_tasks()               # status: PROCESSING  -> DONE
 
-        self._get_packet_count() 
+        # self._get_packet_count() 
 
         if self._check_task_requirements_met(): # stops the simulation now 
             return True
 
     def __repr__(self) -> str:
-        return f"PE({self.xy})"
+        if self.compute_is_busy:
+            status = "Computing"
+        else: 
+            status = "Free     "
+        return f"[PE{self.xy} {status}] "
 
 if __name__ == "__main__":
 
@@ -531,9 +536,4 @@ if __name__ == "__main__":
                 #  set the current packet to None to signify that there are no more packets
                 current_packet = None
 
-        if pe_1.compute_is_busy:
-            status = "Computing"
-        else: 
-            status = "Free"
-        print(f"POST: {pe_1}\t{status}")
 

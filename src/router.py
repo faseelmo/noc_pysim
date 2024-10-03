@@ -98,6 +98,7 @@ class Router:
         Forwarding Flits from input buffer to the output buffer of the same router.  
         Functionality: Iterates through the input buffers and pops a flit from the buffer.
         if the flit is not None, it is forwarded to the next buffer.
+        for flits from the PE, routing information is updated.
         """
 
         for buffer in self._input_buffers:
@@ -107,6 +108,12 @@ class Router:
                 continue
 
             next_hop_location   = top_flit.get_routing_info().output_buffer
+
+            # Check if routing information is available for packets copied from the PE
+            if next_hop_location == BufferLocation.UNASSIGNED:
+                self._do_routing_for_flits_from_pe( buffer )
+                next_hop_location   = top_flit.get_routing_info().output_buffer
+
             next_buffer         = self._get_buffer( direction = next_hop_location, is_input = False )
 
             if not next_buffer.is_full():
@@ -117,6 +124,11 @@ class Router:
 
             buffer.fill_with_empty_flits()
 
+
+    def _do_routing_for_flits_from_pe( self, buffer: Buffer ) -> None:
+        print(f"Doing routing for flits from PE")
+        tail_flit = buffer.queue[-1]
+        self._update_routing( tail_flit )
 
     def _receive_flit( self, flit: Union[ HeaderFlit, PayloadFlit, TailFlit ]) -> None:
         """
@@ -284,7 +296,7 @@ if __name__ == "__main__":
     task = TaskInfo(
             task_id                     = 0, 
             processing_cycles           = 4, 
-            expected_generated_packets  = 3, 
+            expected_generated_packets  = 1, 
             require_list                = [], 
             is_transmit_task            = True, 
             transmit_dest_xy            = (1, 1)
@@ -294,14 +306,14 @@ if __name__ == "__main__":
 
     pe_lookup = { (0, 0): pe_00 }
 
-    for i in range(18): 
+    flit_list = []
+
+    for i in range(35): 
         print(f"\n> {i}")
         pe_00.process(None)
-        print(f"is {pe_00} busy? {pe_00.compute_is_busy}")
 
-
-
-    
+        for router in router_lookup.values():
+            flit_list = router.process( flit_list, router_lookup )  
 
     exit()
 
@@ -331,8 +343,6 @@ if __name__ == "__main__":
         cycle += 1
 
         init_packet_is_transmitted, init_flit   = packet.transmit_flit() 
-        dest_router                             = ( init_flit.get_routing_info().x, init_flit.get_routing_info().y ) 
-
 
         for router in router_lookup.values():
 
