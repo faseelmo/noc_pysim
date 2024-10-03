@@ -149,6 +149,73 @@ def test_task_parallel_3():
     latency = simulate(computing_list, packet_list)
     assert latency == 34
 
-# test_task_sequential_1()
-# test_task_sequential_2()
-# test_task_parallel_3()
+def test_pe_with_buffer(): 
+
+    task_1 = TaskInfo(
+        task_id                     = 1, 
+        processing_cycles           = 5, 
+        expected_generated_packets  = 2, 
+        require_list                = [RequireInfo(
+                                        require_type_id=0, 
+                                        required_packets=3), 
+                                       RequireInfo(
+                                        require_type_id=2, 
+                                        required_packets=2)]
+    )
+
+    task_3                          = TaskInfo(
+        task_id                     = 3,
+        processing_cycles           = 4, 
+        expected_generated_packets  = 3,
+        require_list                = [RequireInfo(
+                                        require_type_id=1, 
+                                        required_packets=2)], 
+
+        is_transmit_task            = True, 
+        transmit_dest_xy            = (1,0)
+    
+    )
+
+    packet_0 = Packet(
+                source_xy       =(0, 0),
+                dest_xy         =(1, 1),
+                source_task_id  =0)
+
+    packet_2 = Packet(
+                source_xy=(0, 0),
+                dest_xy=(1, 1),
+                source_task_id=2)
+
+    packet_0_1 = copy.deepcopy(packet_0)
+    packet_0_2 = copy.deepcopy(packet_0)
+    packet_2_1 = copy.deepcopy(packet_2)
+
+    packet_list = [packet_0, packet_0_1,  packet_2, packet_2_1, packet_0_2,]
+    computing_list = [task_1, task_3]
+
+    pe_1 = ProcessingElement((0, 0), computing_list, debug_mode=False)
+  
+    current_packet = packet_list.pop(0)
+    for cycle in range(100):
+
+        if cycle == 42 or cycle == 53 or cycle == 60: 
+            pe_1.output_network_interface.empty()
+
+        pe_1.process(current_packet)
+
+        # Injecting Packets 
+        if not current_packet is None and current_packet.get_status() is PacketStatus.IDLE:
+            # IDLE means that the packet has been transmitted
+            if len(packet_list) > 0:
+                current_packet = packet_list.pop(0)
+            else: 
+                # if all packets in the packet list have been processed
+                #  set the current packet to None to signify that there are no more packets
+                current_packet = None
+
+        if pe_1._check_task_requirements_met():
+            latency = cycle
+            break
+
+
+    assert latency == 60

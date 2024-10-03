@@ -536,4 +536,6 @@ if __name__ == "__main__":
                 #  set the current packet to None to signify that there are no more packets
                 current_packet = None
 
+        if pe_1._check_task_requirements_met():
+            break
 

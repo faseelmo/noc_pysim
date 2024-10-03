@@ -283,7 +283,7 @@ if __name__ == "__main__":
             appending the flits to a list which can be processed in the 
             next router at the next cycle. 
         [x] Use the flit from the list to process at the next router. 
-        [ ] Improve logging. 
+        [x] Improve logging. 
 
     """
 
@@ -315,53 +315,4 @@ if __name__ == "__main__":
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup )  
 
-    exit()
-
-
-
-    for router in router_lookup.values():
-        print( f" - Router initialized: { router }" )
-
-    packet = Packet( source_xy      = (0, 0), 
-                     dest_xy        = (1, 1), 
-                     source_task_id = 0 )
-    print( f"\n - Packet initialized: {packet}\n" )
-
-    max_sim_cycle   = 25
-    cycle           = 0 
-
-    print(f"\nStarting Simulation with {max_sim_cycle} cycles.\n")
-
-    # Idea of flit list is that, when multiple flits from different routers are received,
-    # they can be processed in a single cycle.
-    flit_list                           = []
-    init_packet_injection_complete_flag = False
-
-    while cycle < max_sim_cycle:  
-
-        print(f"\n - Cycle [{cycle + 1}]")
-        cycle += 1
-
-        init_packet_is_transmitted, init_flit   = packet.transmit_flit() 
-
-        for router in router_lookup.values():
-
-            # Initial packet injection
-            if not init_packet_injection_complete_flag:
-                if not init_packet_is_transmitted:
-                    if router == (0,0):
-                        router.process( [ init_flit ], router_lookup )
-                else : 
-                    if router == (0,0):
-                        router.process( [ init_flit ], router_lookup )
-                        init_packet_injection_complete_flag = True
-
-            # Processign all routers 
-            else: 
-                flit_list = router.process( flit_list, router_lookup )
-
-
-
-
-    
 
