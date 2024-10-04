@@ -1,6 +1,6 @@
 from enum           import Enum
 from dataclasses    import dataclass 
-from typing         import Optional
+from typing         import Optional, Union
 
 from .packet        import Packet
 from .buffer        import Buffer
@@ -73,9 +73,7 @@ class ProcessingElement:
 
     def _increment_processing_cycle(self) -> None:
         """Increments the processing cycle for the PE"""
-
         self.current_processing_cycle += 1
-        # print(f"Cycle: {self.current_processing_cycle}")
 
     def _get_unique_required_packet_type(self) -> list[int]:
 
@@ -93,9 +91,10 @@ class ProcessingElement:
 
     def _update_TaskInfo(self, task_id: int) -> None:
         """ 
-        - Increment received_packet_count for all the tasks that require the packet
-        - If this behavior is not desired, the function can be modified by returning 
-          after the first increment.
+        - Increment received_packet_count for all the tasks that require the packet  
+        - If this behavior is not desired, that is all the tasks that require getting their 
+            copy of packet (having a cache in PE) the function can be modified by returning 
+            after the first increment. Uncomment the return statement.
         """
 
         for compute_task in self.compute_list:
@@ -124,8 +123,25 @@ class ProcessingElement:
         is_transmitted, recieved_packet_task_id = packet.check_transmission_status()
         
         if is_transmitted:
-            packet.update_location(self)
             self._update_TaskInfo(recieved_packet_task_id)
+
+    def receive_flits(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit] ) -> None:
+        """
+        Receving flits from the network interface. 
+        When the 
+        This function should be called from a router. 
+        """
+        flit_source_id = flit.get_source_task_id()
+
+        if flit_source_id not in self.required_packet_types:
+            raise ValueError( f"Flit type {flit_source_id} not required in this PE" )
+
+        self.input_network_interface.add_flit(flit)
+
+        if isinstance(flit, TailFlit):
+            self._debug_print( f"Received packet from {flit_source_id} " )
+            self._update_TaskInfo( flit_source_id )
+            self.input_network_interface.empty()
 
     def _reset_received_packet_task(self, compute_task: TaskInfo) -> None:
         """
@@ -331,7 +347,7 @@ class ProcessingElement:
 
         if not router.is_local_input_buffer_full():
             flit = self.output_network_interface.remove()
-            self.output_network_interface.fill_with_empty_flits()
+            self.output_network_interface.fill_emtpy_slots()
             router.add_flit_to_local_input_buffer(flit)
 
             self._debug_print(f"Moving flits to router buffer {router._local_input_buffer}")

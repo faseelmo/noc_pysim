@@ -11,12 +11,12 @@ class Buffer:
         self.queue              = deque(maxlen=size)
         self._in_transmit_mode   = False # maybe this is not needed. Check with router. 
         
-        self.fill_with_empty_flits()
+        self.fill_emtpy_slots()
 
 
     def fill_with_packet(self, packet: Packet) -> None:
         while True: 
-            packet_is_transmitted, flit = packet.transmit_flit()
+            packet_is_transmitted, flit = packet.pop_flit()
             self.add_flit(flit)
             if packet_is_transmitted:
                 break
@@ -72,7 +72,7 @@ class Buffer:
 
         return self._in_transmit_mode
 
-    def fill_with_empty_flits(self) -> None:
+    def fill_emtpy_slots(self) -> None:
         """Fill non occupied spaces with Empty Flits"""
         non_occupied_space = self.size - len(self.queue)
         for _ in range(non_occupied_space):
@@ -127,14 +127,14 @@ if __name__ == "__main__":
 
     packet_is_transmitted = False
     while not packet_is_transmitted:
-        packet_is_transmitted, flit = packet.transmit_flit()
+        packet_is_transmitted, flit = packet.pop_flit()
         buffer.add_flit(flit)
         print(f"{buffer}")
 
     print(f"\nRemoving from \n{buffer}\nStarting")
     for i in range(4):
         buffer.remove()
-        buffer.fill_with_empty_flits()
+        buffer.fill_emtpy_slots()
         print(f"{buffer}")
 
     """
@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     print(f"\nAdding to \n{buffer}\nStarting")
     for i in range(2):
-        packet_is_transmitted, flit = packet.transmit_flit()
+        packet_is_transmitted, flit = packet.pop_flit()
         buffer.add_flit(flit)
         print(f"{buffer}")
 

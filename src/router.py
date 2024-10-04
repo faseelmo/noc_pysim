@@ -89,7 +89,7 @@ class Router:
                 flit = buffer.remove()
                 flit_list.append( flit )
 
-            buffer.fill_with_empty_flits()  
+            buffer.fill_emtpy_slots()  
 
         return flit_list 
 
@@ -122,7 +122,7 @@ class Router:
                 print(f"[{self}](Input Buffer -> Output Buffer Forward)")
                 print(f"\t-> {next_hop_location.value} output: {next_buffer}")
 
-            buffer.fill_with_empty_flits()
+            buffer.fill_emtpy_slots()
 
 
     def _do_routing_for_flits_from_pe( self, buffer: Buffer ) -> None:

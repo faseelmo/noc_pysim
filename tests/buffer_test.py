@@ -17,9 +17,9 @@ def test_fill_and_empty():
 
     packet_size = packet.get_size()
     for _ in range(packet_size):
-        _, flit = packet.transmit_flit()
+        _, flit = packet.pop_flit()
         buffer.add_flit(flit)   
-        buffer.fill_with_empty_flits()
+        buffer.fill_emtpy_slots()
         assert len(buffer.queue) == 4
 
     assert buffer.is_full()        == True
@@ -36,9 +36,9 @@ def test_return_none():
                     source_task_id=0)
 
     for _ in range(2): 
-        _, flit = packet.transmit_flit()
+        _, flit = packet.pop_flit()
         buffer.add_flit(flit)
-        buffer.fill_with_empty_flits()
+        buffer.fill_emtpy_slots()
         assert len(buffer.queue) == 4
 
     assert buffer.can_do_routing()  == False
