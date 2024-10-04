@@ -34,14 +34,14 @@ class Router:
         self._populate_buffer_lists()
 
 
-    def process( self, receive_flit_list: list, router_lookup: dict) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
+    def process( self, receive_flit_list: list, router_lookup: dict, pe_lookup: dict) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
         """ - Process the flits in the input buffer first 
                 - forward_output_buffer_flits()
                 - forward_input_buffer_flits()
             - Receive New flits 
                 - receive_flits() """
 
-        new_flit_list = self._forward_output_buffer_flits( router_lookup )
+        new_flit_list = self._forward_output_buffer_flits( router_lookup, pe_lookup )
 
         self._forward_input_buffer_flits()
 
@@ -56,7 +56,7 @@ class Router:
     def add_flit_to_local_input_buffer(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> None:
         self._local_input_buffer.add_flit(flit)
 
-    def _forward_output_buffer_flits( self, router_lookup: dict ) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
+    def _forward_output_buffer_flits( self, router_lookup: dict, pe_lookup: dict ) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
         """
         Check if the output has any flits to be forwarded to the next router.
         If there are, check if the next router has space in the input buffer.
@@ -81,6 +81,14 @@ class Router:
             if next_router == self:
                 # Condition when the flit has reached the destination router
                 # think about how to move the flit to the PE
+                pe = pe_lookup.get( next_hop_loc )
+
+                if not pe.is_input_buffer_full():
+                    print(f"{self}(Output Buffer -> PE Forward)")
+                    flit = buffer.remove()
+                    pe.receive_flits( flit )
+                    buffer.fill_emtpy_slots()
+
                 continue
 
             next_router_input_buffer = next_router._get_buffer( direction = next_hop_buffer, is_input = True )
@@ -119,7 +127,7 @@ class Router:
             if not next_buffer.is_full():
                 flit = buffer.remove()
                 next_buffer.add_flit( flit )    
-                print(f"[{self}](Input Buffer -> Output Buffer Forward)")
+                print(f"{self}(Input Buffer -> Output Buffer Forward)")
                 print(f"\t-> {next_hop_location.value} output: {next_buffer}")
 
             buffer.fill_emtpy_slots()
@@ -261,13 +269,13 @@ class Router:
         return False
 
     def __repr__(self):
-        return f"R({self._x}, {self._y})"
+        return f"[R({self._x}, {self._y})]\t"
 
 
 if __name__ == "__main__":
 
     from .packet import Packet
-    from .processing_element import ProcessingElement, TaskInfo
+    from .processing_element import ProcessingElement, TaskInfo, RequireInfo
 
     """
     Condition 1 : 
@@ -293,26 +301,40 @@ if __name__ == "__main__":
 
     router_lookup = { (0, 0): router_00, (1, 0): router_10, (1, 1): router_11 }
 
-    task = TaskInfo(
-            task_id                     = 0, 
-            processing_cycles           = 4, 
-            expected_generated_packets  = 1, 
-            require_list                = [], 
-            is_transmit_task            = True, 
-            transmit_dest_xy            = (1, 1)
-    )
+    task_0  = TaskInfo(
+                task_id                     = 0, 
+                processing_cycles           = 4, 
+                expected_generated_packets  = 1, 
+                require_list                = [], 
+                is_transmit_task            = True, 
+                transmit_dest_xy            = (1, 1)
+            )
 
-    pe_00 = ProcessingElement( xy = (0, 0), computing_list = [ task ], debug_mode=True, router_lookup = router_lookup )
+    pe_00 = ProcessingElement( xy = (0, 0), computing_list = [ task_0 ], debug_mode=True, router_lookup = router_lookup )
 
-    pe_lookup = { (0, 0): pe_00 }
+    task_1  = TaskInfo(
+                task_id                     = 1, 
+                processing_cycles           = 4, 
+                expected_generated_packets  = 1, 
+                require_list                = [RequireInfo(
+                                                require_type_id=0,
+                                                required_packets=1)], 
+
+                is_transmit_task            = False, 
+            )
+
+    pe_11 = ProcessingElement( xy = (1, 1), computing_list = [ task_1 ], debug_mode=True, router_lookup = router_lookup )
+
+    pe_lookup = { (0, 0): pe_00, (1, 1): pe_11 }
 
     flit_list = []
 
-    for i in range(35): 
+    for i in range(40): 
         print(f"\n> {i}")
         pe_00.process(None)
+        pe_11.process(None)
 
         for router in router_lookup.values():
-            flit_list = router.process( flit_list, router_lookup )  
+            flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
 

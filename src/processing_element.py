@@ -138,6 +138,8 @@ class ProcessingElement:
 
         self.input_network_interface.add_flit(flit)
 
+        self._debug_print(f"Recieving flits (type: {flit_source_id}) {flit}")
+
         if isinstance(flit, TailFlit):
             self._debug_print( f"Received packet from {flit_source_id} " )
             self._update_TaskInfo( flit_source_id )
@@ -356,6 +358,9 @@ class ProcessingElement:
                 return True
         
         return False
+
+    def is_input_buffer_full(self) -> bool:
+        return self.input_network_interface.is_full()
             
 
     def _process_trasmit_generate_packets(self, compute_task: TaskInfo) -> Packet:
@@ -443,8 +448,8 @@ class ProcessingElement:
         if self.compute_is_busy:
             status = "Computing"
         else: 
-            status = "Free     "
-        return f"[PE{self.xy} {status}] "
+            status = "Free"
+        return f"[PE{self.xy} {status}]\t"
 
 if __name__ == "__main__":
 
