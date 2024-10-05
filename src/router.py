@@ -5,13 +5,15 @@ from .flit      import HeaderFlit, PayloadFlit, TailFlit, NextHop, BufferLocatio
 
 
 class Router:
-    def __init__(self, pos: tuple, buffer_size: int = 4):
+    def __init__(self, pos: tuple, buffer_size: int = 4, debug_mode: bool = False):
         """ Args; 
             "pos"           : tuple, coordinates of the router  
             "buffer_size"   : int, number of flits that can be stored in a buffer
         """
         self._x = pos[0]
         self._y = pos[1]
+
+        self._debug_mode = debug_mode
 
         self._local_input_buffer    = Buffer( buffer_size )
         self._local_output_buffer   = Buffer( buffer_size )
@@ -84,7 +86,7 @@ class Router:
                 pe = pe_lookup.get( next_hop_loc )
 
                 if not pe.is_input_buffer_full():
-                    print(f"{self}(Output Buffer -> PE Forward)")
+                    self._debug_print( "Forwading: o/p buffer -> PE" )
                     flit = buffer.remove()
                     pe.receive_flits( flit )
                     buffer.fill_emtpy_slots()
@@ -119,7 +121,7 @@ class Router:
 
             # Check if routing information is available for packets copied from the PE
             if next_hop_location == BufferLocation.UNASSIGNED:
-                self._do_routing_for_flits_from_pe( buffer )
+                self._compute_routing_for_flits_from_pe( buffer )
                 next_hop_location   = top_flit.get_routing_info().output_buffer
 
             next_buffer         = self._get_buffer( direction = next_hop_location, is_input = False )
@@ -127,14 +129,13 @@ class Router:
             if not next_buffer.is_full():
                 flit = buffer.remove()
                 next_buffer.add_flit( flit )    
-                print(f"{self}(Input Buffer -> Output Buffer Forward)")
-                print(f"\t-> {next_hop_location.value} output: {next_buffer}")
+                self._debug_print( 
+                    f"Forwading: in buffer -> o/p {next_hop_location.value} buffer \n\t" 
+                    f"-> {next_buffer}")
 
             buffer.fill_emtpy_slots()
 
-
-    def _do_routing_for_flits_from_pe( self, buffer: Buffer ) -> None:
-        print(f"Doing routing for flits from PE")
+    def _compute_routing_for_flits_from_pe( self, buffer: Buffer ) -> None:
         tail_flit = buffer.queue[-1]
         self._update_routing( tail_flit )
 
@@ -143,7 +144,6 @@ class Router:
         Receive flits from the PE or other routers.
         Appropriate input buffer is selected based on the routing information. 
         """
-        print(f"[{self}](Receive Flits)")
 
         current_routing_info    = flit.get_routing_info()
         buffer_location         = current_routing_info.next_input_buffer
@@ -153,7 +153,10 @@ class Router:
         assert not input_buffer.is_full(), f"Buffer {buffer_location.value} is full. Cannot receive flit."
 
         input_buffer.add_flit( flit )
-        print(f"\t->{buffer_location.value} input: {input_buffer}")
+        self._debug_print(
+            f"Receiving Flits in {buffer_location.value} input buffer\n\t"
+            f"-> {input_buffer}"
+        )
 
         if input_buffer.can_do_routing(): 
             self._update_routing( flit )
@@ -173,7 +176,7 @@ class Router:
         next_hop_info       = self._xy_routing( header_flit_pointer )
 
         header_flit_pointer.update_routing_info( next_hop_info )
-        print(f"\t\t\tRouting Information Updated: {next_hop_info}")
+        self._debug_print( f"Assigned Routing for packet of task id {flit.get_source_task_id()}" )
 
     def _get_buffer(self, direction:BufferLocation, is_input:bool) -> Buffer:
         """Returns the buffer based on the direction(str) and input/output flag (bool)."""
@@ -268,13 +271,16 @@ class Router:
             return self._x == other[0] and self._y == other[1] 
         return False
 
+    def _debug_print(self, string: str) -> None: 
+        if self._debug_mode:
+            print(f"{self} {string}")
+
     def __repr__(self):
-        return f"[R({self._x}, {self._y})]\t"
+        return f"[R({self._x}, {self._y})]"
 
 
 if __name__ == "__main__":
 
-    from .packet import Packet
     from .processing_element import ProcessingElement, TaskInfo, RequireInfo
 
     """
@@ -295,9 +301,9 @@ if __name__ == "__main__":
 
     """
 
-    router_00 = Router( pos = (0, 0) )
-    router_10 = Router( pos = (1, 0) )
-    router_11 = Router( pos = (1, 1) )
+    router_00 = Router( pos = (0, 0), debug_mode=True )
+    router_10 = Router( pos = (1, 0), debug_mode=True )
+    router_11 = Router( pos = (1, 1), debug_mode=True )
 
     router_lookup = { (0, 0): router_00, (1, 0): router_10, (1, 1): router_11 }
 
@@ -319,7 +325,6 @@ if __name__ == "__main__":
                 require_list                = [RequireInfo(
                                                 require_type_id=0,
                                                 required_packets=1)], 
-
                 is_transmit_task            = False, 
             )
 
@@ -332,7 +337,11 @@ if __name__ == "__main__":
     for i in range(40): 
         print(f"\n> {i}")
         pe_00.process(None)
-        pe_11.process(None)
+        is_task_done = pe_11.process(None)
+
+        if is_task_done:
+            print(f"Application Done. Latency: {i}")
+            break
 
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  

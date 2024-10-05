@@ -274,37 +274,54 @@ class ProcessingElement:
 
         if compute_task.status is TaskStatus.IN_BUFFER: 
 
-            # Check if the buffer has been emptied 
+            # Check if the PE output buffer has been emptied 
             is_buffer_empty = self.output_network_interface.is_empty()
 
             if not is_buffer_empty:
+                # If there are flits in the output buffer
                                 
-                if self.router_lookup is not None:
+                if self.router_lookup is not None: # For testing router_lookup is None
                     is_packet_moved = self._move_flits_to_router_buffer()
+
                     if is_packet_moved:
                         is_buffer_empty = True
+                        compute_task.generated_packet_count += 1    
+                        self._debug_print(
+                            f"Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
+                            f"packets of task id {compute_task.task_id}"
+                        )
 
             if is_buffer_empty:
-                self._debug_print(
-                    f" -> Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
-                    f"packets in task {compute_task.task_id}"
-                )
+                # Packer already sent to the output buffer
+                # Below are the things to do after that
+
                 if compute_task.generated_packet_count < compute_task.expected_generated_packets:
+                    # If total generate count is not achieved, continue generating packets (PROCESSING)
                     compute_task.current_processing_cycle   = 0 
                     compute_task.status                     = TaskStatus.PROCESSING
                 
                 elif compute_task.generated_packet_count == compute_task.expected_generated_packets:
+                    # If all the required packets are generated, mark the task as done.  
+                    # Processor is DONE. 
                     self._update_task_as_complete(compute_task)
+
                 else:
                     raise ValueError("Generated packet count is greater than expected generated packets")
 
             else:
-                if compute_task.current_processing_cycle != compute_task.processing_cycles:
-                    compute_task.current_processing_cycle += 1
-                    self._debug_print(
-                        f"Task {compute_task.task_id} is processing at cycle "
-                        f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
-                    )
+                if compute_task.generated_packet_count < compute_task.expected_generated_packets:
+                    # Continue generating packets while the packets are in the buffer, so that 
+                    # the packets can be sent to the output buffer when it is empty.  
+
+                    if compute_task.current_processing_cycle != compute_task.processing_cycles:
+                        # If the task hasnt reached the required processing cyclces to generate 
+                        # a packet, increment the processing cycle.
+                        compute_task.current_processing_cycle += 1
+                        self._debug_print(
+                            f"Task {compute_task.task_id} is processing at cycle "
+                            f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
+                        )
+
                 self._debug_print(f"NI[Output] is occupied")
 
 
@@ -319,19 +336,19 @@ class ProcessingElement:
                     f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                 )
 
-                compute_task.generated_packet_count     += 1  
                 compute_task.current_processing_cycle   = 0 
 
                 if compute_task.is_transmit_task:
-                    self._process_trasmit_generate_packets(compute_task) 
+                    # If 'task' is the last task in the PE
+                    self._process_trasmit_generate_packets(compute_task)  # status: PROCESSING -> IN_BUFFER
 
                 else: 
-
+                    compute_task.generated_packet_count     += 1  
                     if compute_task.generated_packet_count == compute_task.expected_generated_packets:
                         self._update_task_as_complete(compute_task)
 
                     self._debug_print(
-                        f" -> Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
+                        f"Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} " 
                         f"packets in task {compute_task.task_id}"
                     )
 
@@ -343,6 +360,12 @@ class ProcessingElement:
                     f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                 )
 
+    def _empty_output_buffer_for_test(self, compute_task: TaskInfo) -> None:
+        self.output_network_interface.empty()
+        compute_task.generated_packet_count += 1
+        print(f"Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} packets of task id {compute_task.task_id}")
+
+
     def _move_flits_to_router_buffer(self) -> bool:
 
         router = self.router_lookup[self.xy]
@@ -352,7 +375,9 @@ class ProcessingElement:
             self.output_network_interface.fill_emtpy_slots()
             router.add_flit_to_local_input_buffer(flit)
 
-            self._debug_print(f"Moving flits to router buffer {router._local_input_buffer}")
+            self._debug_print(
+                f"Moving flits to router local input buffer \n\t"
+                f" -> {router._local_input_buffer}")
 
             if isinstance(flit, TailFlit):
                 return True
@@ -364,6 +389,11 @@ class ProcessingElement:
             
 
     def _process_trasmit_generate_packets(self, compute_task: TaskInfo) -> Packet:
+        """
+        Generate the packet for the transmit task  
+        The packet is fully sent to the PE output buffer in 1 cycle  
+        Status of the task is changed to IN_BUFFER  
+        """
         self._debug_print(f"Task {compute_task.task_id} is a terminating task")
 
         packet_dest_xy = compute_task.transmit_dest_xy
@@ -426,6 +456,7 @@ class ProcessingElement:
         return True
 
     def process(self, packet: Optional[Packet]) -> bool:
+        """Returns True if the task requirements assigned to the PE is met"""
 
         self._increment_processing_cycle()
 
@@ -437,7 +468,7 @@ class ProcessingElement:
             return 
 
         if self.compute_is_busy:
-            self._process_tasks()               # status: PROCESSING  -> DONE
+            self._process_tasks()               # status: PROCESSING  -> IN_BUFFER or DONE
 
         # self._get_packet_count() 
 
@@ -449,7 +480,7 @@ class ProcessingElement:
             status = "Computing"
         else: 
             status = "Free"
-        return f"[PE{self.xy} {status}]\t"
+        return f"[PE{self.xy} {status}] "
 
 if __name__ == "__main__":
 
@@ -545,7 +576,7 @@ if __name__ == "__main__":
             print(f"Emptying the output buffer ")
             pe_1.output_network_interface.empty()
 
-        pe_1.process(current_packet)
+        task_is_done = pe_1.process(current_packet)
 
         # Injecting Packets 
         if not current_packet is None and current_packet.get_status() is PacketStatus.IDLE:
@@ -557,6 +588,6 @@ if __name__ == "__main__":
                 #  set the current packet to None to signify that there are no more packets
                 current_packet = None
 
-        if pe_1._check_task_requirements_met():
+        if task_is_done:
             break
 

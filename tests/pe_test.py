@@ -22,7 +22,7 @@ def create_packet_copies(num_copies, packet_source):
     return [copy.deepcopy(packet) for _ in range(num_copies)]
 
 
-def simulate(computing_list: list, packet_list: list):
+def simulate_pe(computing_list: list, packet_list: list):
 
     pe = ProcessingElement((0, 0), computing_list)
     current_packet = packet_list.pop(0)
@@ -74,7 +74,7 @@ def test_task_sequential_1():
         packet_2_copies.pop(0),
     ]
 
-    latency = simulate(computing_list, packet_list)
+    latency = simulate_pe(computing_list, packet_list)
     assert latency == 42
 
 def test_task_sequential_2():
@@ -112,7 +112,7 @@ def test_task_sequential_2():
         *packet_4_copies
     ]
 
-    latency = simulate(computing_list, packet_list)
+    latency = simulate_pe(computing_list, packet_list)
     assert latency == 51
 
 def test_task_parallel_3():
@@ -146,7 +146,7 @@ def test_task_parallel_3():
         *packet_4_copies
     ]
 
-    latency = simulate(computing_list, packet_list)
+    latency = simulate_pe(computing_list, packet_list)
     assert latency == 34
 
 def test_pe_with_output_buffer(): 
@@ -199,7 +199,7 @@ def test_pe_with_output_buffer():
     for cycle in range(100):
 
         if cycle == 42 or cycle == 53 or cycle == 60: 
-            pe_1.output_network_interface.empty()
+            pe_1._empty_output_buffer_for_test(task_3)
 
         pe_1.process(current_packet)
 
@@ -279,11 +279,10 @@ def test_pe_with_in_out_buffer():
 
                 else: 
                     is_packet_transmitted = True
-                    print( "Packet is fully injected" )
         # End Injecting Flits
 
         if cycle == 42 or cycle == 53 or cycle == 60: 
-            pe_1.output_network_interface.empty()
+            pe_1._empty_output_buffer_for_test(task_3)
 
         pe_1.process(None)
 
@@ -292,3 +291,67 @@ def test_pe_with_in_out_buffer():
             break
 
     assert latency == 60
+
+def test_injection_pe(): 
+    """
+    Condition: 
+    PE Injecting one packet.  
+    But the ouput buffer is full.
+    """
+
+    task_0                          = TaskInfo(
+        task_id                     = 0,
+        processing_cycles           = 4, 
+        expected_generated_packets  = 1,
+        require_list                = [], 
+        is_transmit_task            = True, 
+        transmit_dest_xy            = (1,0)
+    )
+
+
+    pe = ProcessingElement( (0, 0), [task_0], debug_mode=True )
+
+    for cycle in range(20): 
+        print( f"\n> {cycle}" )
+        done_processing = pe.process(None)
+
+        if done_processing: 
+            latency = cycle
+            break 
+
+        if cycle == 4: 
+            pe._empty_output_buffer_for_test(task_0)
+
+    assert latency == 5
+
+def test_injection_pe_3_packets(): 
+    """
+    Condition: 
+    PE Injecting three packet.  
+    But the ouput buffer is full.
+    """
+
+    task_0                          = TaskInfo(
+        task_id                     = 0,
+        processing_cycles           = 4, 
+        expected_generated_packets  = 3,
+        require_list                = [], 
+        is_transmit_task            = True, 
+        transmit_dest_xy            = (1,0)
+    )
+
+
+    pe = ProcessingElement( (0, 0), [task_0], debug_mode=True )
+
+    for cycle in range(40): 
+        print( f"\n> {cycle}" )
+        done_processing = pe.process(None)
+
+        if done_processing: 
+            latency = cycle
+            break 
+
+        if cycle == 10 or cycle == 20 or cycle == 30: 
+            pe._empty_output_buffer_for_test(task_0)
+
+    assert latency == 31
