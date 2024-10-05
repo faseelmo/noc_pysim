@@ -309,20 +309,7 @@ class ProcessingElement:
                     raise ValueError("Generated packet count is greater than expected generated packets")
 
             else:
-                if compute_task.generated_packet_count < compute_task.expected_generated_packets:
-                    # Continue generating packets while the packets are in the buffer, so that 
-                    # the packets can be sent to the output buffer when it is empty.  
-
-                    if compute_task.current_processing_cycle != compute_task.processing_cycles:
-                        # If the task hasnt reached the required processing cyclces to generate 
-                        # a packet, increment the processing cycle.
-                        compute_task.current_processing_cycle += 1
-                        self._debug_print(
-                            f"Task {compute_task.task_id} is processing at cycle "
-                            f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
-                        )
-
-                self._debug_print(f"NI[Output] is occupied")
+                self._debug_print(f"NI[Output] is occupied, Cannot generate packets.")
 
 
         if compute_task.status is TaskStatus.PROCESSING:
@@ -336,14 +323,19 @@ class ProcessingElement:
                     f"{compute_task.current_processing_cycle}/{compute_task.processing_cycles}"
                 )
 
-                compute_task.current_processing_cycle   = 0 
-
                 if compute_task.is_transmit_task:
                     # If 'task' is the last task in the PE
+                    # Generate count is incremented when the 
+                    # packet is fully moved to the PE local input buffer. 
+                    # Simi
+
+
                     self._process_trasmit_generate_packets(compute_task)  # status: PROCESSING -> IN_BUFFER
 
                 else: 
                     compute_task.generated_packet_count     += 1  
+                    compute_task.current_processing_cycle   = 0 
+
                     if compute_task.generated_packet_count == compute_task.expected_generated_packets:
                         self._update_task_as_complete(compute_task)
 

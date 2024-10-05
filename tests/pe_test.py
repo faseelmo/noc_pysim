@@ -319,10 +319,11 @@ def test_injection_pe():
             latency = cycle
             break 
 
-        if cycle == 4: 
+        if cycle == 5: 
             pe._empty_output_buffer_for_test(task_0)
 
-    assert latency == 5
+    assert latency == 6
+
 
 def test_injection_pe_3_packets(): 
     """
