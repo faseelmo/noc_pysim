@@ -222,3 +222,34 @@ def test_adding_new_packet_invalid_3():
 
     with pytest.raises(Exception, match="Cannot add flit to full buffer."):
         buffer.add_flit(flit_2)
+
+
+def test_adding_new_packet_valid_2(): 
+    """
+    Conditions: Add new flit to the following buffers
+    3. [Payload, Payload,   Tail]
+    """
+    buffer = Buffer(4)
+
+    packet = Packet(source_xy=(0, 0), 
+                    dest_xy=(1, 1), 
+                    source_task_id=0)
+
+    for _ in range(4):
+        _, flit = packet.pop_flit()
+
+        buffer.add_flit(flit)   
+        buffer.fill_emtpy_slots()
+
+    buffer.remove()
+
+    packet_2 = Packet(source_xy=(0, 0), 
+                           dest_xy=(1, 1), 
+                           source_task_id=0)
+
+    _, flit_2 = packet_2.pop_flit()
+
+    can_accept_flit = buffer.can_accept_flit(flit_2)
+    assert can_accept_flit == True
+    buffer.add_flit(flit_2)
+

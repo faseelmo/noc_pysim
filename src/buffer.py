@@ -22,6 +22,8 @@ class Buffer:
         Adds flit to the buffer if it is not full.
         Full is defined as having all non-empty flits.
         """
+        
+        
         if self.is_full(): 
             raise Exception( "Cannot add flit to full buffer." )
 
@@ -43,9 +45,15 @@ class Buffer:
         # To do: Call this function in add_flit and remove the if condition from add_flit.
         # I dont wanna do it now, because test conditions will have to be adjusted accordingly. urgh. 
         if self.is_full():
+            print(f"Cannot accept flit. Buffer is full. {self}")
             return False
 
         if not self._is_flit_registered(flit) and not self._can_accept_new_packet():
+            # if not self._is_flit_registered(flit):
+            #     print(f"Cannot accept flit. Flit not registered. {self}")
+
+            # if not self._can_accept_new_packet():
+            #     print(f"Cannot accept flit. Buffer is not in a state to accept a full packet. {self}")
             return False
 
         return True
@@ -71,7 +79,7 @@ class Buffer:
 
         self._acceptable_flit_uids.append(flit_uid)
 
-        print(f" Registered new flit in buffer: {self}")
+        print("\t->",f"{self}".split()[0], "Registered new flit")
 
 
     def _can_accept_new_packet(self) -> bool:    
@@ -148,6 +156,7 @@ class Buffer:
             if there is no flit, returns None.
             else returns the flit that was removed.
         """
+
         flit = self.queue.popleft()
         if isinstance(flit, EmptyFlit):
             return None
@@ -181,11 +190,15 @@ class Buffer:
         for _ in range(non_occupied_space):
             self.queue.append(EmptyFlit())
 
-    def is_full(self) -> bool:
+    def is_full(self, inter_router_transfer:bool = False) -> bool:
         """
         Returns True if the buffer is full  
         Full is defined as having all non - EmptyFlit.
         """
+        if inter_router_transfer: 
+            if isinstance(self.queue[-1], EmptyFlit):
+                return False
+
         if isinstance(self.queue[0], EmptyFlit):
             return False
 

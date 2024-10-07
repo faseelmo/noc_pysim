@@ -48,7 +48,7 @@ class ProcessingElement:
             self, 
             xy                  : tuple [int, int], 
             computing_list      : list  [TaskInfo], 
-            debug_mode          : bool              =  False, 
+            debug_mode          : bool              = False, 
             shortest_job_first  : bool              = False, 
             router_lookup       : dict              = None
         ):
@@ -66,10 +66,13 @@ class ProcessingElement:
         
         self.required_packet_types  = self._get_unique_required_packet_type()
 
-    def _debug_print(self, string: str) -> None: 
+    def _debug_print(self, string: str, with_tag: bool = True) -> None: 
 
         if self.debug_mode:
-            print(f"{self}{string}")
+            if with_tag:
+                print(f"{self}{string}")
+            else:
+                print(string)
 
     def _increment_processing_cycle(self) -> None:
         """Increments the processing cycle for the PE"""
@@ -138,12 +141,13 @@ class ProcessingElement:
 
         self.input_network_interface.add_flit(flit)
 
-        self._debug_print(f"Recieving flits (type: {flit_source_id}) {flit}")
+        self._debug_print(f"Recieving flits (type: {flit_source_id})")
+        self._debug_print(f"\t-> {self.input_network_interface}", with_tag=False)
 
         if isinstance(flit, TailFlit):
-            self._debug_print( f"Received packet from {flit_source_id} " )
             self._update_TaskInfo( flit_source_id )
             self.input_network_interface.empty()
+            self._debug_print(f"Packet fully recieved. Emptying the input buffer")
 
     def _reset_received_packet_task(self, compute_task: TaskInfo) -> None:
         """
@@ -363,14 +367,15 @@ class ProcessingElement:
         router = self.router_lookup[self.xy]
 
         if not router.is_local_input_buffer_full():
-            print(f"Output NI {self.output_network_interface._acceptable_flit_uids}")
+
+            self._debug_print(
+                f"Moving flits to {router} local input buffer")
+
             flit = self.output_network_interface.remove()
             self.output_network_interface.fill_emtpy_slots()
             router.add_flit_to_local_input_buffer(flit)
 
-            self._debug_print(
-                f"Moving flits to router local input buffer \n\t"
-                f" -> {router._local_input_buffer}")
+            self._debug_print(f"\t-> {router._local_input_buffer}", with_tag=False)
 
             if isinstance(flit, TailFlit):
                 return True

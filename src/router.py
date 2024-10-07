@@ -50,6 +50,8 @@ class Router:
         for flit in receive_flit_list:
             self._receive_flit( flit )
 
+        self._fill_empty_slots_in_buffers()
+
         return new_flit_list
 
     def is_local_input_buffer_full(self) -> bool:
@@ -76,7 +78,7 @@ class Router:
             next_hop_x      = top_flit.get_routing_info().x
             next_hop_y      = top_flit.get_routing_info().y
             next_hop_loc    = (next_hop_x, next_hop_y)
-            next_hop_buffer = top_flit.get_routing_info().output_buffer
+            next_hop_buffer = top_flit.get_routing_info().next_input_buffer
 
             next_router = router_lookup.get( next_hop_loc )
             
@@ -86,7 +88,7 @@ class Router:
                 pe = pe_lookup.get( next_hop_loc )
 
                 if not pe.is_input_buffer_full():
-                    self._debug_print( "Forwading: o/p buffer -> PE" )
+                    self._debug_print( f"Forwading: "+ f"{buffer}".split()[0] +" -> PE" )
                     flit = buffer.remove()
                     pe.receive_flits( flit )
                     buffer.fill_emtpy_slots()
@@ -97,9 +99,8 @@ class Router:
 
             if not next_router_input_buffer.is_full():
                 flit = buffer.remove()
+                self._debug_print( f"Forwarded flit from {buffer} to " + f"{next_router_input_buffer}".split()[0] + f"{next_router}" )
                 flit_list.append( flit )
-
-            buffer.fill_emtpy_slots()  # Not here. Do it in process. 
 
         return flit_list 
 
@@ -124,18 +125,29 @@ class Router:
                 self._compute_routing_for_flits_from_pe( buffer )
                 next_hop_location   = top_flit.get_routing_info().output_buffer
 
-            next_buffer         = self._get_buffer( direction = next_hop_location, is_input = False )
+            next_buffer = self._get_buffer( direction = next_hop_location, is_input = False )
 
+
+            print(f"Next Buffer: {next_buffer} for flits in {buffer}")
+
+            
             if next_buffer.can_accept_flit(top_flit):
+
+                self._debug_print( 
+                    f"Forwading: " + f"{buffer}".split()[0] + f"-> {next_hop_location.value}_output")
 
                 flit = buffer.remove()
                 next_buffer.add_flit( flit )    
-                self._debug_print( 
-                    f"Forwading: in buffer -> o/p {next_hop_location.value} buffer \n\t" 
-                    f"-> {next_buffer}")
 
-            buffer.fill_emtpy_slots() # Not here. Do it in process. 
+                self._debug_print(f"\t-> {next_buffer}", with_tag=False)
 
+    def _fill_empty_slots_in_buffers(self) -> None:
+        
+        for buffer in self._input_buffers:
+            buffer.fill_emtpy_slots()
+
+        for buffer in self._output_buffers:
+            buffer.fill_emtpy_slots()
 
     def _compute_routing_for_flits_from_pe( self, buffer: Buffer ) -> None:
         tail_flit = buffer.queue[-1]
@@ -154,11 +166,11 @@ class Router:
 
         assert not input_buffer.is_full(), f"Buffer {buffer_location.value} is full. Cannot receive flit."
 
+        self._debug_print(f"Receiving Flits in {buffer_location.value} input buffer")
+
         input_buffer.add_flit( flit )
-        self._debug_print(
-            f"Receiving Flits in {buffer_location.value} input buffer\n\t"
-            f"-> {input_buffer}"
-        )
+
+        self._debug_print(f"\t-> {input_buffer}", with_tag=False)
 
         if input_buffer.can_do_routing(): 
             self._update_routing( flit )
@@ -178,7 +190,7 @@ class Router:
         next_hop_info       = self._xy_routing( header_flit_pointer )
 
         header_flit_pointer.update_routing_info( next_hop_info )
-        self._debug_print( f"Assigned Routing for packet of task id {flit.get_source_task_id()}" )
+        # self._debug_print( f"Assigned Routing for packet of task id {flit.get_source_task_id()}" )
 
     def _get_buffer(self, direction:BufferLocation, is_input:bool) -> Buffer:
         """Returns the buffer based on the direction(str) and input/output flag (bool)."""
@@ -273,9 +285,12 @@ class Router:
             return self._x == other[0] and self._y == other[1] 
         return False
 
-    def _debug_print(self, string: str) -> None: 
+    def _debug_print(self, string: str, with_tag: bool = True) -> None: 
         if self._debug_mode:
-            print(f"{self} {string}")
+            if with_tag:
+                print(f"{self} {string}")
+            else:
+                print(f"{string}")
 
     def __repr__(self):
         return f"[R({self._x}, {self._y})]"

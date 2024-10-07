@@ -114,7 +114,7 @@ class TailFlit:
 
     def __str__(self):
         # return f"[Tail Flit] UUID: {self._packet_uid}"
-        return f"[Tail Flit]"
+        return f"[Tail Flit] (task: {self.get_source_task_id()})"
 
 
 class EmptyFlit:
