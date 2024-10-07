@@ -195,8 +195,22 @@ class Buffer:
 
 
     def manager(self) -> None:
-        if len(self.queue) == 2:
-            self.queue.append(EmptyFlit())
+
+        if len(self.queue) == self.size - 2:
+            if isinstance(self.queue[-1], (TailFlit, EmptyFlit)): 
+                print(f"adding empty flit in {self}")
+                self.queue.append(EmptyFlit())
+                print(f"updated {self}")
+
+        empty_flit_count = 0
+        for flit in self.queue:
+            if isinstance(flit, EmptyFlit):
+                empty_flit_count += 1
+
+        if len(self.queue) == empty_flit_count:
+            self.fill_emtpy_slots()
+        
+
 
 
     def is_full(self, inter_router_transfer:bool = False) -> bool:

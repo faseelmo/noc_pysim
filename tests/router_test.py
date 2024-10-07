@@ -1,5 +1,6 @@
 from src.processing_element import ProcessingElement, TaskInfo, RequireInfo
 from src.router import Router
+from src.packet import Packet
 
 def router_test_setup(pos_list: list[tuple[int, int]]): 
     """Create a dictionary of routers with positions as keys"""
@@ -136,9 +137,11 @@ def test_router_pe_wait_in_input_buffer():
 
     pe_lookup   = { (0, 0): pe_00, (1, 0): pe_10, (1, 1): pe_11 }
 
-    flit_list   = []
+
 
     for i in range(45): 
+        flit_list = []
+
         print(f"\n> {i}")
         pe_00.process(None)
         pe_10.process(None)
@@ -152,8 +155,26 @@ def test_router_pe_wait_in_input_buffer():
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
+        # for router in router_lookup.values():
+        #     new_flit_list = router._forward_output_buffer_flits( router_lookup, pe_lookup )
+        #     flit_list.extend(new_flit_list)
+
+
+
+        # for router in router_lookup.values():
+        #     router._forward_input_buffer_flits()
+
+        # for router in router_lookup.values():
+
+        #     for flit in flit_list:
+        #         router._receive_flit( flit )
+
+        # for router in router_lookup.values(): 
+        #     router.management()
+
     assert latency == 40
 
+# test_router_pe_wait_in_input_buffer() 
 
 
 def test_router_proper_in_out_buffer():
@@ -166,4 +187,44 @@ def test_router_proper_in_out_buffer():
     See if FIFO is maintained
     """
 
-    pass
+    router = Router( (0, 0), debug_mode=True )
+    router_lookup = { (0, 0): router }  
+
+    packet_1 = Packet(source_xy     =(0, 0),
+                    dest_xy         =(0,1),
+                    source_task_id  =0)
+
+    packet_2 = Packet(source_xy     =(0, 0),
+                    dest_xy         =(1,0),
+                    source_task_id  =0)
+
+
+    is_packet_1_injected = False
+
+    for i in range(8): 
+        print(f"\n> {i}")
+        flit_list = []
+
+        if i == 6: 
+            print(f"Adding Packet 2")
+            flit_list.append(packet_2.pop_flit()[1])
+            print(f"{router._local_input_buffer}") 
+
+        # Injecting Packet
+        if not is_packet_1_injected: 
+            is_flit_transmitted, flit = packet_1.pop_flit()
+            flit_list.append(flit)
+
+            if is_flit_transmitted:
+                is_packet_1_injected = True
+
+            
+
+        # Skipping not finding the next Router or PE
+        try: 
+            router.process(flit_list, router_lookup, {})
+        except AttributeError as e: 
+            continue
+
+
+# test_router_proper_in_out_buffer()

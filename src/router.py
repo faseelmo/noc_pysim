@@ -47,6 +47,7 @@ class Router:
 
         self._forward_input_buffer_flits()
 
+
         for flit in receive_flit_list:
             self._receive_flit( flit )
 
@@ -166,6 +167,8 @@ class Router:
         assert not input_buffer.is_full(), f"Buffer {buffer_location.value} is full. Cannot receive flit."
 
         self._debug_print(f"Receiving Flits in {buffer_location.value} input buffer")
+
+        input_buffer.manager()
 
         input_buffer.add_flit( flit )
 
@@ -298,8 +301,6 @@ class Router:
 if __name__ == "__main__":
 
     from .processing_element import ProcessingElement, TaskInfo, RequireInfo
-
-    import concurrent.futures
 
     """
     Condition:        
