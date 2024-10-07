@@ -271,6 +271,7 @@ def test_pe_with_in_out_buffer():
             is_flit_transmitted, flit = current_packet.pop_flit()
 
             # print( f"{flit} task_id: {flit.get_source_task_id()}" ) 
+            print(f"Injecting Flit: {flit} to buffer {pe_1.input_network_interface}")
             pe_1.receive_flits( flit ) # Injecting Flit to PE
 
             if is_flit_transmitted: 

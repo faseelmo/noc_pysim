@@ -1,4 +1,5 @@
-from enum           import Enum
+import uuid
+
 from typing         import Union
 from collections    import deque
 
@@ -9,29 +10,116 @@ class Buffer:
     def __init__(self, size: int):
         self.size               = size
         self.queue              = deque(maxlen=size)
-        self._in_transmit_mode   = False # maybe this is not needed. Check with router. 
+        self._in_transmit_mode  = False # maybe this is not needed. Check with router. 
+
+        self._acceptable_flit_uids = deque(maxlen=2)
         
         self.fill_emtpy_slots()
 
-
-    def fill_with_packet(self, packet: Packet) -> None:
-        while True: 
-            packet_is_transmitted, flit = packet.pop_flit()
-            self.add_flit(flit)
-            if packet_is_transmitted:
-                break
-
-
-    def add_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> None:
+    def add_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
         """
         Adds flit to the buffer if it is not full.
         Full is defined as having all non-empty flits.
         """
         if self.is_full(): 
-            raise Exception("Cannot add to full buffer")
-        else: 
-            self.queue.append(flit)
+            raise Exception( "Cannot add flit to full buffer." )
 
+        else: 
+            if self._can_accept_flit( flit ):
+                self.queue.append( flit )
+                return True
+            else: 
+
+                if self._can_accept_new_packet(): 
+                    self._register_flit_uid( flit.get_uid() )
+                    self.queue.append( flit )
+                    return True 
+
+                else: 
+                    raise Exception("Cannot accept new packet and UUID not in acceptable list")
+
+        
+    def _register_flit_uid(self, flit_uid: uuid.UUID) -> None:
+        header_count    = 0
+        tail_count      = 0
+        payload_count   = 0
+
+        for flits in self.queue:
+
+            if isinstance(flits, HeaderFlit):
+                header_count += 1
+            elif isinstance(flits, TailFlit):
+                tail_count += 1
+            elif isinstance(flits, PayloadFlit):
+                payload_count += 1
+
+        assert header_count  <= 1,             f"Invalid Header Count {header_count} in Buffer"
+        assert tail_count    <= 1,             f"Invalid Tail Count {tail_count} in Buffer"
+        assert payload_count <= self.size - 2, f"Invalid Payload Count {payload_count} in Buffer"
+
+        self._acceptable_flit_uids.append(flit_uid)
+
+        print(f" Registered new flit. Acceptable Flit UIDs: {self._acceptable_flit_uids}")
+
+
+    def _can_accept_new_packet(self) -> bool:    
+        """
+        Conditions to accept a new packet:  
+        1. If the acceptable flit uids are empty. 
+            (Initial condition)  
+
+        2. If acceptable flit has 1 uid, 
+            then the buffer should not have any empty flits.  
+            (Condition where the buffer is filled with 1 packet)  
+
+        3. If the buffer has a tail flit, and it has empty flits.
+            (Condition where the buffer has the end section of a packet and empty flits)  
+
+        To add to buffer that already has 2 uuid in the acceptable list,  
+        top uid should be popped when the tail of that packet is not in the buffer anymore. 
+        """
+        empty_count     = 0
+        has_tail        = False
+
+        for flits in self.queue:
+            if isinstance(flits, EmptyFlit):
+                empty_count += 1
+
+            if isinstance(flits, TailFlit):
+                has_tail = True
+
+        if len(self._acceptable_flit_uids) == 0:
+            return True
+
+        elif len(self._acceptable_flit_uids) == 1:
+            if empty_count == 0:
+                return True
+
+        if empty_count > 0 and has_tail:
+            return True
+
+        return False
+
+    def _can_accept_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
+        """If the flit uid is in the acceptable list, return True"""
+        flit_uid = flit.get_uid()
+        for acceptable_flit_uid in self._acceptable_flit_uids:
+            if acceptable_flit_uid == flit_uid:
+                return True
+
+        return False
+
+
+    def fill_with_packet(self, packet: Packet) -> None:
+        
+        if not self._can_accept_new_packet():
+            Exception("Cannot accept new packet. Buffer is not in a state to accept a full packet.")
+
+        while True: 
+            packet_is_transmitted, flit = packet.pop_flit()
+            self.add_flit(flit)
+            if packet_is_transmitted:
+                break
 
     def peek(self) -> Union[HeaderFlit, PayloadFlit, TailFlit, None]:
         """Returns the flit at the front/left of the queue without removing it."""
@@ -51,6 +139,9 @@ class Buffer:
         flit = self.queue.popleft()
         if isinstance(flit, EmptyFlit):
             return None
+
+        if isinstance(flit, TailFlit):
+            self._acceptable_flit_uids.popleft()
 
         return flit
 
@@ -80,15 +171,23 @@ class Buffer:
 
     def is_full(self) -> bool:
         """
-        Returns True if the buffer is full
+        Returns True if the buffer is full  
         Full is defined as having all non - EmptyFlit.
         """
-        non_empty_flit_count = 0
-        for flit in self.queue:
-            if not isinstance(flit, EmptyFlit):
-                non_empty_flit_count += 1
+        if isinstance(self.queue[0], EmptyFlit):
+            return False
 
-        return non_empty_flit_count == self.size
+        elif len(self.queue) < self.size:
+            return False    
+
+        return True
+        # non_empty_flit_count = 0
+        # for flit in self.queue:
+        #     if not isinstance(flit, EmptyFlit):
+        #         non_empty_flit_count += 1
+
+        # return non_empty_flit_count == self.size
+
 
     def is_empty(self) -> bool:
         """
@@ -102,8 +201,13 @@ class Buffer:
 
     def empty(self) -> None:
         """Empty the buffer"""
-        for _ in range(len(self.queue)):
-            self.queue.append(EmptyFlit())
+        if isinstance(self.queue[0], HeaderFlit) and isinstance(self.queue[-1], TailFlit):
+            for _ in range(len(self.queue)):
+                self.queue.append(EmptyFlit())
+            self._acceptable_flit_uids.clear()
+
+        else: 
+            raise Exception("Cannot Empty Buffer. Buffer does not have a complete packet.")
 
 
     def __str__(self):

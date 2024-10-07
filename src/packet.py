@@ -103,6 +103,9 @@ class Packet:
 
     def get_status(self) -> PacketStatus:
         return self._status
+
+    def get_uid(self) -> uuid.UUID:
+        return self._packet_content[0].get_uid()
     
 
     def __str__(self) -> str:

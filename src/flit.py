@@ -85,6 +85,9 @@ class PayloadFlit:
     def get_source_task_id(self) -> int:
         return self._header_flit.get_source_task_id()
 
+    def get_uid(self) -> uuid.UUID:
+        return self._packet_uid
+
     def __str__(self):
         return f"[Payload Flit] idx: {self._payload_index}"
 
@@ -105,6 +108,9 @@ class TailFlit:
         """Get the pointer to the associated header. Used for updating the routing 
         information in the header flit."""
         return self._header_flit
+
+    def get_uid(self) -> uuid.UUID:
+        return self._packet_uid
 
     def __str__(self):
         # return f"[Tail Flit] UUID: {self._packet_uid}"

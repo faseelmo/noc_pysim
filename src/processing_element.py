@@ -363,6 +363,7 @@ class ProcessingElement:
         router = self.router_lookup[self.xy]
 
         if not router.is_local_input_buffer_full():
+            print(f"Output NI {self.output_network_interface._acceptable_flit_uids}")
             flit = self.output_network_interface.remove()
             self.output_network_interface.fill_emtpy_slots()
             router.add_flit_to_local_input_buffer(flit)

@@ -99,7 +99,7 @@ class Router:
                 flit = buffer.remove()
                 flit_list.append( flit )
 
-            buffer.fill_emtpy_slots()  
+            buffer.fill_emtpy_slots()  # Not here. Do it in process. 
 
         return flit_list 
 
@@ -133,7 +133,8 @@ class Router:
                     f"Forwading: in buffer -> o/p {next_hop_location.value} buffer \n\t" 
                     f"-> {next_buffer}")
 
-            buffer.fill_emtpy_slots()
+            buffer.fill_emtpy_slots() # Not here. Do it in process. 
+
 
     def _compute_routing_for_flits_from_pe( self, buffer: Buffer ) -> None:
         tail_flit = buffer.queue[-1]
@@ -284,20 +285,15 @@ if __name__ == "__main__":
     from .processing_element import ProcessingElement, TaskInfo, RequireInfo
 
     """
-    Condition 1 : 
-        - Packet comes from a IP Core, without any routing information.  
-        - Look up the destination and compute the routing information (i.e next hop)  
-        - And then move it to appropriate buffer.   
+    Condition:        
 
-        To dos: 
-        [x] Implement copying the packet to the buffer.
-        [x] Implement the routing algorithm.
-        [x] Implement the moving to the next buffer.
-        [x] Implement looking at the output of all the routers and 
-            appending the flits to a list which can be processed in the 
-            next router at the next cycle. 
-        [x] Use the flit from the list to process at the next router. 
-        [x] Improve logging. 
+           P2
+          /
+   P1    R
+    \    |
+     R---R
+
+    One packet sent from P1 to P2 (through 3 routers)
 
     """
 
