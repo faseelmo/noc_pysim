@@ -190,6 +190,15 @@ class Buffer:
         for _ in range(non_occupied_space):
             self.queue.append(EmptyFlit())
 
+        # if len(self.queue) == 2:
+        #     self.queue.append(EmptyFlit())
+
+
+    def manager(self) -> None:
+        if len(self.queue) == 2:
+            self.queue.append(EmptyFlit())
+
+
     def is_full(self, inter_router_transfer:bool = False) -> bool:
         """
         Returns True if the buffer is full  

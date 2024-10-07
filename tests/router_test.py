@@ -138,7 +138,7 @@ def test_router_pe_wait_in_input_buffer():
 
     flit_list   = []
 
-    for i in range(40): 
+    for i in range(45): 
         print(f"\n> {i}")
         pe_00.process(None)
         pe_10.process(None)
@@ -146,9 +146,24 @@ def test_router_pe_wait_in_input_buffer():
 
         if is_task_done:
             print(f"Application Done. Latency: {i}")
+            latency = i 
             break
 
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
-test_router_pe_wait_in_input_buffer()
+    assert latency == 40
+
+
+
+def test_router_proper_in_out_buffer():
+    """
+    Condition:
+    Router gets packet in the local input buffer. 
+    Gets routed to other buffer. 
+    The same local input buffer receives packets with a 3 buffer gap
+    from the last packet's tail. 
+    See if FIFO is maintained
+    """
+
+    pass

@@ -50,7 +50,7 @@ class Router:
         for flit in receive_flit_list:
             self._receive_flit( flit )
 
-        self._fill_empty_slots_in_buffers()
+        self.management()
 
         return new_flit_list
 
@@ -113,6 +113,7 @@ class Router:
         """
 
         for buffer in self._input_buffers:
+
             top_flit   = buffer.peek()
 
             if top_flit is None:
@@ -127,9 +128,7 @@ class Router:
 
             next_buffer = self._get_buffer( direction = next_hop_location, is_input = False )
 
-
-            print(f"Next Buffer: {next_buffer} for flits in {buffer}")
-
+            # print(f"Next Buffer: {next_buffer} for flits in {buffer}")
             
             if next_buffer.can_accept_flit(top_flit):
 
@@ -141,13 +140,13 @@ class Router:
 
                 self._debug_print(f"\t-> {next_buffer}", with_tag=False)
 
-    def _fill_empty_slots_in_buffers(self) -> None:
+    def management(self) -> None:
         
         for buffer in self._input_buffers:
-            buffer.fill_emtpy_slots()
+            buffer.manager()
 
         for buffer in self._output_buffers:
-            buffer.fill_emtpy_slots()
+            buffer.manager()
 
     def _compute_routing_for_flits_from_pe( self, buffer: Buffer ) -> None:
         tail_flit = buffer.queue[-1]
@@ -300,6 +299,8 @@ if __name__ == "__main__":
 
     from .processing_element import ProcessingElement, TaskInfo, RequireInfo
 
+    import concurrent.futures
+
     """
     Condition:        
 
@@ -357,5 +358,6 @@ if __name__ == "__main__":
 
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
+
 
 
