@@ -61,8 +61,8 @@ class ProcessingElement:
         self.current_processing_cycle   = 0   # Might have to move this to instantiation later
         self.router_lookup              = router_lookup
 
-        self.input_network_interface    = Buffer(size=4)
-        self.output_network_interface   = Buffer(size=4)
+        self.input_network_interface    = Buffer(size=4, name= f"NI[Input]")
+        self.output_network_interface   = Buffer(size=4, name= f"NI[Output]")
         
         self.required_packet_types  = self._get_unique_required_packet_type()
 

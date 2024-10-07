@@ -151,4 +151,4 @@ def test_router_pe_wait_in_input_buffer():
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
-# test_router_pe_wait_in_input_buffer()
+test_router_pe_wait_in_input_buffer()

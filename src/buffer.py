@@ -7,10 +7,11 @@ from .flit import HeaderFlit, PayloadFlit, TailFlit, EmptyFlit
 from .packet import Packet
 
 class Buffer:
-    def __init__(self, size: int):
+    def __init__(self, size: int, name: str = "Buffer"):
         self.size               = size
         self.queue              = deque(maxlen=size)
         self._in_transmit_mode  = False # maybe this is not needed. Check with router. 
+        self._name              = name
 
         self._acceptable_flit_uids = deque(maxlen=2)
         
@@ -25,7 +26,7 @@ class Buffer:
             raise Exception( "Cannot add flit to full buffer." )
 
         else: 
-            if self._can_accept_flit( flit ):
+            if self._is_flit_registered( flit ):
                 self.queue.append( flit )
                 return True
             else: 
@@ -37,6 +38,17 @@ class Buffer:
 
                 else: 
                     raise Exception("Cannot accept new packet and UUID not in acceptable list")
+
+    def can_accept_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
+        # To do: Call this function in add_flit and remove the if condition from add_flit.
+        # I dont wanna do it now, because test conditions will have to be adjusted accordingly. urgh. 
+        if self.is_full():
+            return False
+
+        if not self._is_flit_registered(flit) and not self._can_accept_new_packet():
+            return False
+
+        return True
 
         
     def _register_flit_uid(self, flit_uid: uuid.UUID) -> None:
@@ -59,7 +71,7 @@ class Buffer:
 
         self._acceptable_flit_uids.append(flit_uid)
 
-        print(f" Registered new flit. Acceptable Flit UIDs: {self._acceptable_flit_uids}")
+        print(f" Registered new flit in buffer: {self}")
 
 
     def _can_accept_new_packet(self) -> bool:    
@@ -100,7 +112,7 @@ class Buffer:
 
         return False
 
-    def _can_accept_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
+    def _is_flit_registered(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
         """If the flit uid is in the acceptable list, return True"""
         flit_uid = flit.get_uid()
         for acceptable_flit_uid in self._acceptable_flit_uids:
@@ -181,13 +193,6 @@ class Buffer:
             return False    
 
         return True
-        # non_empty_flit_count = 0
-        # for flit in self.queue:
-        #     if not isinstance(flit, EmptyFlit):
-        #         non_empty_flit_count += 1
-
-        # return non_empty_flit_count == self.size
-
 
     def is_empty(self) -> bool:
         """
@@ -212,7 +217,7 @@ class Buffer:
 
     def __str__(self):
         queue_str = [str(item) for item in self.queue]
-        return f"{queue_str}"
+        return f"{self._name} {queue_str}"
 
 if __name__ == "__main__":
 

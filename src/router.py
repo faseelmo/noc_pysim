@@ -15,20 +15,20 @@ class Router:
 
         self._debug_mode = debug_mode
 
-        self._local_input_buffer    = Buffer( buffer_size )
-        self._local_output_buffer   = Buffer( buffer_size )
+        self._local_input_buffer    = Buffer( buffer_size, name="local_input"  )
+        self._local_output_buffer   = Buffer( buffer_size, name="local_output" )
 
-        self._west_input_buffer     = Buffer( buffer_size )
-        self._west_output_buffer    = Buffer( buffer_size )
+        self._west_input_buffer     = Buffer( buffer_size, name="west_input"  )
+        self._west_output_buffer    = Buffer( buffer_size, name="west_output" )
 
-        self._north_input_buffer    = Buffer( buffer_size )
-        self._north_output_buffer   = Buffer( buffer_size )
+        self._north_input_buffer    = Buffer( buffer_size, name="north_input"  )
+        self._north_output_buffer   = Buffer( buffer_size, name="north_output" )
 
-        self._east_input_buffer     = Buffer( buffer_size )
-        self._east_output_buffer    = Buffer( buffer_size )
+        self._east_input_buffer     = Buffer( buffer_size, name="east_input"  )
+        self._east_output_buffer    = Buffer( buffer_size, name="east_output" )
 
-        self._south_input_buffer    = Buffer( buffer_size )
-        self._south_output_buffer   = Buffer( buffer_size )
+        self._south_input_buffer    = Buffer( buffer_size, name="south_input"  ) 
+        self._south_output_buffer   = Buffer( buffer_size, name="south_output" )
 
         self._input_buffers         = []
         self._output_buffers        = []
@@ -126,7 +126,8 @@ class Router:
 
             next_buffer         = self._get_buffer( direction = next_hop_location, is_input = False )
 
-            if not next_buffer.is_full():
+            if next_buffer.can_accept_flit(top_flit):
+
                 flit = buffer.remove()
                 next_buffer.add_flit( flit )    
                 self._debug_print( 
