@@ -1,7 +1,7 @@
+from src.router             import Router
+from src.packet             import Packet
+from src.flit               import TailFlit, HeaderFlit, PayloadFlit, EmptyFlit, BufferLocation
 from src.processing_element import ProcessingElement, TaskInfo, RequireInfo
-from src.router import Router
-from src.packet import Packet
-from src.flit import TailFlit, HeaderFlit, PayloadFlit, EmptyFlit
 
 def router_test_setup(pos_list: list[tuple[int, int]]): 
     """Create a dictionary of routers with positions as keys"""
@@ -312,11 +312,103 @@ def test_router_proper_in_out_buffer_2():
 
         if i == 14:
             peek_flit = router_00._north_output_buffer.peek()
-            assert isinstance(peek_flit, TailFlit)
+            assert isinstance(peek_flit, PayloadFlit)
 
             peek_flit = router_01._south_input_buffer.queue[-1]
             assert isinstance(peek_flit, PayloadFlit)
 
-        # if 
+            peek_flit = router_01._south_input_buffer.peek()
+            assert isinstance(peek_flit, TailFlit)
 
-test_router_proper_in_out_buffer_2()
+        if i == 15:
+            peek_flit = router_01._south_input_buffer.queue[-1]
+            assert isinstance(peek_flit, PayloadFlit)
+
+
+def test_ready_at_the_same_time():
+    """
+    Condition:
+
+    In R(1,0)
+    South and West Buffer have packets that are ready to be transmitted at the same time
+    to the North Output buffer. 
+
+        - R(1,1) - 
+            |
+            | 
+        - R(1,0) - 
+
+    Buffer Scheduling, how does it work? 
+    Fixed Priority apparently. Who woud've thunk right?
+    If you are reading this. WHY?.
+
+    FYI this contention resolving is also called "Arbitration logic".
+
+    """
+
+    router_10 = Router( (1, 0), debug_mode=True )
+    router_11 = Router( (1, 1), debug_mode=True )
+
+    router_lookup = { (1, 0): router_10, 
+                      (1, 1): router_11 }  
+
+    ## Packet 1
+    packet_1 = Packet( source_xy       = (0, 0),
+                       dest_xy         = (1,1),
+                       source_task_id  =  0 )
+
+    packet_1_flit_list = []
+
+    for _ in range(4): 
+        _, flit = packet_1.pop_flit()
+
+        if isinstance(flit, HeaderFlit):
+            flit._next_hop.x = 0
+            flit._next_hop.y = 1
+            flit._next_hop.next_input_buffer = BufferLocation.WEST
+
+        packet_1_flit_list.append(flit)
+
+    ## Packet 2
+    packet_2 = Packet( source_xy       = (0, 0),
+                       dest_xy         = (1,1),
+                       source_task_id  =  0 )
+
+    packet_2_flit_list = []
+
+    for _ in range(4):
+        _, flit = packet_2.pop_flit()
+
+        if isinstance(flit, HeaderFlit):
+            flit._next_hop.x = 1
+            flit._next_hop.y = 0
+            flit._next_hop.next_input_buffer = BufferLocation.SOUTH
+
+        packet_2_flit_list.append(flit)
+
+    
+    # Simulation 
+    for i in range(16): 
+        print(f"\n> {i}")
+
+        if i < 4: 
+            flit_1 = packet_1_flit_list.pop(0)
+            flit_2 = packet_2_flit_list.pop(0)
+            flit_list = [flit_1, flit_2]
+
+        else: 
+            flit_list = []
+
+        for router in router_lookup.values():
+            flit_list = router.process( flit_list, router_lookup, {} )
+
+    if i == 5: 
+        peek_flit = router_10._north_output_buffer.queue[-1]    
+        assert isinstance(peek_flit, HeaderFlit)
+
+        peek_flit = router_10._west_input_buffer.peek()    
+        assert isinstance(peek_flit, PayloadFlit)
+
+        peek_flit = router_10._south_input_buffer.peek()    
+        assert isinstance(peek_flit, HeaderFlit)
+    

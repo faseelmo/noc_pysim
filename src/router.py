@@ -166,9 +166,8 @@ class Router:
 
         assert not input_buffer.is_full(), f"Buffer {buffer_location.value} is full. Cannot receive flit."
 
-        input_buffer.add_flit( flit )
-
         self._debug_print( f"Received flit to " + f"{input_buffer}".split()[0] )
+        input_buffer.add_flit( flit )
         self._debug_print(f"\t-> {input_buffer}", with_tag=False)
 
         if input_buffer.can_do_routing(): 
