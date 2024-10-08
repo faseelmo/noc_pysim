@@ -47,7 +47,7 @@ class ProcessingElement:
     def __init__(
             self, 
             xy                  : tuple [int, int], 
-            computing_list      : list  [TaskInfo], 
+            computing_list      : list  [TaskInfo]  = None, 
             debug_mode          : bool              = False, 
             shortest_job_first  : bool              = False, 
             router_lookup       : dict              = None
@@ -64,7 +64,12 @@ class ProcessingElement:
         self.input_network_interface    = Buffer(size=4, name= f"NI[Input]")
         self.output_network_interface   = Buffer(size=4, name= f"NI[Output]")
         
-        self.required_packet_types  = self._get_unique_required_packet_type()
+        if self.compute_list is not None:
+            self.required_packet_types  = self._get_unique_required_packet_type()
+
+    def assign_task(self, computing_list: list [ TaskInfo ]) -> None:
+        self.compute_list = computing_list
+        self.required_packet_types = self._get_unique_required_packet_type()
 
     def _debug_print(self, string: str, with_tag: bool = True) -> None: 
 
@@ -455,6 +460,9 @@ class ProcessingElement:
 
     def process(self, packet: Optional[Packet]) -> bool:
         """Returns True if the task requirements assigned to the PE is met"""
+
+        if self.compute_list is None:
+            return True
 
         self._increment_processing_cycle()
 

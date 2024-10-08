@@ -45,15 +45,9 @@ class Buffer:
         # To do: Call this function in add_flit and remove the if condition from add_flit.
         # I dont wanna do it now, because test conditions will have to be adjusted accordingly. urgh. 
         if self.is_full():
-            print(f"Cannot accept flit. Buffer is full. {self}")
             return False
 
         if not self._is_flit_registered(flit) and not self._can_accept_new_packet():
-            # if not self._is_flit_registered(flit):
-            #     print(f"Cannot accept flit. Flit not registered. {self}")
-
-            # if not self._can_accept_new_packet():
-            #     print(f"Cannot accept flit. Buffer is not in a state to accept a full packet. {self}")
             return False
 
         return True

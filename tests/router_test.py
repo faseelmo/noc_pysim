@@ -412,3 +412,4 @@ def test_ready_at_the_same_time():
         peek_flit = router_10._south_input_buffer.peek()    
         assert isinstance(peek_flit, HeaderFlit)
     
+test_ready_at_the_same_time()
