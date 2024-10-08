@@ -196,12 +196,13 @@ class Buffer:
 
     def manager(self) -> None:
 
-        if len(self.queue) == self.size - 2:
-            if isinstance(self.queue[-1], (TailFlit, EmptyFlit)): 
-                print(f"adding empty flit in {self}")
-                self.queue.append(EmptyFlit())
-                print(f"updated {self}")
+        # if len(self.queue) < self.size - 1:
+        #     if isinstance(self.queue[-1], (TailFlit, EmptyFlit)): 
+        #         print(f"adding empty flit in {self}")
+        #         self.queue.append(EmptyFlit())
+        #         print(f"updated {self}")
 
+        # If the buffer is full of empty flits
         empty_flit_count = 0
         for flit in self.queue:
             if isinstance(flit, EmptyFlit):

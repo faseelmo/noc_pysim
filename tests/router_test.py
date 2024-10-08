@@ -1,6 +1,7 @@
 from src.processing_element import ProcessingElement, TaskInfo, RequireInfo
 from src.router import Router
 from src.packet import Packet
+from src.flit import TailFlit, HeaderFlit, PayloadFlit, EmptyFlit
 
 def router_test_setup(pos_list: list[tuple[int, int]]): 
     """Create a dictionary of routers with positions as keys"""
@@ -70,6 +71,7 @@ def test_router_pe_simple():
 
     assert latency == 36
 
+
 def test_router_pe_wait_in_input_buffer(): 
     """
     Condition: 
@@ -137,8 +139,6 @@ def test_router_pe_wait_in_input_buffer():
 
     pe_lookup   = { (0, 0): pe_00, (1, 0): pe_10, (1, 1): pe_11 }
 
-
-
     for i in range(45): 
         flit_list = []
 
@@ -155,40 +155,25 @@ def test_router_pe_wait_in_input_buffer():
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
-        # for router in router_lookup.values():
-        #     new_flit_list = router._forward_output_buffer_flits( router_lookup, pe_lookup )
-        #     flit_list.extend(new_flit_list)
-
-
-
-        # for router in router_lookup.values():
-        #     router._forward_input_buffer_flits()
-
-        # for router in router_lookup.values():
-
-        #     for flit in flit_list:
-        #         router._receive_flit( flit )
-
-        # for router in router_lookup.values(): 
-        #     router.management()
-
     assert latency == 40
 
-# test_router_pe_wait_in_input_buffer() 
 
-
-def test_router_proper_in_out_buffer():
+def test_router_proper_in_out_buffer_1():
     """
     Condition:
-    Router gets packet in the local input buffer. 
-    Gets routed to other buffer. 
-    The same local input buffer receives packets with a 3 buffer gap
-    from the last packet's tail. 
-    See if FIFO is maintained
+    Intra Router Test
+    Local buffer in R(0,0) inject with two packet with 
+    2 empty slots in between. 
+    Checking if FIFO is maintained for the second packet in the output buffer of the same router. 
+    This check is performed by checking if the flits are getting into the buffer at the 
+    expected clock cycle. Check page 36 of thesis notes for the diagram of the test case.
     """
 
-    router = Router( (0, 0), debug_mode=True )
-    router_lookup = { (0, 0): router }  
+    router_00 = Router( (0, 0), debug_mode=True )
+    router_01 = Router( (0, 1), debug_mode=True )
+    router_10 = Router( (1, 0), debug_mode=True )
+
+    router_lookup = { (0, 0): router_00, (0, 1): router_01, (1, 0): router_10 }  
 
     packet_1 = Packet(source_xy     =(0, 0),
                     dest_xy         =(0,1),
@@ -200,31 +185,138 @@ def test_router_proper_in_out_buffer():
 
 
     is_packet_1_injected = False
+    is_packet_2_injected = False
 
-    for i in range(8): 
+    for i in range(15): 
         print(f"\n> {i}")
         flit_list = []
 
-        if i == 6: 
-            print(f"Adding Packet 2")
-            flit_list.append(packet_2.pop_flit()[1])
-            print(f"{router._local_input_buffer}") 
+        if i == 7:
+            peek_flit = router_00._local_input_buffer.peek()
+            assert isinstance(peek_flit, TailFlit)
 
-        # Injecting Packet
+
+        # Injecting Packet 1 
         if not is_packet_1_injected: 
-            is_flit_transmitted, flit = packet_1.pop_flit()
+            is_packet_1_transmitted, flit = packet_1.pop_flit()
             flit_list.append(flit)
 
-            if is_flit_transmitted:
+            if is_packet_1_transmitted:
                 is_packet_1_injected = True
 
+        # Injecting Packet 2
+        if i > 5:
+            if not is_packet_2_injected: 
+                is_packet_2_transmitted, flit = packet_2.pop_flit()
+                flit_list.append(flit)
+
+                if is_packet_2_transmitted:
+                    is_packet_2_injected = True
+
+
+        for router in router_lookup.values():
             
+            if not router.get_pos() == (0,0):  
+                flit_list = [] # Clearing the flit list for other routers.
 
-        # Skipping not finding the next Router or PE
-        try: 
-            router.process(flit_list, router_lookup, {})
-        except AttributeError as e: 
-            continue
+            flit_list = router.process( flit_list, router_lookup, {} )
+
+        # Checking conditions. 
+        # Refer page 37 of thesis notes
+        if i == 9:
+            peek_flit = router_00._east_output_buffer.queue[-1]
+            assert isinstance(peek_flit, EmptyFlit), f"Expected EmptyFlit, got {peek_flit}"
+
+        if i == 10:
+            peek_flit = router_00._east_output_buffer.queue[-1]
+            assert isinstance(peek_flit, HeaderFlit), f"Expected HeaderFlit in -1, got {peek_flit}"
+
+        if i == 11:
+            peek_flit = router_00._east_output_buffer.queue[-1]
+            assert isinstance(peek_flit, PayloadFlit), f"Expected Payload in -1, got {peek_flit}"
+
+# test_router_proper_in_out_buffer_1()
+
+def test_router_proper_in_out_buffer_2():
+    """
+    Condition:
+    Inter Router Test
+    Local buffer in R(0,0) inject with two packet with 
+    2 empty slots in between. 
+    Checking if FIFO is maintained for the second packet in the output buffer of the same router. 
+    This check is performed by checking if the flits are getting into the buffer at the 
+    expected clock cycle. Check page 36 of thesis notes for the diagram of the test case.
+    """
+
+    router_00 = Router( (0, 0), debug_mode=True )
+    router_01 = Router( (0, 1), debug_mode=True )
+    router_10 = Router( (1, 0), debug_mode=True )
+
+    router_lookup = { (0, 0): router_00, (0, 1): router_01, (1, 0): router_10 }  
+
+    packet_1 = Packet(source_xy     =(0, 0),
+                    dest_xy         =(0,1),
+                    source_task_id  =0)
+
+    packet_2 = Packet(source_xy     =(0, 0),
+                    dest_xy         =(0,1),
+                    source_task_id  =0)
 
 
-# test_router_proper_in_out_buffer()
+    is_packet_1_injected = False
+    is_packet_2_injected = False
+
+    for i in range(16): 
+        print(f"\n> {i}")
+        flit_list = []
+
+        # Injecting Packet 1 
+        if not is_packet_1_injected: 
+            is_packet_1_transmitted, flit = packet_1.pop_flit()
+            flit_list.append(flit)
+
+            if is_packet_1_transmitted:
+                is_packet_1_injected = True
+
+        # Injecting Packet 2
+        if i > 3:
+            if not is_packet_2_injected: 
+                is_packet_2_transmitted, flit = packet_2.pop_flit()
+                flit_list.append(flit)
+
+                if is_packet_2_transmitted:
+                    is_packet_2_injected = True
+
+        if i < 8:
+            router_00.process( flit_list, router_lookup, {} )
+
+        else: 
+
+            for router in router_lookup.values():
+                flit_list = router.process( flit_list, router_lookup, {} )
+
+        # Checking conditions.
+        if i == 10:
+            peek_flit = router_00._north_output_buffer.peek()
+            assert isinstance(peek_flit, TailFlit)
+
+            peek_flit = router_01._south_input_buffer.peek()
+            assert peek_flit is None
+
+        if i == 11:
+            peek_flit = router_00._north_output_buffer.peek()
+            assert isinstance(peek_flit, HeaderFlit)
+
+            peek_flit = router_01._south_input_buffer.peek()
+            assert isinstance(peek_flit, HeaderFlit)
+
+        if i == 14:
+            peek_flit = router_00._north_output_buffer.peek()
+            assert isinstance(peek_flit, TailFlit)
+
+            peek_flit = router_01._south_input_buffer.queue[-1]
+            assert isinstance(peek_flit, PayloadFlit)
+
+        # if 
+
+test_router_proper_in_out_buffer_2()

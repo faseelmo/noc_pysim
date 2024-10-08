@@ -3,9 +3,8 @@ from typing     import Union
 from .buffer    import Buffer
 from .flit      import HeaderFlit, PayloadFlit, TailFlit, NextHop, BufferLocation
 
-
 class Router:
-    def __init__(self, pos: tuple, buffer_size: int = 4, debug_mode: bool = False):
+    def __init__( self, pos: tuple, buffer_size: int = 4, debug_mode: bool = False ):
         """ Args; 
             "pos"           : tuple, coordinates of the router  
             "buffer_size"   : int, number of flits that can be stored in a buffer
@@ -36,7 +35,7 @@ class Router:
         self._populate_buffer_lists()
 
 
-    def process( self, receive_flit_list: list, router_lookup: dict, pe_lookup: dict) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
+    def process( self, receive_flit_list: list, router_lookup: dict, pe_lookup: dict ) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
         """ - Process the flits in the input buffer first 
                 - forward_output_buffer_flits()
                 - forward_input_buffer_flits()
@@ -46,7 +45,6 @@ class Router:
         new_flit_list = self._forward_output_buffer_flits( router_lookup, pe_lookup )
 
         self._forward_input_buffer_flits()
-
 
         for flit in receive_flit_list:
             self._receive_flit( flit )
@@ -124,6 +122,8 @@ class Router:
 
             # Check if routing information is available for packets copied from the PE
             if next_hop_location == BufferLocation.UNASSIGNED:
+                if not buffer.can_do_routing():
+                    continue
                 self._compute_routing_for_flits_from_pe( buffer )
                 next_hop_location   = top_flit.get_routing_info().output_buffer
 
@@ -166,12 +166,9 @@ class Router:
 
         assert not input_buffer.is_full(), f"Buffer {buffer_location.value} is full. Cannot receive flit."
 
-        self._debug_print(f"Receiving Flits in {buffer_location.value} input buffer")
-
-        input_buffer.manager()
-
         input_buffer.add_flit( flit )
 
+        self._debug_print( f"Received flit to " + f"{input_buffer}".split()[0] )
         self._debug_print(f"\t-> {input_buffer}", with_tag=False)
 
         if input_buffer.can_do_routing(): 
@@ -274,7 +271,6 @@ class Router:
                 if isinstance( attr_value, Buffer ):
                     self._output_buffers.append( attr_value )
 
-
     def __eq__(self, other):
         """
         Overriding the equality operator to compare the x and y coordinates of the router.
@@ -286,6 +282,9 @@ class Router:
         elif isinstance(other, tuple):
             return self._x == other[0] and self._y == other[1] 
         return False
+
+    def get_pos(self) -> tuple:
+        return (self._x, self._y)
 
     def _debug_print(self, string: str, with_tag: bool = True) -> None: 
         if self._debug_mode:
