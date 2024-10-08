@@ -22,7 +22,7 @@ def create_packet_copies(num_copies, packet_source):
     return [copy.deepcopy(packet) for _ in range(num_copies)]
 
 
-def simulate(computing_list: list, packet_list: list):
+def simulate_pe(computing_list: list, packet_list: list):
 
     pe = ProcessingElement((0, 0), computing_list)
     current_packet = packet_list.pop(0)
@@ -74,7 +74,7 @@ def test_task_sequential_1():
         packet_2_copies.pop(0),
     ]
 
-    latency = simulate(computing_list, packet_list)
+    latency = simulate_pe(computing_list, packet_list)
     assert latency == 42
 
 def test_task_sequential_2():
@@ -112,7 +112,7 @@ def test_task_sequential_2():
         *packet_4_copies
     ]
 
-    latency = simulate(computing_list, packet_list)
+    latency = simulate_pe(computing_list, packet_list)
     assert latency == 51
 
 def test_task_parallel_3():
@@ -146,9 +146,214 @@ def test_task_parallel_3():
         *packet_4_copies
     ]
 
-    latency = simulate(computing_list, packet_list)
+    latency = simulate_pe(computing_list, packet_list)
     assert latency == 34
 
-# test_task_sequential_1()
-# test_task_sequential_2()
-# test_task_parallel_3()
+def test_pe_with_output_buffer(): 
+
+    task_1 = TaskInfo(
+        task_id                     = 1, 
+        processing_cycles           = 5, 
+        expected_generated_packets  = 2, 
+        require_list                = [RequireInfo(
+                                        require_type_id=0, 
+                                        required_packets=3), 
+                                       RequireInfo(
+                                        require_type_id=2, 
+                                        required_packets=2)]
+    )
+
+    task_3                          = TaskInfo(
+        task_id                     = 3,
+        processing_cycles           = 4, 
+        expected_generated_packets  = 3,
+        require_list                = [RequireInfo(
+                                        require_type_id=1, 
+                                        required_packets=2)], 
+
+        is_transmit_task            = True, 
+        transmit_dest_xy            = (1,0)
+    
+    )
+
+    packet_0 = Packet(
+                source_xy       =(0, 0),
+                dest_xy         =(1, 1),
+                source_task_id  =0)
+
+    packet_2 = Packet(
+                source_xy=(0, 0),
+                dest_xy=(1, 1),
+                source_task_id=2)
+
+    packet_0_1 = copy.deepcopy(packet_0)
+    packet_0_2 = copy.deepcopy(packet_0)
+    packet_2_1 = copy.deepcopy(packet_2)
+
+    packet_list = [packet_0, packet_0_1,  packet_2, packet_2_1, packet_0_2,]
+    computing_list = [task_1, task_3]
+
+    pe_1 = ProcessingElement((0, 0), computing_list, debug_mode=False)
+  
+    current_packet = packet_list.pop(0)
+    for cycle in range(100):
+
+        if cycle == 42 or cycle == 53 or cycle == 60: 
+            pe_1._empty_output_buffer_for_test(task_3)
+
+        pe_1.process(current_packet)
+
+        # Injecting Packets 
+        if not current_packet is None and current_packet.get_status() is PacketStatus.IDLE:
+            if len(packet_list) > 0: current_packet = packet_list.pop(0)
+            else: current_packet = None
+
+        if pe_1._check_task_requirements_met():
+            latency = cycle
+            break
+
+    assert latency == 60
+
+def test_pe_with_in_out_buffer(): 
+
+    task_1 = TaskInfo(
+        task_id                     = 1, 
+        processing_cycles           = 5, 
+        expected_generated_packets  = 2, 
+        require_list                = [RequireInfo(
+                                        require_type_id=0, 
+                                        required_packets=3), 
+                                       RequireInfo(
+                                        require_type_id=2, 
+                                        required_packets=2)]
+    )
+
+    task_3                          = TaskInfo(
+        task_id                     = 3,
+        processing_cycles           = 4, 
+        expected_generated_packets  = 3,
+        require_list                = [RequireInfo(
+                                        require_type_id=1, 
+                                        required_packets=2)], 
+
+        is_transmit_task            = True, 
+        transmit_dest_xy            = (1,0)
+    
+    )
+
+    packet_0 = Packet(
+                source_xy       =(0, 0),
+                dest_xy         =(1, 1),
+                source_task_id  =0)
+
+    packet_2 = Packet(
+                source_xy       =(0, 0),
+                dest_xy         =(1, 1),
+                source_task_id  =2)
+
+    packet_0_1 = copy.deepcopy( packet_0 )
+    packet_0_2 = copy.deepcopy( packet_0 )
+    packet_2_1 = copy.deepcopy( packet_2 )
+
+    packet_list     = [packet_0, packet_0_1,  packet_2, packet_2_1, packet_0_2,]
+    computing_list  = [task_1, task_3]
+
+    pe_1 = ProcessingElement( (0, 0), computing_list, debug_mode=True )
+    current_packet = packet_list.pop(0)
+
+    is_packet_transmitted = False
+
+    for cycle in range(100):
+        print( f"\n> {cycle}" )
+
+        # Start Injecting Flits
+        if not is_packet_transmitted:
+            is_flit_transmitted, flit = current_packet.pop_flit()
+
+            # print( f"{flit} task_id: {flit.get_source_task_id()}" ) 
+            print(f"Injecting Flit: {flit} to buffer {pe_1.input_network_interface}")
+            pe_1.receive_flits( flit ) # Injecting Flit to PE
+
+            if is_flit_transmitted: 
+                if len( packet_list ) > 0: 
+                    current_packet = packet_list.pop(0)
+
+                else: 
+                    is_packet_transmitted = True
+        # End Injecting Flits
+
+        if cycle == 42 or cycle == 53 or cycle == 60: 
+            pe_1._empty_output_buffer_for_test(task_3)
+
+        pe_1.process(None)
+
+        if pe_1._check_task_requirements_met():
+            latency = cycle
+            break
+
+    assert latency == 60
+
+def test_injection_pe(): 
+    """
+    Condition: 
+    PE Injecting one packet.  
+    But the ouput buffer is full.
+    """
+
+    task_0                          = TaskInfo(
+        task_id                     = 0,
+        processing_cycles           = 4, 
+        expected_generated_packets  = 1,
+        require_list                = [], 
+        is_transmit_task            = True, 
+        transmit_dest_xy            = (1,0)
+    )
+
+
+    pe = ProcessingElement( (0, 0), [task_0], debug_mode=True )
+
+    for cycle in range(20): 
+        print( f"\n> {cycle}" )
+        done_processing = pe.process(None)
+
+        if done_processing: 
+            latency = cycle
+            break 
+
+        if cycle == 5: 
+            pe._empty_output_buffer_for_test(task_0)
+
+    assert latency == 6
+
+
+def test_injection_pe_3_packets(): 
+    """
+    Condition: 
+    PE Injecting three packet.  
+    But the ouput buffer is full.
+    """
+
+    task_0                          = TaskInfo(
+        task_id                     = 0,
+        processing_cycles           = 4, 
+        expected_generated_packets  = 3,
+        require_list                = [], 
+        is_transmit_task            = True, 
+        transmit_dest_xy            = (1,0)
+    )
+
+
+    pe = ProcessingElement( (0, 0), [task_0], debug_mode=True )
+
+    for cycle in range(40): 
+        print( f"\n> {cycle}" )
+        done_processing = pe.process(None)
+
+        if done_processing: 
+            latency = cycle
+            break 
+
+        if cycle == 10 or cycle == 20 or cycle == 30: 
+            pe._empty_output_buffer_for_test(task_0)
+
+    assert latency == 31

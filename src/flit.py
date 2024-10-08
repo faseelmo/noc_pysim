@@ -33,7 +33,7 @@ class NextHop:
         )
 
 class HeaderFlit: 
-    def __init__( self, src_xy: tuple, dest_xy: tuple, packet_uid: uuid.UUID ): 
+    def __init__( self, src_xy: tuple, dest_xy: tuple, packet_uid: uuid.UUID, source_task_id: int ): 
         """
         - When HeaderFlit is created, it is assigned a next_hop attribute.
         - The next_hop attribute include the x,y coordinates of the next hop. 
@@ -43,13 +43,14 @@ class HeaderFlit:
           Also, the buffer attribute is set to Local. 
         """
 
-        self._src_xy        = src_xy
-        self._dest_xy       = dest_xy
-        self._packet_uid    = packet_uid
-        self._next_hop      = NextHop( 
-                                x=src_xy[0], 
-                                y=src_xy[1], 
-                                next_input_buffer=BufferLocation.LOCAL )
+        self._src_xy            = src_xy
+        self._dest_xy           = dest_xy
+        self._packet_uid        = packet_uid
+        self._source_task_id    = source_task_id
+        self._next_hop          = NextHop( 
+                                    x=src_xy[0], 
+                                    y=src_xy[1], 
+                                    next_input_buffer=BufferLocation.LOCAL )
 
     
     def update_routing_info( self, next_hop: NextHop ) -> None:
@@ -65,6 +66,9 @@ class HeaderFlit:
     def get_uid( self ) -> uuid.UUID:
         return self._packet_uid
 
+    def get_source_task_id( self ) -> int:  
+        return self._source_task_id
+
     def __str__( self ): 
         return ( f"[Header Flit] {self._src_xy} -> {self._dest_xy}" )
 
@@ -77,6 +81,12 @@ class PayloadFlit:
     def get_routing_info(self) -> NextHop:
         """Access the routing information from the associated HeaderFlit"""
         return self._header_flit.get_routing_info()
+
+    def get_source_task_id(self) -> int:
+        return self._header_flit.get_source_task_id()
+
+    def get_uid(self) -> uuid.UUID:
+        return self._packet_uid
 
     def __str__(self):
         return f"[Payload Flit] idx: {self._payload_index}"
@@ -91,14 +101,20 @@ class TailFlit:
         """Access the routing information from the associated HeaderFlit"""
         return self._header_flit.get_routing_info()
 
+    def get_source_task_id(self) -> int:
+        return self._header_flit.get_source_task_id()
+
     def get_header_pointer(self) -> HeaderFlit:
         """Get the pointer to the associated header. Used for updating the routing 
         information in the header flit."""
         return self._header_flit
 
+    def get_uid(self) -> uuid.UUID:
+        return self._packet_uid
+
     def __str__(self):
         # return f"[Tail Flit] UUID: {self._packet_uid}"
-        return f"[Tail Flit]"
+        return f"[Tail Flit] (task: {self.get_source_task_id()})"
 
 
 class EmptyFlit:
