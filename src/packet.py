@@ -117,9 +117,9 @@ class Packet:
 
 
 if __name__ == "__main__":
-    packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
-                    source_task_id=0)
+    packet = Packet(source_xy       =(0, 0), 
+                    dest_id         =1, 
+                    source_task_id  =0)
 
     print(f"{packet}\n")
 

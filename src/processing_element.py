@@ -339,9 +339,6 @@ class ProcessingElement:
                     # If 'task' is the last task in the PE
                     # Generate count is incremented when the 
                     # packet is fully moved to the PE local input buffer. 
-                    # Simi
-
-
                     self._process_trasmit_generate_packets(compute_task)  # status: PROCESSING -> IN_BUFFER
 
                 else: 
@@ -401,17 +398,10 @@ class ProcessingElement:
         Status of the task is changed to IN_BUFFER  
         """
 
-        is_sink_task = compute_task.transmit_id_list is None
-
-        self._debug_print(f"Task {compute_task.task_id} is a terminating task. Sink? {is_sink_task}")
-
-        if is_sink_task:
-            dest_id = None
-        else: 
-            # Popped from the list based on the number of packets required by the task
-            print(f"Transmit id list: {compute_task.transmit_id_list}")
-            assert len(compute_task.transmit_id_list) > 0, "Transmit id list is empty"
-            dest_id = compute_task.transmit_id_list[0]
+        # Popped from the list based on the number of packets required by the task
+        print(f"Transmit id list: {compute_task.transmit_id_list}")
+        assert len(compute_task.transmit_id_list) > 0, "Transmit id list is empty"
+        dest_id = compute_task.transmit_id_list[0]
 
         packet = Packet(
                     source_xy       = self.xy,
@@ -422,8 +412,6 @@ class ProcessingElement:
         self.output_network_interface.fill_with_packet(packet)
         compute_task.status = TaskStatus.IN_BUFFER
 
-        if is_sink_task:
-            self._empty_output_buffer(compute_task)
 
     def _can_generate_packets(self) -> bool:
         output_buffer_full = self.output_network_interface.is_full()    
@@ -558,7 +546,7 @@ if __name__ == "__main__":
         require_list                =[RequireInfo(
                                         require_type_id=1, 
                                         required_packets=2)], 
-        is_transmit_task            = True, 
+        is_transmit_task            = False, 
     )
 
     computing_list = [task_1, task_3]

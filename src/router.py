@@ -59,6 +59,10 @@ class Router:
         return new_flit_list
 
     def set_mapping_list(self, mapping_list: list) -> None:
+        """
+        Needs mapping list to compute the routing of packets based on destination 
+        task id. 
+        """
         self._mapping_list = mapping_list
 
     def _filter_required_flits(self, flit_list: list[Union[HeaderFlit, PayloadFlit, TailFlit]]) -> list[Union[HeaderFlit, PayloadFlit, TailFlit]]:
@@ -324,9 +328,7 @@ class Router:
 
 
 if __name__ == "__main__":
-
-    from .processing_element import ProcessingElement, TaskInfo, RequireInfo
-    r""" # raw string to avoid warngin in pytest
+    """ 
     Condition:        
 
            P2
@@ -336,39 +338,49 @@ if __name__ == "__main__":
      R---R
 
     One packet sent from P1 to P2 (through 3 routers)
-
     """
 
-    router_00 = Router( pos = (0, 0), debug_mode=True )
-    router_10 = Router( pos = (1, 0), debug_mode=True )
-    router_11 = Router( pos = (1, 1), debug_mode=True )
+    from .processing_element import ProcessingElement, TaskInfo, RequireInfo
+    from .simulator import Map
 
-    router_lookup = { (0, 0): router_00, (1, 0): router_10, (1, 1): router_11 }
+    router_00       = Router( pos = (0, 0), debug_mode=True )
+    router_10       = Router( pos = (1, 0), debug_mode=True )
+    router_11       = Router( pos = (1, 1), debug_mode=True )
+    router_lookup   = { (0, 0): router_00, (1, 0): router_10, (1, 1): router_11 }
 
-    task_0  = TaskInfo(
-                task_id                     = 0, 
-                processing_cycles           = 4, 
-                expected_generated_packets  = 1, 
-                require_list                = [], 
-                is_transmit_task            = True, 
-                transmit_dest_xy            = (1, 1)
-            )
+    pe_00           = ProcessingElement( xy = (0, 0), debug_mode=True, router_lookup = router_lookup )
+    pe_11           = ProcessingElement( xy = (1, 1), debug_mode=True, router_lookup = router_lookup )
+    pe_lookup       = { (0, 0): pe_00, (1, 1): pe_11 }
 
-    pe_00 = ProcessingElement( xy = (0, 0), computing_list = [ task_0 ], debug_mode=True, router_lookup = router_lookup )
+    task_0          = TaskInfo(
+                        task_id                     = 0, 
+                        processing_cycles           = 4, 
+                        expected_generated_packets  = 1, 
+                        require_list                = [], 
+                        is_transmit_task            = True, 
+                        transmit_id_list            = [1])
 
-    task_1  = TaskInfo(
-                task_id                     = 1, 
-                processing_cycles           = 4, 
-                expected_generated_packets  = 1, 
-                require_list                = [RequireInfo(
-                                                require_type_id=0,
-                                                required_packets=1)], 
-                is_transmit_task            = False, 
-            )
 
-    pe_11 = ProcessingElement( xy = (1, 1), computing_list = [ task_1 ], debug_mode=True, router_lookup = router_lookup )
+    task_1          = TaskInfo(
+                        task_id                     = 1, 
+                        processing_cycles           = 4, 
+                        expected_generated_packets  = 1, 
+                        require_list                = [RequireInfo(
+                                                        require_type_id=0,
+                                                        required_packets=1)], 
+                        is_transmit_task            = False)
 
-    pe_lookup = { (0, 0): pe_00, (1, 1): pe_11 }
+
+    mapping_list    = [ Map( task_0, (0, 0) ),
+                        Map( task_1, (1, 1) )]
+
+    for router in router_lookup.values():
+        router.set_mapping_list( mapping_list )
+
+
+    for mapping in mapping_list:
+        pe = pe_lookup.get( mapping.assigned_pe )
+        pe.assign_task( [mapping.task] )
 
     flit_list = []
 

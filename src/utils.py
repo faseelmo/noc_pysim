@@ -227,7 +227,7 @@ def get_random_packet_list(graph: nx.DiGraph, shuffle=False) -> list:
     for require in required_packet_type:
         for i in range(require.required_packets):
             packet = Packet(
-                source_xy=(0, 0), dest_xy=(1, 1), source_task_id=require.require_type_id
+                source_xy=(0, 0), dest_id=1, source_task_id=require.require_type_id
             )
             packet_list.append(packet)
 

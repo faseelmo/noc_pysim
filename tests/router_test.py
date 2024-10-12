@@ -2,6 +2,19 @@ from src.router             import Router
 from src.packet             import Packet
 from src.flit               import TailFlit, HeaderFlit, PayloadFlit, EmptyFlit, BufferLocation
 from src.processing_element import ProcessingElement, TaskInfo, RequireInfo
+from src.simulator          import Map
+
+from dataclasses import dataclass
+
+@dataclass
+class FakeTask:
+    """Why? Because I dont want to create a whole new task for testing"""
+    task_id: int
+
+@dataclass 
+class FakeMap:
+    task: FakeTask
+    assigned_pe: tuple[int, int]
 
 def router_test_setup(pos_list: list[tuple[int, int]]): 
     """Create a dictionary of routers with positions as keys"""
@@ -19,67 +32,72 @@ def test_router_pe_simple():
     Condition: 
     PE(0,0) sends a packet to PE(1,1)
     """
-    router_lookup = router_test_setup([(0,0), (1,0), (1,1)])
+    router_00       = Router( pos = (0, 0), debug_mode=True )
+    router_10       = Router( pos = (1, 0), debug_mode=True )
+    router_11       = Router( pos = (1, 1), debug_mode=True )
+    router_lookup   = { (0, 0): router_00, (1, 0): router_10, (1, 1): router_11 }
 
-    task_0  = TaskInfo(
-                task_id                     = 0, 
-                processing_cycles           = 4, 
-                expected_generated_packets  = 1, 
-                require_list                = [], 
-                is_transmit_task            = True, 
-                transmit_dest_xy            = (1, 1)
-            )
+    pe_00           = ProcessingElement( xy = (0, 0), debug_mode=True, router_lookup = router_lookup )
+    pe_11           = ProcessingElement( xy = (1, 1), debug_mode=True, router_lookup = router_lookup )
+    pe_lookup       = { (0, 0): pe_00, (1, 1): pe_11 }
 
-    pe_00   = ProcessingElement( 
-                xy              = (0, 0), 
-                computing_list  = [ task_0 ], 
-                debug_mode      = True, 
-                router_lookup   = router_lookup )
+    task_0          = TaskInfo(
+                        task_id                     = 0, 
+                        processing_cycles           = 4, 
+                        expected_generated_packets  = 1, 
+                        require_list                = [], 
+                        is_transmit_task            = True, 
+                        transmit_id_list            = [1])
 
-    task_1  = TaskInfo(
-                task_id                     = 1, 
-                processing_cycles           = 4, 
-                expected_generated_packets  = 1, 
-                require_list                = [RequireInfo(
-                                                require_type_id=0,
-                                                required_packets=1)], 
-                is_transmit_task            = False, 
-            )
 
-    pe_11   = ProcessingElement( 
-                xy              = (1, 1), 
-                computing_list  = [ task_1 ], 
-                debug_mode      = True, 
-                router_lookup   = router_lookup )
+    task_1          = TaskInfo(
+                        task_id                     = 1, 
+                        processing_cycles           = 4, 
+                        expected_generated_packets  = 1, 
+                        require_list                = [RequireInfo(
+                                                        require_type_id=0,
+                                                        required_packets=1)], 
+                        is_transmit_task            = False)
 
-    pe_lookup   = { (0, 0): pe_00, (1, 1): pe_11 }
 
-    latency     = 0
-    flit_list   = []
-    
+    mapping_list    = [ Map( task_0, (0, 0) ),
+                        Map( task_1, (1, 1) )]
+
+    for router in router_lookup.values():
+        router.set_mapping_list( mapping_list )
+
+
+    for mapping in mapping_list:
+        pe = pe_lookup.get( mapping.assigned_pe )
+        pe.assign_task( [mapping.task] )
+
+    flit_list = []
+
     for i in range(40): 
+        print(f"\n> {i}")
         pe_00.process(None)
+        is_task_done = pe_11.process(None)
 
-        is_application_done = pe_11.process(None)
-
-        if is_application_done: 
+        if is_task_done:
+            print(f"Application Done. Latency: {i}")
             latency = i
             break
 
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
+
     assert latency == 36
 
 
 def test_router_pe_wait_in_input_buffer(): 
-    """
+    r"""
     Condition: 
     PE(0,0) and PE(1,0) send packets to PE(1,1)
     Packets from PE(1,0) will wait in the input buffer of Router(1,0)
     Graph structure:
     0
-     \1
+     \
       1
      /
     2
@@ -93,7 +111,7 @@ def test_router_pe_wait_in_input_buffer():
                 expected_generated_packets  = 1, 
                 require_list                = [], 
                 is_transmit_task            = True, 
-                transmit_dest_xy            = (1, 1)
+                transmit_id_list            = [1]
             )
 
     pe_00   = ProcessingElement( 
@@ -109,7 +127,7 @@ def test_router_pe_wait_in_input_buffer():
                 expected_generated_packets  = 1, 
                 require_list                = [], 
                 is_transmit_task            = True, 
-                transmit_dest_xy            = (1, 1)
+                transmit_id_list            = [1]
             )
 
     pe_10   = ProcessingElement( 
@@ -138,6 +156,13 @@ def test_router_pe_wait_in_input_buffer():
                 router_lookup   = router_lookup )
 
     pe_lookup   = { (0, 0): pe_00, (1, 0): pe_10, (1, 1): pe_11 }
+
+    mapping_list = [ Map( task_0, (0, 0) ), 
+                     Map( task_2, (1, 0) ),
+                     Map( task_1, (1, 1) )]
+
+    for router in router_lookup.values():
+        router.set_mapping_list( mapping_list )
 
     for i in range(45): 
         flit_list = []
@@ -173,16 +198,21 @@ def test_router_proper_in_out_buffer_1():
     router_01 = Router( (0, 1), debug_mode=True )
     router_10 = Router( (1, 0), debug_mode=True )
 
-    router_lookup = { (0, 0): router_00, (0, 1): router_01, (1, 0): router_10 }  
+    router_lookup   = { (0, 0): router_00, (0, 1): router_01, (1, 0): router_10 }  
 
-    packet_1 = Packet(source_xy     =(0, 0),
-                    dest_xy         =(0,1),
-                    source_task_id  =0)
+    mapping_list    = [FakeMap(FakeTask(task_id=2), (0,1)), 
+                       FakeMap(FakeTask(task_id=3), (1,0)) ]
 
-    packet_2 = Packet(source_xy     =(0, 0),
-                    dest_xy         =(1,0),
-                    source_task_id  =0)
+    packet_1        = Packet(source_xy     = (0, 0),
+                           dest_id         = 2,
+                           source_task_id  = 0)
 
+    packet_2        = Packet(source_xy     = (0, 0),
+                           dest_id         = 3,
+                           source_task_id  = 0)
+
+    for router in router_lookup.values():
+        router.set_mapping_list( mapping_list )
 
     is_packet_1_injected = False
     is_packet_2_injected = False
@@ -235,7 +265,7 @@ def test_router_proper_in_out_buffer_1():
             peek_flit = router_00._east_output_buffer.queue[-1]
             assert isinstance(peek_flit, PayloadFlit), f"Expected Payload in -1, got {peek_flit}"
 
-# test_router_proper_in_out_buffer_1()
+# # test_router_proper_in_out_buffer_1()
 
 def test_router_proper_in_out_buffer_2():
     """
@@ -254,14 +284,18 @@ def test_router_proper_in_out_buffer_2():
 
     router_lookup = { (0, 0): router_00, (0, 1): router_01, (1, 0): router_10 }  
 
+    mapping_list    = [ FakeMap(FakeTask(task_id=2), (0,1)) ]
+
     packet_1 = Packet(source_xy     =(0, 0),
-                    dest_xy         =(0,1),
+                    dest_id         =2,
                     source_task_id  =0)
 
     packet_2 = Packet(source_xy     =(0, 0),
-                    dest_xy         =(0,1),
+                    dest_id         =2,
                     source_task_id  =0)
 
+    for router in router_lookup.values():
+        router.set_mapping_list( mapping_list )
 
     is_packet_1_injected = False
     is_packet_2_injected = False
@@ -352,9 +386,14 @@ def test_ready_at_the_same_time():
     router_lookup = { (1, 0): router_10, 
                       (1, 1): router_11 }  
 
+    mapping_list = [ FakeMap(FakeTask(task_id=1), (1,1)) ]
+
+    for router in router_lookup.values():
+        router.set_mapping_list( mapping_list )
+
     ## Packet 1
     packet_1 = Packet( source_xy       = (0, 0),
-                       dest_xy         = (1,1),
+                       dest_id         = 1,
                        source_task_id  =  0 )
 
     packet_1_flit_list = []
@@ -371,7 +410,7 @@ def test_ready_at_the_same_time():
 
     ## Packet 2
     packet_2 = Packet( source_xy       = (0, 0),
-                       dest_xy         = (1,1),
+                       dest_id         = 1,
                        source_task_id  =  0 )
 
     packet_2_flit_list = []
@@ -412,4 +451,4 @@ def test_ready_at_the_same_time():
         peek_flit = router_10._south_input_buffer.peek()    
         assert isinstance(peek_flit, HeaderFlit)
     
-test_ready_at_the_same_time()
+# test_ready_at_the_same_time()
