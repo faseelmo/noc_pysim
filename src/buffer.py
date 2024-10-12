@@ -261,9 +261,9 @@ if __name__ == "__main__":
     Test 1: Adding 4 flits to the buffer and then removing them.
     """
     print( "\n- Test 1: Adding 4 flits to the buffer and then removing them." )
-    packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
-                    source_task_id=0)
+    packet = Packet(source_xy       = (0, 0), 
+                    dest_id         = 1, 
+                    source_task_id  = 0)
 
     packet_is_transmitted = False
     while not packet_is_transmitted:
@@ -282,9 +282,9 @@ if __name__ == "__main__":
     """
     print( "\n- Test 2: Adding 2 flits to the buffer and then removing them." )
     
-    packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
-                    source_task_id=0)
+    packet = Packet(source_xy       = (0, 0), 
+                    dest_id         = 1, 
+                    source_task_id  = 0)
 
     buffer = Buffer(4)
 

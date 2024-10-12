@@ -20,7 +20,9 @@ class Simulator:
         self._routers       = self._create_routers()
         self._pes           = self._create_pes()
 
-    def random_mapping(self, tasks: list[TaskInfo]) -> list[Map]:
+        self._mapping_list  = []
+
+    def get_random_mapping(self, tasks: list[TaskInfo]) -> list[Map]:
         """
         One-to-one mapping of tasks to PE. 
         As of now, only one task per PE is supported. 
@@ -42,10 +44,16 @@ class Simulator:
         print()
         return mapping_list
 
-    def assign_tasks(self, mapping_list: list[Map]) -> None:
+    def map(self, mapping_list: list[Map]) -> None:
         """
         Assign tasks to PEs based on the mapping list. 
         """
+
+        self._mapping_list = mapping_list
+
+        for router in self._routers.values():
+            router.set_mapping_list(mapping_list)
+
         for map in mapping_list:
             pe = self._pes[map.assigned_pe]
             pe.assign_task([map.task])
@@ -69,8 +77,7 @@ class Simulator:
     def run(self) -> None:
         print(f"\nRunning simulation with {self._num_rows}x{self._num_cols} mesh PEs")
 
-        for router, pe in zip(self._routers.values(), self._pes.values()):
-            pass
+        assert self._mapping_list, "Tasks have not been assigned to PEs"
 
         cycle_count = 0
         flit_list = []
@@ -106,7 +113,8 @@ if __name__ == "__main__":
                 expected_generated_packets  = 1, 
                 require_list                = [], 
                 is_transmit_task            = True, 
-                transmit_dest_xy            = (2, 1)
+
+                transmit_id_list            = [1]
             )
 
     task_1  = TaskInfo(
@@ -121,6 +129,6 @@ if __name__ == "__main__":
 
     task_list = [task_0, task_1]
 
-    mapping_list = sim.random_mapping(task_list)
-    sim.assign_tasks(mapping_list)
+    mapping_list = sim.get_random_mapping(task_list)
+    sim.map(mapping_list)
     sim.run()

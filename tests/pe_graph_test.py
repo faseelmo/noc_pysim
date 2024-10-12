@@ -24,7 +24,7 @@ def check_if_pe_is_done(packet_list, pe):
 
 
 def create_packet_copies(num_copies, packet_source):
-    packet = Packet(source_xy=(0, 0), dest_xy=(1, 1), source_task_id=packet_source)
+    packet = Packet(source_xy=(0, 0), dest_id=1, source_task_id=packet_source)
     return [copy.deepcopy(packet) for _ in range(num_copies)]
 
 

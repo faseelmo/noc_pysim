@@ -11,7 +11,7 @@ def test_fill():
         assert isinstance(flit, EmptyFlit)  
 
     packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
+                    dest_id=1, 
                     source_task_id=0)
 
     assert buffer.can_do_routing()  == False
@@ -37,7 +37,7 @@ def test_remove_none():
     buffer = Buffer(4)
 
     packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
+                    dest_id=1, 
                     source_task_id=0)
 
     for _ in range(2): 
@@ -62,7 +62,7 @@ def test_check_if_uid_is_removed():
 
     buffer = Buffer(4)
     packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
+                    dest_id=1, 
                     source_task_id=0)
 
     packet_size = packet.get_size()
@@ -91,7 +91,7 @@ def test_adding_new_packet_valid():
     buffer = Buffer(4)
 
     packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
+                    dest_id=1, 
                     source_task_id=0)
 
     packet_1_uid = packet.get_uid()
@@ -102,7 +102,7 @@ def test_adding_new_packet_valid():
         buffer.add_flit(flit)   
 
     packet_2 = Packet(source_xy=(0, 0), 
-                           dest_xy=(1, 1), 
+                           dest_id=1, 
                            source_task_id=0)
 
     packet_2_uid = packet_2.get_uid()
@@ -130,7 +130,7 @@ def test_adding_new_packet_invalid_1():
     buffer = Buffer(4)
 
     packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
+                    dest_id=1, 
                     source_task_id=0)
 
     for _ in range(2):
@@ -138,7 +138,7 @@ def test_adding_new_packet_invalid_1():
         buffer.add_flit(flit)   
 
     packet_2 = Packet(source_xy=(0, 0), 
-                           dest_xy=(1, 1), 
+                           dest_id=1, 
                            source_task_id=0)
 
     _, flit_2 = packet_2.pop_flit()
@@ -156,7 +156,7 @@ def test_adding_new_packet_invalid_2():
     buffer = Buffer(4)
 
     packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
+                    dest_id=1, 
                     source_task_id=0)
 
     # Adding Packet 1 
@@ -165,7 +165,7 @@ def test_adding_new_packet_invalid_2():
         buffer.add_flit(flit)   
 
     packet_2 = Packet(source_xy=(0, 0), 
-                      dest_xy=(1, 1), 
+                      dest_id=1, 
                       source_task_id=0)
 
     # Popping 3 flits from the buffer
@@ -184,7 +184,7 @@ def test_adding_new_packet_invalid_2():
 
     # From Here
     packet_3 = Packet(source_xy=(0, 0),
-                      dest_xy=(1, 1),
+                      dest_id=1,
                       source_task_id=0) 
 
     _, flit_3 = packet_3.pop_flit()
@@ -201,7 +201,7 @@ def test_adding_new_packet_invalid_3():
     buffer = Buffer(4)
 
     packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
+                    dest_id=1, 
                     source_task_id=0)
 
     for _ in range(4):
@@ -215,7 +215,7 @@ def test_adding_new_packet_invalid_3():
     buffer.fill_emtpy_slots()
 
     packet_2 = Packet(source_xy=(0, 0), 
-                           dest_xy=(1, 1), 
+                           dest_id=1, 
                            source_task_id=0)
 
     _, flit_2 = packet_2.pop_flit()
@@ -232,7 +232,7 @@ def test_adding_new_packet_valid_2():
     buffer = Buffer(4)
 
     packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
+                    dest_id=1, 
                     source_task_id=0)
 
     for _ in range(4):
@@ -244,7 +244,7 @@ def test_adding_new_packet_valid_2():
     buffer.remove()
 
     packet_2 = Packet(source_xy=(0, 0), 
-                           dest_xy=(1, 1), 
+                           dest_id=1, 
                            source_task_id=0)
 
     _, flit_2 = packet_2.pop_flit()

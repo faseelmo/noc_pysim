@@ -33,7 +33,7 @@ class NextHop:
         )
 
 class HeaderFlit: 
-    def __init__( self, src_xy: tuple, dest_xy: tuple, packet_uid: uuid.UUID, source_task_id: int ): 
+    def __init__( self, src_xy: tuple, dest_id: int, packet_uid: uuid.UUID, source_task_id: int ): 
         """
         - When HeaderFlit is created, it is assigned a next_hop attribute.
         - The next_hop attribute include the x,y coordinates of the next hop. 
@@ -44,7 +44,7 @@ class HeaderFlit:
         """
 
         self._src_xy            = src_xy
-        self._dest_xy           = dest_xy
+        self._dest_id           = dest_id
         self._packet_uid        = packet_uid
         self._source_task_id    = source_task_id
         self._next_hop          = NextHop( 
@@ -52,13 +52,12 @@ class HeaderFlit:
                                     y=src_xy[1], 
                                     next_input_buffer=BufferLocation.LOCAL )
 
-    
     def update_routing_info( self, next_hop: NextHop ) -> None:
         self._next_hop = next_hop
 
     def get_destination( self ) -> tuple:
         """ returns destination (x, y) coordinates"""
-        return self._dest_xy
+        return self._dest_id
 
     def get_routing_info( self ) -> NextHop: 
         return self._next_hop
@@ -70,7 +69,7 @@ class HeaderFlit:
         return self._source_task_id
 
     def __str__( self ): 
-        return ( f"[Header Flit] {self._src_xy} -> {self._dest_xy}" )
+        return ( f"[Header Flit] {self._src_xy} -> {self._dest_id}" )
 
 class PayloadFlit:
     def __init__(self, packet_uid: uuid.UUID, payload_index: int, header_flit: HeaderFlit):

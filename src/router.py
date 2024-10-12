@@ -32,8 +32,9 @@ class Router:
         self._input_buffers         = []
         self._output_buffers        = []
 
-        self._populate_buffer_lists()
+        self._mapping_list         = []
 
+        self._populate_buffer_lists()
 
     def process( self, receive_flit_list: list, router_lookup: dict, pe_lookup: dict ) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
         """ - Process the flits in the input buffer first 
@@ -42,18 +43,27 @@ class Router:
             - Receive New flits 
                 - receive_flits() """
 
+        # [Forward] Output Buffer   -> Next Router    
         new_flit_list = self._forward_output_buffer_flits( router_lookup, pe_lookup )
 
+        # [Forward] Input Buffer    -> Output Buffer
         self._forward_input_buffer_flits()
 
+        # [Receive]  
         filtered_flit_list = self._filter_required_flits( receive_flit_list )
-
         for flit in filtered_flit_list:
             self._receive_flit( flit )
 
         self.management()
 
         return new_flit_list
+
+    def set_mapping_list(self, mapping_list: list) -> None:
+        """
+        Needs mapping list to compute the routing of packets based on destination 
+        task id. 
+        """
+        self._mapping_list = mapping_list
 
     def _filter_required_flits(self, flit_list: list[Union[HeaderFlit, PayloadFlit, TailFlit]]) -> list[Union[HeaderFlit, PayloadFlit, TailFlit]]:
         """Filter the flits that are required by the router."""
@@ -220,8 +230,10 @@ class Router:
         Also computes which buffer the flit should be forwarded to.
         """
 
-        dest_x, dest_y = header_flit.get_destination()
+        dest_id = header_flit.get_destination()
         
+        dest_x, dest_y = self._get_pos_from_mapping( dest_id )
+
         # For X-axis
         if dest_x > self._x:    # Destination on east
             next_hop_x  = self._x + 1
@@ -267,6 +279,14 @@ class Router:
                 next_input_buffer   = BufferLocation.UNASSIGNED ) # Going to the PE
 
 
+    def _get_pos_from_mapping(self, dest_id: int) -> tuple:
+        """Returns the X and Y coordinates of the destination based on mapping."""
+        for map in self._mapping_list:
+            if map.task.task_id == dest_id:
+                return map.assigned_pe
+        raise Exception(f"Destination ID {dest_id} not found in the mapping list.")
+
+
     def _populate_buffer_lists( self ) -> None:
         """Copies each buffer to the respective list (input or output). """
         attributes = vars( self )
@@ -308,9 +328,7 @@ class Router:
 
 
 if __name__ == "__main__":
-
-    from .processing_element import ProcessingElement, TaskInfo, RequireInfo
-    r""" # raw string to avoid warngin in pytest
+    """ 
     Condition:        
 
            P2
@@ -320,39 +338,49 @@ if __name__ == "__main__":
      R---R
 
     One packet sent from P1 to P2 (through 3 routers)
-
     """
 
-    router_00 = Router( pos = (0, 0), debug_mode=True )
-    router_10 = Router( pos = (1, 0), debug_mode=True )
-    router_11 = Router( pos = (1, 1), debug_mode=True )
+    from .processing_element import ProcessingElement, TaskInfo, RequireInfo
+    from .simulator import Map
 
-    router_lookup = { (0, 0): router_00, (1, 0): router_10, (1, 1): router_11 }
+    router_00       = Router( pos = (0, 0), debug_mode=True )
+    router_10       = Router( pos = (1, 0), debug_mode=True )
+    router_11       = Router( pos = (1, 1), debug_mode=True )
+    router_lookup   = { (0, 0): router_00, (1, 0): router_10, (1, 1): router_11 }
 
-    task_0  = TaskInfo(
-                task_id                     = 0, 
-                processing_cycles           = 4, 
-                expected_generated_packets  = 1, 
-                require_list                = [], 
-                is_transmit_task            = True, 
-                transmit_dest_xy            = (1, 1)
-            )
+    pe_00           = ProcessingElement( xy = (0, 0), debug_mode=True, router_lookup = router_lookup )
+    pe_11           = ProcessingElement( xy = (1, 1), debug_mode=True, router_lookup = router_lookup )
+    pe_lookup       = { (0, 0): pe_00, (1, 1): pe_11 }
 
-    pe_00 = ProcessingElement( xy = (0, 0), computing_list = [ task_0 ], debug_mode=True, router_lookup = router_lookup )
+    task_0          = TaskInfo(
+                        task_id                     = 0, 
+                        processing_cycles           = 4, 
+                        expected_generated_packets  = 1, 
+                        require_list                = [], 
+                        is_transmit_task            = True, 
+                        transmit_id_list            = [1])
 
-    task_1  = TaskInfo(
-                task_id                     = 1, 
-                processing_cycles           = 4, 
-                expected_generated_packets  = 1, 
-                require_list                = [RequireInfo(
-                                                require_type_id=0,
-                                                required_packets=1)], 
-                is_transmit_task            = False, 
-            )
 
-    pe_11 = ProcessingElement( xy = (1, 1), computing_list = [ task_1 ], debug_mode=True, router_lookup = router_lookup )
+    task_1          = TaskInfo(
+                        task_id                     = 1, 
+                        processing_cycles           = 4, 
+                        expected_generated_packets  = 1, 
+                        require_list                = [RequireInfo(
+                                                        require_type_id=0,
+                                                        required_packets=1)], 
+                        is_transmit_task            = False)
 
-    pe_lookup = { (0, 0): pe_00, (1, 1): pe_11 }
+
+    mapping_list    = [ Map( task_0, (0, 0) ),
+                        Map( task_1, (1, 1) )]
+
+    for router in router_lookup.values():
+        router.set_mapping_list( mapping_list )
+
+
+    for mapping in mapping_list:
+        pe = pe_lookup.get( mapping.assigned_pe )
+        pe.assign_task( [mapping.task] )
 
     flit_list = []
 
