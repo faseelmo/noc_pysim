@@ -32,8 +32,9 @@ class Router:
         self._input_buffers         = []
         self._output_buffers        = []
 
-        self._populate_buffer_lists()
+        self._mapping_list         = []
 
+        self._populate_buffer_lists()
 
     def process( self, receive_flit_list: list, router_lookup: dict, pe_lookup: dict ) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
         """ - Process the flits in the input buffer first 
@@ -42,18 +43,23 @@ class Router:
             - Receive New flits 
                 - receive_flits() """
 
+        # [Forward] Output Buffer   -> Next Router    
         new_flit_list = self._forward_output_buffer_flits( router_lookup, pe_lookup )
 
+        # [Forward] Input Buffer    -> Output Buffer
         self._forward_input_buffer_flits()
 
+        # [Receive]  
         filtered_flit_list = self._filter_required_flits( receive_flit_list )
-
         for flit in filtered_flit_list:
             self._receive_flit( flit )
 
         self.management()
 
         return new_flit_list
+
+    def set_mapping_list(self, mapping_list: list) -> None:
+        self._mapping_list = mapping_list
 
     def _filter_required_flits(self, flit_list: list[Union[HeaderFlit, PayloadFlit, TailFlit]]) -> list[Union[HeaderFlit, PayloadFlit, TailFlit]]:
         """Filter the flits that are required by the router."""
@@ -220,8 +226,10 @@ class Router:
         Also computes which buffer the flit should be forwarded to.
         """
 
-        dest_x, dest_y = header_flit.get_destination()
+        dest_id = header_flit.get_destination()
         
+        dest_x, dest_y = self._get_pos_from_mapping( dest_id )
+
         # For X-axis
         if dest_x > self._x:    # Destination on east
             next_hop_x  = self._x + 1
@@ -265,6 +273,14 @@ class Router:
                 y                   = self._y, 
                 output_buffer       = BufferLocation.LOCAL, 
                 next_input_buffer   = BufferLocation.UNASSIGNED ) # Going to the PE
+
+
+    def _get_pos_from_mapping(self, dest_id: int) -> tuple:
+        """Returns the X and Y coordinates of the destination based on mapping."""
+        for map in self._mapping_list:
+            if map.task.task_id == dest_id:
+                return map.assigned_pe
+        raise Exception(f"Destination ID {dest_id} not found in the mapping list.")
 
 
     def _populate_buffer_lists( self ) -> None:

@@ -13,7 +13,7 @@ class PacketStatus(Enum):
 
 
 class Packet:
-    def __init__( self, source_xy: tuple, dest_xy: tuple, source_task_id: int ):
+    def __init__( self, source_xy: tuple, dest_id: Optional[int], source_task_id: int ):
         self._payload_size              = 2
         num_header_tail_flits           = 2
 
@@ -22,7 +22,7 @@ class Packet:
         self._size                      = self._payload_size + num_header_tail_flits 
         self._packet_content            = deque( maxlen=self._size )
 
-        self._init_packet( self._packet_content, source_xy, dest_xy, source_task_id )
+        self._init_packet( self._packet_content, source_xy, dest_id, source_task_id )
 
         self._status                    = PacketStatus.IDLE
         self._pointer                   = 0
@@ -30,14 +30,14 @@ class Packet:
         self._flits_transmitted_count   = 0
 
 
-    def _init_packet( self, packet_content: deque, source_xy: tuple , dest_xy: tuple , source_task_id: int) -> None: 
+    def _init_packet( self, packet_content: deque, source_xy: tuple , dest_id: Optional[int], source_task_id: int) -> None: 
         """ Initialize the packet with the header and payload information.
             "packet_content" is a member variable of the Packet class.
         """
 
         uid         = uuid.uuid4()
 
-        header_flit = HeaderFlit( src_xy=source_xy, dest_xy=dest_xy, packet_uid=uid, source_task_id=source_task_id )
+        header_flit = HeaderFlit( src_xy=source_xy, dest_id=dest_id, packet_uid=uid, source_task_id=source_task_id )
         packet_content.append(header_flit)
 
         for i in range(self._payload_size):
