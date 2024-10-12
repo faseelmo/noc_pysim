@@ -46,12 +46,23 @@ class Router:
 
         self._forward_input_buffer_flits()
 
-        for flit in receive_flit_list:
+        filtered_flit_list = self._filter_required_flits( receive_flit_list )
+
+        for flit in filtered_flit_list:
             self._receive_flit( flit )
 
         self.management()
 
         return new_flit_list
+
+    def _filter_required_flits(self, flit_list: list[Union[HeaderFlit, PayloadFlit, TailFlit]]) -> list[Union[HeaderFlit, PayloadFlit, TailFlit]]:
+        """Filter the flits that are required by the router."""
+        filtered_flits = []
+        for flit in flit_list:
+            next_hop = flit.get_routing_info()
+            if (next_hop.x, next_hop.y) == (self._x, self._y):
+                filtered_flits.append(flit)
+        return filtered_flits
 
     def is_local_input_buffer_full(self) -> bool:
         return self._local_input_buffer.is_full()
@@ -299,8 +310,7 @@ class Router:
 if __name__ == "__main__":
 
     from .processing_element import ProcessingElement, TaskInfo, RequireInfo
-
-    """
+    r""" # raw string to avoid warngin in pytest
     Condition:        
 
            P2
