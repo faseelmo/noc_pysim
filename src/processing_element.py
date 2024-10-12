@@ -463,7 +463,7 @@ class ProcessingElement:
         """
 
         if self.compute_list is None:
-            return True
+            return None
 
         self._increment_processing_cycle()
 
@@ -472,12 +472,10 @@ class ProcessingElement:
 
         if not self.compute_is_busy:
             self._can_start_new_processing()    # status: IDLE     -> PROCESSING
-            return 
+            return None
 
         if self.compute_is_busy:
             self._process_tasks()               # status: PROCESSING  -> IN_BUFFER or DONE
-
-        # self._get_packet_count() 
 
         if self._check_task_requirements_met(): # stops the simulation now 
             return True

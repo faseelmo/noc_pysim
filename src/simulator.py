@@ -16,11 +16,15 @@ class Simulator:
         self._debug_mode    = debug_mode   
         self._num_rows      = num_rows
         self._num_cols      = num_cols
+        self._num_pes       = num_rows * num_cols
 
         self._routers       = self._create_routers()
         self._pes           = self._create_pes()
 
         self._mapping_list  = []
+
+        self._pe_done_count     = 0    
+        self._pe_active_count   = 0
 
     def get_random_mapping(self, tasks: list[TaskInfo]) -> list[Map]:
         """
@@ -49,14 +53,18 @@ class Simulator:
         Assign tasks to PEs based on the mapping list. 
         """
 
-        self._mapping_list = mapping_list
+        self._mapping_list      = mapping_list
 
         for router in self._routers.values():
             router.set_mapping_list(mapping_list)
 
+        active_pes = set() # Set will handle duplicates
         for map in mapping_list:
             pe = self._pes[map.assigned_pe]
             pe.assign_task([map.task])
+            active_pes.add(map.assigned_pe)
+
+        self._pe_active_count = len(active_pes)
 
     def _create_routers(self) -> dict[tuple[int, int], Router]:
         router_lookup = {}
@@ -79,21 +87,37 @@ class Simulator:
 
         assert self._mapping_list, "Tasks have not been assigned to PEs"
 
-        cycle_count = 0
-        flit_list = []
+        cycle_count     = 0
+        flit_list       = []
+
         while True: 
             print(f"\n>{cycle_count}")
             cycle_count += 1
+            status_list = []
 
             for pe in self._pes.values():
                 # PEs gets require flits directly from the router
-                pe.process(None)
+                is_done = pe.process(None)
+                status_list.append(is_done)
 
             for router in self._routers.values():
                 flit_list = router.process( flit_list, self._routers, self._pes)
 
-            if cycle_count == 40:
+            if self.is_stop_condition_met(status_list, cycle_count):
                 break
+
+    def is_stop_condition_met(self, status_list: list[bool], cycle_count: int) -> bool:
+        assert cycle_count < 1000, "Simulation did not finish in 1000 cycles"
+
+        for status in status_list:
+            if status == True:
+                self._pe_done_count += 1
+
+        if self._pe_done_count == self._pe_active_count:
+            print(f"\nSimulation finished in {cycle_count} cycles")
+            return True
+
+        return False
 
 
 if __name__ == "__main__":
@@ -105,7 +129,6 @@ if __name__ == "__main__":
     random.seed(0)
 
     sim = Simulator(num_rows=3, num_cols=3, debug_mode=True)
-
 
     task_0  = TaskInfo(
                 task_id                     = 0, 

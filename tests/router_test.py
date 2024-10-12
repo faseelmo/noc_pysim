@@ -26,7 +26,6 @@ def router_test_setup(pos_list: list[tuple[int, int]]):
 
     return router_lookup
 
-
 def test_router_pe_simple():
     """
     Condition: 
@@ -86,9 +85,7 @@ def test_router_pe_simple():
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
-
     assert latency == 36
-
 
 def test_router_pe_wait_in_input_buffer(): 
     r"""
@@ -181,7 +178,6 @@ def test_router_pe_wait_in_input_buffer():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
     assert latency == 40
-
 
 def test_router_proper_in_out_buffer_1():
     """
