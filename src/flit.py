@@ -68,8 +68,13 @@ class HeaderFlit:
     def get_source_task_id( self ) -> int:  
         return self._source_task_id
 
+    def __eq__(self, value):
+        if isinstance(value, HeaderFlit):
+            return self._packet_uid == value.get_uid()
+        return False
+
     def __str__( self ): 
-        return ( f"[Header Flit] {self._src_xy} -> {self._dest_id}" )
+        return ( f"[Header Flit] (task: {self._source_task_id} -> {self._dest_id})" )
 
 class PayloadFlit:
     def __init__(self, packet_uid: uuid.UUID, payload_index: int, header_flit: HeaderFlit):
@@ -86,6 +91,12 @@ class PayloadFlit:
 
     def get_uid(self) -> uuid.UUID:
         return self._packet_uid
+
+    def __eq__(self, value):
+        if isinstance(value, PayloadFlit):
+            if self._packet_uid == value.get_uid():
+                return self._payload_index == value._payload_index
+        return False
 
     def __str__(self):
         return f"[Payload Flit] idx: {self._payload_index}"
@@ -110,6 +121,11 @@ class TailFlit:
 
     def get_uid(self) -> uuid.UUID:
         return self._packet_uid
+
+    def __eq__(self, value):
+        if isinstance(value, TailFlit):
+            return self._packet_uid == value.get_uid()
+        return False
 
     def __str__(self):
         # return f"[Tail Flit] UUID: {self._packet_uid}"

@@ -32,7 +32,7 @@ class Router:
         self._input_buffers         = []
         self._output_buffers        = []
 
-        self._mapping_list         = []
+        self._mapping_list          = []
 
         self._populate_buffer_lists()
 
@@ -50,6 +50,9 @@ class Router:
         self._forward_input_buffer_flits()
 
         # [Receive]  
+        # TODO: 
+        # No need for filtering any more. simulator takes care of it. 
+        # Instead throw an exception if non relevant flits are received.
         filtered_flit_list = self._filter_required_flits( receive_flit_list )
         for flit in filtered_flit_list:
             self._receive_flit( flit )
@@ -101,10 +104,11 @@ class Router:
             next_hop_buffer = top_flit.get_routing_info().next_input_buffer
 
             next_router = router_lookup.get( next_hop_loc )
+
+            print(f"{self} For packet in {buffer} -> {next_hop_loc}")
             
             if next_router == self:
                 # Condition when the flit has reached the destination router
-                # think about how to move the flit to the PE
                 pe = pe_lookup.get( next_hop_loc )
 
                 if not pe.is_input_buffer_full():
@@ -118,8 +122,14 @@ class Router:
             next_router_input_buffer = next_router._get_buffer( direction = next_hop_buffer, is_input = True )
 
             if not next_router_input_buffer.is_full():
+
+                self._debug_print( 
+                    f"Forwarding flit \"{top_flit}\" "  +
+                    f"{buffer}".split()[0] + f"-> " +
+                    f"{next_router_input_buffer}".split()[0] + 
+                    f" {next_router}" )
+
                 flit = buffer.remove()
-                self._debug_print( f"Forwarded flit from {buffer} to " + f"{next_router_input_buffer}".split()[0] + f"{next_router}" )
                 flit_list.append( flit )
 
         return flit_list 
@@ -142,20 +152,18 @@ class Router:
             next_hop_location   = top_flit.get_routing_info().output_buffer
 
             # Check if routing information is available for packets copied from the PE
-            if next_hop_location == BufferLocation.UNASSIGNED:
+            if next_hop_location == BufferLocation.UNASSIGNED or isinstance(top_flit, HeaderFlit):
                 if not buffer.can_do_routing():
                     continue
                 self._compute_routing_for_flits_from_pe( buffer )
                 next_hop_location   = top_flit.get_routing_info().output_buffer
 
             next_buffer = self._get_buffer( direction = next_hop_location, is_input = False )
-
-            # print(f"Next Buffer: {next_buffer} for flits in {buffer}")
             
             if next_buffer.can_accept_flit(top_flit):
 
                 self._debug_print( 
-                    f"Forwading: " + f"{buffer}".split()[0] + f"-> {next_hop_location.value}_output")
+                    f"Forwading flit \"{top_flit}\" from " + f"{buffer}".split()[0] + f"-> {next_hop_location.value}_output")
 
                 flit = buffer.remove()
                 next_buffer.add_flit( flit )    
@@ -172,7 +180,7 @@ class Router:
 
     def _compute_routing_for_flits_from_pe( self, buffer: Buffer ) -> None:
         tail_flit = buffer.queue[-1]
-        self._update_routing( tail_flit )
+        self._update_routing( tail_flit, f"{buffer}".split()[0] )
 
     def _receive_flit( self, flit: Union[ HeaderFlit, PayloadFlit, TailFlit ]) -> None:
         """
@@ -187,15 +195,17 @@ class Router:
 
         assert not input_buffer.is_full(), f"Buffer {buffer_location.value} is full. Cannot receive flit."
 
-        self._debug_print( f"Received flit to " + f"{input_buffer}".split()[0] )
+        input_buffer_name = f"{input_buffer}".split()[0]
+        self._debug_print( f"Received flit to {input_buffer_name}" )
+
         input_buffer.add_flit( flit )
         self._debug_print(f"\t-> {input_buffer}", with_tag=False)
 
         if input_buffer.can_do_routing(): 
-            self._update_routing( flit )
+            self._update_routing( flit, input_buffer_name )
 
 
-    def _update_routing( self, flit: TailFlit) -> None: 
+    def _update_routing( self, flit: TailFlit, buffer_name: str) -> None: 
         """
         Updates the routing information of the flit based on the header flit destination.
         Calls _xy_routing function
@@ -209,7 +219,7 @@ class Router:
         next_hop_info       = self._xy_routing( header_flit_pointer )
 
         header_flit_pointer.update_routing_info( next_hop_info )
-        # self._debug_print( f"Assigned Routing for packet of task id {flit.get_source_task_id()}" )
+        self._debug_print( f"Routing packet in {buffer_name} to {next_hop_info}" )
 
     def _get_buffer(self, direction:BufferLocation, is_input:bool) -> Buffer:
         """Returns the buffer based on the direction(str) and input/output flag (bool)."""
@@ -316,6 +326,18 @@ class Router:
     def get_pos(self) -> tuple:
         return (self._x, self._y)
 
+    def is_active(self) -> bool:
+        for buffer in self._input_buffers:
+            if not buffer.is_empty():
+                return True
+
+        for buffer in self._output_buffers:
+            if not buffer.is_empty():
+                return True
+
+        else:
+            return False
+
     def _debug_print(self, string: str, with_tag: bool = True) -> None: 
         if self._debug_mode:
             if with_tag:
@@ -328,7 +350,7 @@ class Router:
 
 
 if __name__ == "__main__":
-    """ 
+    r""" 
     Condition:        
 
            P2

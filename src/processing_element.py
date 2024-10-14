@@ -399,7 +399,6 @@ class ProcessingElement:
         """
 
         # Popped from the list based on the number of packets required by the task
-        print(f"Transmit id list: {compute_task.transmit_id_list}")
         assert len(compute_task.transmit_id_list) > 0, "Transmit id list is empty"
         dest_id = compute_task.transmit_id_list[0]
 

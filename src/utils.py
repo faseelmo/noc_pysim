@@ -235,3 +235,90 @@ def get_random_packet_list(graph: nx.DiGraph, shuffle=False) -> list:
         random.shuffle(packet_list)
 
     return packet_list
+
+
+def draw_router_status(router, color_map, ax): 
+    from src.flit import HeaderFlit, PayloadFlit, TailFlit, EmptyFlit
+    import matplotlib.pyplot as plt
+    
+    # Define buffer names and coordinates for layout (directions)
+    buffer_layout = {
+        "Local": (0, 0),
+        "West": (-1, 0),
+        "North": (0, 1),
+        "East": (1, 0),
+        "South": (0, -1)
+    }
+    
+    # Define buffer directions for input/output
+    buffer_directions = {
+        "local_input": router._local_input_buffer,
+        "local_output": router._local_output_buffer,
+        "west_input": router._west_input_buffer,
+        "west_output": router._west_output_buffer,
+        "north_input": router._north_input_buffer,
+        "north_output": router._north_output_buffer,
+        "east_input": router._east_input_buffer,
+        "east_output": router._east_output_buffer,
+        "south_input": router._south_input_buffer,
+        "south_output": router._south_output_buffer,
+    }
+    
+    
+    # Draw each buffer's status
+    for buffer_name, buffer_obj in buffer_directions.items():
+        # Determine position and type of buffer (input/output)
+        direction = buffer_name.split('_')[0].capitalize()
+        buf_type = buffer_name.split('_')[1].capitalize()
+        position = buffer_layout[direction]
+
+        if buf_type == "Input":
+            position = (position[0], position[1] - 0.1)
+        elif buf_type == "Output": 
+            position = (position[0], position[1] + 0.1)
+
+        # Position the buffer label with an offset
+        label_position = (position[0], position[1]) 
+
+        # Create a visual block for each buffer (without overlapping with circles)
+        ax.text(label_position[0], label_position[1], f"{direction} {buf_type}", 
+                ha='center', va='center', fontsize=10, color='black', bbox=dict(facecolor='white', edgecolor='black'))
+
+        # Draw the flits in the buffer
+        for idx, flit in enumerate(buffer_obj.queue):
+            if isinstance(flit, EmptyFlit):
+                continue
+            
+            if isinstance(flit, HeaderFlit):
+                label = 'H'
+            elif isinstance(flit, PayloadFlit):
+                label = 'P'
+            elif isinstance(flit, TailFlit):
+                label = 'T'
+            else:
+                label = '?'
+
+            # Assign a unique color based on the packet UID
+            packet_uid = flit.get_uid()
+            if packet_uid not in color_map:
+                color_map[packet_uid] = (random.random(), random.random(), random.random())
+            color = color_map[packet_uid]
+
+            # Plot the flit as a circle with label
+            if buf_type == "Input":
+                flit_y_offset = -0.2
+            elif buf_type == "Output":
+                flit_y_offset = 0.2
+
+            ax.add_patch(plt.Circle((position[0] + 0.1 * idx, position[1] + flit_y_offset), 0.08, color=color, ec='black'))
+            ax.text(position[0] + 0.1 * idx, position[1] + flit_y_offset, label, fontsize=12, ha='center', va='center', color='white')
+    
+    # Set the plot limits and title
+    ax.set_xlim(-2, 2)
+    ax.set_ylim(-2, 2)
+    ax.set_aspect('equal')
+    ax.set_title(f"Router ({router._x}, {router._y})")
+    
+    ax.axis('off')
+
+    return color_map

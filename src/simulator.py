@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from src.router             import Router 
 from src.processing_element import ProcessingElement, TaskInfo
+from src.utils              import draw_router_status
 
 @dataclass 
 class Map:
@@ -12,8 +13,9 @@ class Map:
         return f"Task: {self.task.task_id} -> PE: {self.assigned_pe}"
 
 class Simulator: 
-    def __init__(self, num_rows:int, num_cols:int, debug_mode: bool = False):
+    def __init__(self, num_rows:int, num_cols:int, debug_mode: bool = False, max_cycles: int = 1000):
         self._debug_mode    = debug_mode   
+        self._max_cycles    = max_cycles
         self._num_rows      = num_rows
         self._num_cols      = num_cols
         self._num_pes       = num_rows * num_cols
@@ -68,46 +70,103 @@ class Simulator:
 
     def _create_routers(self) -> dict[tuple[int, int], Router]:
         router_lookup = {}
-        for x in range(self._num_rows):
-            for y in range(self._num_cols):
+        for x in range(self._num_cols):
+            for y in range(self._num_rows):
                 router = Router( pos=(x, y), debug_mode=self._debug_mode )
                 router_lookup[(x, y)] = router
         return router_lookup
 
     def _create_pes(self) -> dict[tuple[int, int], ProcessingElement]:
         pe_lookup = {}
-        for x in range(self._num_rows):
-            for y in range(self._num_cols):
+        for x in range(self._num_cols):
+            for y in range(self._num_rows):
                 pe = ProcessingElement( xy=(x, y), debug_mode=self._debug_mode, router_lookup=self._routers )
                 pe_lookup[(x, y)] = pe
         return pe_lookup
 
-    def run(self) -> None:
+    def _get_required_flit(self, flit_list: list, router: Router) -> list:
+        """
+        Check the flit_list and return the flits that are required by the router.
+        Also updates the flit_list by removing the required flits.
+        """
+        if len(flit_list) == 0:
+            return []
+
+        required_flit = []
+        router_xy = router.get_pos()    
+        for flit in flit_list:
+            flit_next_router = flit.get_routing_info().x, flit.get_routing_info().y
+            if flit_next_router == router_xy:
+                required_flit.append(flit)
+
+        for flit in required_flit:
+            flit_list.remove(flit)
+
+        return required_flit
+
+    def _draw_active_routers(self, cycle_count: int, color_map: dict) -> None:
+        from matplotlib import pyplot as plt
+        
+        fig, axes = plt.subplots(self._num_rows, self._num_cols, figsize=(20, 20))
+    
+        router_active_flag = False
+        num_rows = len(axes)  # Assuming axes is a 2D array-like structure
+        num_cols = len(axes[0]) if num_rows > 0 else 0
+    
+        for router in self._routers.values():
+            router_xy = router.get_pos()
+            transformed_x = num_rows - 1 - router_xy[1]  # Transform y-coordinate
+            transformed_y = router_xy[0]  # x-coordinate remains the same
+            
+            if router.is_active():
+                router_active_flag = True 
+
+            ax = axes[transformed_x, transformed_y]
+            color_map = draw_router_status(router, color_map=color_map, ax=ax)
+    
+        if router_active_flag:
+            plt.suptitle(f"Cycle: {cycle_count}")
+            plt.tight_layout()
+            plt.show()
+        else: 
+            plt.close(fig)
+    
+
+
+    def run(self) -> int:
+        assert self._mapping_list, "Tasks have not been assigned to PEs"
         print(f"\nRunning simulation with {self._num_rows}x{self._num_cols} mesh PEs")
 
-        assert self._mapping_list, "Tasks have not been assigned to PEs"
-
-        cycle_count     = 0
-        flit_list       = []
-
+        cycle_count         = 0
+        current_flit_list   = []
+        color_map           = {}
+        
         while True: 
             print(f"\n>{cycle_count}")
             cycle_count += 1
-            status_list = []
+            status_list = [] # To check if simulation is done
 
             for pe in self._pes.values():
-                # PEs gets require flits directly from the router
                 is_done = pe.process(None)
                 status_list.append(is_done)
 
+            flits_for_next_cycle = []
+
             for router in self._routers.values():
-                flit_list = router.process( flit_list, self._routers, self._pes)
+                required_flit           = self._get_required_flit( current_flit_list, router )  
+                flits_from_out_buffers  = router.process( required_flit, self._routers, self._pes)
+                flits_for_next_cycle.extend(flits_from_out_buffers)
+
+            current_flit_list = flits_for_next_cycle
+
+            if self._debug_mode:
+                self._draw_active_routers(cycle_count, color_map)
 
             if self.is_stop_condition_met(status_list, cycle_count):
-                break
+                return cycle_count - 1
 
     def is_stop_condition_met(self, status_list: list[bool], cycle_count: int) -> bool:
-        assert cycle_count < 1000, "Simulation did not finish in 1000 cycles"
+        assert cycle_count < self._max_cycles, f"Simulation did not finish in {self._max_cycles} cycles"
 
         for status in status_list:
             if status == True:

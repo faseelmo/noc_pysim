@@ -44,6 +44,7 @@ class Buffer:
     def can_accept_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
         # To do: Call this function in add_flit and remove the if condition from add_flit.
         # I dont wanna do it now, because test conditions will have to be adjusted accordingly. urgh. 
+        
         if self.is_full():
             return False
 
@@ -206,13 +207,14 @@ class Buffer:
             self.fill_emtpy_slots()
         
 
-
-
     def is_full(self, inter_router_transfer:bool = False) -> bool:
         """
         Returns True if the buffer is full  
         Full is defined as having all non - EmptyFlit.
         """
+        if len(self.queue) == 0:
+            return False
+
         if inter_router_transfer: 
             if isinstance(self.queue[-1], EmptyFlit):
                 return False

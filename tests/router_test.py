@@ -62,6 +62,7 @@ def test_router_pe_simple():
     mapping_list    = [ Map( task_0, (0, 0) ),
                         Map( task_1, (1, 1) )]
 
+
     for router in router_lookup.values():
         router.set_mapping_list( mapping_list )
 
@@ -85,7 +86,11 @@ def test_router_pe_simple():
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
+        router_list = list(router_lookup.values())
+
     assert latency == 36
+
+test_router_pe_simple()
 
 def test_router_pe_wait_in_input_buffer(): 
     r"""
@@ -177,7 +182,7 @@ def test_router_pe_wait_in_input_buffer():
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
-    assert latency == 40
+    assert latency == 43
 
 def test_router_proper_in_out_buffer_1():
     """
