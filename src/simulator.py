@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 from src.router             import Router 
 from src.processing_element import ProcessingElement, TaskInfo
-from src.utils              import draw_router_status
 
 @dataclass 
 class Map:
@@ -104,33 +103,22 @@ class Simulator:
 
         return required_flit
 
-    def _draw_active_routers(self, cycle_count: int, color_map: dict) -> None:
+    def _draw_active_routers(self, cycle_count: int, color_map: dict, axes) -> None:
         from matplotlib import pyplot as plt
+        from src.utils              import draw_router_status
         
-        fig, axes = plt.subplots(self._num_rows, self._num_cols, figsize=(20, 20))
-    
-        router_active_flag = False
         num_rows = len(axes)  # Assuming axes is a 2D array-like structure
-        num_cols = len(axes[0]) if num_rows > 0 else 0
     
         for router in self._routers.values():
             router_xy = router.get_pos()
             transformed_x = num_rows - 1 - router_xy[1]  # Transform y-coordinate
             transformed_y = router_xy[0]  # x-coordinate remains the same
             
-            if router.is_active():
-                router_active_flag = True 
-
             ax = axes[transformed_x, transformed_y]
             color_map = draw_router_status(router, color_map=color_map, ax=ax)
     
-        if router_active_flag:
-            plt.suptitle(f"Cycle: {cycle_count}")
-            plt.tight_layout()
-            plt.show()
-        else: 
-            plt.close(fig)
-    
+        plt.suptitle(f"Cycle: {cycle_count}")
+        plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0, hspace=0)  # Remove spacing
 
 
     def run(self) -> int:
@@ -141,6 +129,10 @@ class Simulator:
         current_flit_list   = []
         color_map           = {}
         
+        import matplotlib.pyplot as plt
+        plt.ion()
+        fig, axes = plt.subplots(self._num_rows, self._num_cols, figsize=(20, 20))
+
         while True: 
             print(f"\n>{cycle_count}")
             cycle_count += 1
@@ -160,7 +152,9 @@ class Simulator:
             current_flit_list = flits_for_next_cycle
 
             if self._debug_mode:
-                self._draw_active_routers(cycle_count, color_map)
+                self._draw_active_routers(cycle_count, color_map, axes)
+                plt.draw()
+                plt.pause(1)
 
             if self.is_stop_condition_met(status_list, cycle_count):
                 return cycle_count - 1

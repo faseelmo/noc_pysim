@@ -242,12 +242,13 @@ def draw_router_status(router, color_map, ax):
     import matplotlib.pyplot as plt
     
     # Define buffer names and coordinates for layout (directions)
+    spacing = 1.6
     buffer_layout = {
         "Local": (0, 0),
-        "West": (-1, 0),
-        "North": (0, 1),
-        "East": (1, 0),
-        "South": (0, -1)
+        "West": (-spacing, 0),
+        "North": (0, spacing),
+        "East": (spacing, 0),
+        "South": (0, -spacing)
     }
     
     # Define buffer directions for input/output
@@ -264,6 +265,10 @@ def draw_router_status(router, color_map, ax):
         "south_output": router._south_output_buffer,
     }
     
+    label_font_size = 10
+    flit_font_size = 12
+    
+    ax.clear()
     
     # Draw each buffer's status
     for buffer_name, buffer_obj in buffer_directions.items():
@@ -272,17 +277,20 @@ def draw_router_status(router, color_map, ax):
         buf_type = buffer_name.split('_')[1].capitalize()
         position = buffer_layout[direction]
 
+        label_offset = 0.3
+        flit_offset = 0.3
+
         if buf_type == "Input":
-            position = (position[0], position[1] - 0.1)
+            position = (position[0], position[1] - label_offset)
         elif buf_type == "Output": 
-            position = (position[0], position[1] + 0.1)
+            position = (position[0], position[1] + label_offset)
 
         # Position the buffer label with an offset
         label_position = (position[0], position[1]) 
 
         # Create a visual block for each buffer (without overlapping with circles)
         ax.text(label_position[0], label_position[1], f"{direction} {buf_type}", 
-                ha='center', va='center', fontsize=10, color='black', bbox=dict(facecolor='white', edgecolor='black'))
+                ha='center', va='center', fontsize=label_font_size, color='black', bbox=dict(facecolor='white', edgecolor='black'))
 
         # Draw the flits in the buffer
         for idx, flit in enumerate(buffer_obj.queue):
@@ -306,18 +314,20 @@ def draw_router_status(router, color_map, ax):
 
             # Plot the flit as a circle with label
             if buf_type == "Input":
-                flit_y_offset = -0.2
+                flit_y_offset = -flit_offset
             elif buf_type == "Output":
-                flit_y_offset = 0.2
+                flit_y_offset = flit_offset
 
-            ax.add_patch(plt.Circle((position[0] + 0.1 * idx, position[1] + flit_y_offset), 0.08, color=color, ec='black'))
-            ax.text(position[0] + 0.1 * idx, position[1] + flit_y_offset, label, fontsize=12, ha='center', va='center', color='white')
+            ax.add_patch(plt.Circle((position[0] + 0.2 * idx, position[1] + flit_y_offset), 0.08, color=color, ec='black'))
+            ax.text(position[0] + 0.2 * idx, position[1] + flit_y_offset, label, fontsize=flit_font_size, ha='center', va='center', color='white')
     
     # Set the plot limits and title
-    ax.set_xlim(-2, 2)
-    ax.set_ylim(-2, 2)
+    lim_spacing = 2.4
+    ax.set_xlim(-lim_spacing, lim_spacing)
+    ax.set_ylim(-lim_spacing, lim_spacing)
+
     ax.set_aspect('equal')
-    ax.set_title(f"Router ({router._x}, {router._y})")
+    ax.text(-lim_spacing, lim_spacing - 0.4, f"R({router._x}, {router._y})", ha='left', va='top', fontsize=12, color='black')
     
     ax.axis('off')
 

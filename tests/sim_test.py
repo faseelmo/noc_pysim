@@ -6,7 +6,8 @@ def test_sim_simple():
     """
     R(0,0) to R(2,2)
     """
-    sim = Simulator(num_rows=3, num_cols=3, debug_mode=False, max_cycles=100)
+    debug_mode = True
+    sim = Simulator(num_rows=3, num_cols=3, debug_mode=debug_mode, max_cycles=100)
 
     task_0  = TaskInfo(
                 task_id                     = 0, 
@@ -35,7 +36,7 @@ def test_sim_simple():
 
     assert latency == 63 
 
-# test_sim_simple()
+test_sim_simple()
 
 
 def test_sim_1(): 
