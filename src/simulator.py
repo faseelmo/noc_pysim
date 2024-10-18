@@ -163,7 +163,7 @@ class Simulator:
                 self._pe_done_count += 1
 
         if self._pe_done_count == self._pe_active_count:
-            print(f"\nSimulation finished in {cycle_count} cycles")
+            print(f"\nSimulation finished in {cycle_count - 1} cycles")
             return True
 
         return False
@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
     import random
 
-    from src.processing_element import TaskInfo, RequireInfo
+    from src.processing_element import TaskInfo, RequireInfo, TransmitInfo
 
     random.seed(0)
 
@@ -196,8 +196,9 @@ if __name__ == "__main__":
                 require_list                = [], 
                 is_transmit_task            = True, 
 
-                transmit_id_list            = [1]
-            )
+                transmit_list               = [ TransmitInfo(
+                                                    id = 1, 
+                                                    require=1) ] )
 
     task_1  = TaskInfo(
                 task_id                     = 1, 

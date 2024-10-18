@@ -1,4 +1,4 @@
-from src.processing_element import ProcessingElement, TaskInfo, RequireInfo
+from src.processing_element import ProcessingElement, TaskInfo, RequireInfo, TransmitInfo
 from src.packet import PacketStatus, Packet
 import copy
 
@@ -155,11 +155,11 @@ def test_pe_with_output_buffer():
     - 1 & 3 are tasks assigned to PE. 0 and 2 are packets injected to PE.
     - 4 is the destination ID
 
-    0 
-     \
-      1 - 3 - 4  
-     /
-    2 
+    (0)
+      \
+       1 - 3 - (4)
+      /
+    (2)
     """
 
     task_1 = TaskInfo(
@@ -183,9 +183,9 @@ def test_pe_with_output_buffer():
                                         required_packets=2)], 
 
         is_transmit_task            = True, 
-        transmit_id_list            = [4]
-    
-    )
+        transmit_list               = [TransmitInfo(
+                                        id=4,
+                                        require=3) ] )
 
     packet_0 = Packet(
                 source_xy       = (0, 0),
@@ -259,9 +259,10 @@ def test_pe_with_in_out_buffer():
                                         required_packets=2)], 
 
         is_transmit_task            = True, 
-        transmit_id_list            = [4]
+        transmit_list                 = [TransmitInfo(
+                                        id=4,
+                                        require=3) ] )
     
-    )
 
     packet_0 = Packet(
                 source_xy       = (0, 0),
@@ -328,7 +329,7 @@ def test_injection_pe():
         expected_generated_packets  = 1,
         require_list                = [], 
         is_transmit_task            = True, 
-        transmit_id_list            = [1]
+        transmit_list               = [TransmitInfo(id=1, require=1)]
     )
 
 
@@ -361,7 +362,7 @@ def test_injection_pe_3_packets():
         expected_generated_packets  = 3,
         require_list                = [], 
         is_transmit_task            = True, 
-        transmit_id_list            = [1]
+        transmit_list               = [TransmitInfo(id=1, require=3)]   
     )
 
 
@@ -379,3 +380,37 @@ def test_injection_pe_3_packets():
             pe._empty_output_buffer(task_0)
 
     assert latency == 31
+
+
+def test_transmitting_to_different_pe(): 
+    """
+    Condition, 
+    Terminal (transmit) node is sending packets to two different PEs. 
+    """
+    task_0  = TaskInfo(
+            task_id                     = 0,
+            processing_cycles           = 3, 
+            expected_generated_packets  = 5,
+            require_list                = [],
+            is_transmit_task            = True, 
+            transmit_list               = [ TransmitInfo(
+                                                id = 1, 
+                                                require = 2), 
+                                            TransmitInfo(
+                                                id = 2,
+                                                require = 3) ] ) 
+
+    pe = ProcessingElement( (0, 0), [task_0], debug_mode=True )
+
+    for cycle in range(20): 
+        print( f"\n> {cycle}" )
+        done_processing = pe.process(None)
+
+        if done_processing: 
+            latency = cycle
+            break 
+
+        if cycle == 4 or cycle == 10 : 
+            pe._empty_output_buffer(task_0)
+
+test_transmitting_to_different_pe()

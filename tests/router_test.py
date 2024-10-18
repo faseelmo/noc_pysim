@@ -1,7 +1,7 @@
 from src.router             import Router
 from src.packet             import Packet
 from src.flit               import TailFlit, HeaderFlit, PayloadFlit, EmptyFlit, BufferLocation
-from src.processing_element import ProcessingElement, TaskInfo, RequireInfo
+from src.processing_element import ProcessingElement, TaskInfo, RequireInfo, TransmitInfo
 from src.simulator          import Map
 
 from dataclasses import dataclass
@@ -46,7 +46,9 @@ def test_router_pe_simple():
                         expected_generated_packets  = 1, 
                         require_list                = [], 
                         is_transmit_task            = True, 
-                        transmit_id_list            = [1])
+                        transmit_list               = [TransmitInfo(
+                                                        id=1, 
+                                                        require=1) ] )
 
 
     task_1          = TaskInfo(
@@ -113,8 +115,7 @@ def test_router_pe_wait_in_input_buffer():
                 expected_generated_packets  = 1, 
                 require_list                = [], 
                 is_transmit_task            = True, 
-                transmit_id_list            = [1]
-            )
+                transmit_list               = [TransmitInfo(id=1, require=1)] )
 
     pe_00   = ProcessingElement( 
                 xy              = (0, 0), 
@@ -129,8 +130,7 @@ def test_router_pe_wait_in_input_buffer():
                 expected_generated_packets  = 1, 
                 require_list                = [], 
                 is_transmit_task            = True, 
-                transmit_id_list            = [1]
-            )
+                transmit_list               = [TransmitInfo(id=1, require=1)] )
 
     pe_10   = ProcessingElement( 
                 xy              = (1, 0), 

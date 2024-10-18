@@ -207,7 +207,7 @@ class Buffer:
             self.fill_emtpy_slots()
         
 
-    def is_full(self, inter_router_transfer:bool = False) -> bool:
+    def is_full(self) -> bool:
         """
         Returns True if the buffer is full  
         Full is defined as having all non - EmptyFlit.
@@ -215,11 +215,7 @@ class Buffer:
         if len(self.queue) == 0:
             return False
 
-        if inter_router_transfer: 
-            if isinstance(self.queue[-1], EmptyFlit):
-                return False
-
-        if isinstance(self.queue[0], EmptyFlit):
+        if isinstance(self.queue[0], EmptyFlit) :
             return False
 
         elif len(self.queue) < self.size:

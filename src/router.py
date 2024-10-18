@@ -105,8 +105,6 @@ class Router:
 
             next_router = router_lookup.get( next_hop_loc )
 
-            print(f"{self} For packet in {buffer} -> {next_hop_loc}")
-            
             if next_router == self:
                 # Condition when the flit has reached the destination router
                 pe = pe_lookup.get( next_hop_loc )
@@ -123,6 +121,12 @@ class Router:
 
             if not next_router_input_buffer.is_full():
 
+                # Checking if new Header can be registered in the input buffer of 
+                # the next router.
+                if isinstance(top_flit, HeaderFlit):
+                    if not next_router_input_buffer._can_accept_new_packet(): 
+                        continue
+
                 self._debug_print( 
                     f"Forwarding flit \"{top_flit}\" "  +
                     f"{buffer}".split()[0] + f"-> " +
@@ -132,6 +136,10 @@ class Router:
                 flit = buffer.remove()
                 flit_list.append( flit )
 
+        if flit_list:
+            print(f"Flit list is ")
+            for flit in flit_list:
+                print(flit)
         return flit_list 
 
     def _forward_input_buffer_flits( self ) -> None:
@@ -193,7 +201,7 @@ class Router:
 
         input_buffer            = self._get_buffer( direction = buffer_location, is_input = True )  
 
-        assert not input_buffer.is_full(), f"Buffer {buffer_location.value} is full. Cannot receive flit."
+        assert not input_buffer.is_full(), f"{self} {buffer_location.value} buffer is full. Cannot receive flit."
 
         input_buffer_name = f"{input_buffer}".split()[0]
         self._debug_print( f"Received flit to {input_buffer_name}" )
@@ -362,7 +370,7 @@ if __name__ == "__main__":
     One packet sent from P1 to P2 (through 3 routers)
     """
 
-    from .processing_element import ProcessingElement, TaskInfo, RequireInfo
+    from .processing_element import ProcessingElement, TaskInfo, RequireInfo, TransmitInfo
     from .simulator import Map
 
     router_00       = Router( pos = (0, 0), debug_mode=True )
@@ -380,7 +388,9 @@ if __name__ == "__main__":
                         expected_generated_packets  = 1, 
                         require_list                = [], 
                         is_transmit_task            = True, 
-                        transmit_id_list            = [1])
+                        transmit_list               = [TransmitInfo(
+                                                        id = 1,
+                                                        require=1) ])
 
 
     task_1          = TaskInfo(
