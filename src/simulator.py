@@ -27,6 +27,9 @@ class Simulator:
         self._pe_done_count     = 0    
         self._pe_active_count   = 0
 
+        if self._debug_mode:
+            self._visualizer = self._init_visualizer()
+
     def get_random_mapping(self, tasks: list[TaskInfo]) -> list[Map]:
         """
         One-to-one mapping of tasks to PE. 
@@ -127,12 +130,7 @@ class Simulator:
 
         cycle_count         = 0
         current_flit_list   = []
-        color_map           = {}
         
-        import matplotlib.pyplot as plt
-        plt.ion()
-        fig, axes = plt.subplots(self._num_rows, self._num_cols, figsize=(20, 20))
-
         while True: 
             print(f"\n>{cycle_count}")
             cycle_count += 1
@@ -152,9 +150,7 @@ class Simulator:
             current_flit_list = flits_for_next_cycle
 
             if self._debug_mode:
-                self._draw_active_routers(cycle_count, color_map, axes)
-                plt.draw()
-                plt.pause(1)
+                self._visualizer(cycle_count)
 
             if self.is_stop_condition_met(status_list, cycle_count):
                 return cycle_count - 1
@@ -171,6 +167,16 @@ class Simulator:
             return True
 
         return False
+
+    def _init_visualizer(self) -> None:
+        from src.visualizer import Visualizer
+
+        visualizer = Visualizer(
+                        num_rows=self._num_rows, 
+                        num_cols=self._num_cols, 
+                        routers=self._routers)
+
+        return visualizer
 
 
 if __name__ == "__main__":
