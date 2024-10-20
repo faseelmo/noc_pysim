@@ -145,6 +145,13 @@ def test_sim_2(debug_mode: bool = False):
     assert latency == 59
 
 
+def test_graph_to_task_fn(): 
+    """"
+    Test for shortest transmit is given priority first  
+    """
+    pass
+
+
 if __name__ == "__main__":
 
     # DEBUG_MODE = False

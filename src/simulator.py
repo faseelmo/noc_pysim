@@ -1,3 +1,5 @@
+import networkx as nx
+
 from dataclasses import dataclass
 
 from src.router             import Router 
@@ -29,6 +31,59 @@ class Simulator:
 
         if self._debug_mode:
             self._visualizer = self._init_visualizer()
+
+    def graph_to_task(self, graph: nx.DiGraph) -> list[TaskInfo]:
+        """
+        Convert the graph to a list of TaskInfo objects. 
+        Have to do shortest job arbitration here
+        """
+        task_list = []
+
+        for node_id, node in graph.nodes(data=True):
+            # Converting the graph to a list of TaskInfo objects
+            predecessors = list(graph.predecessors(node_id))
+            successors   = list(graph.successors(node_id))
+
+            require_list    = []
+            transmit_list   = []
+
+            if len(predecessors) > 0:
+                for predecessor in predecessors:
+                    require_id      = predecessor
+                    require_count   = graph[predecessor][node_id]["weight"]
+                    require         = RequireInfo(
+                                        require_type_id=require_id, 
+                                        required_packets=require_count)
+                    require_list.append(require)
+
+
+            is_transmit_node = False
+            if len(successors) > 0:
+                is_transmit_node = True
+                for successor in successors:
+                    transmit_id     = successor
+                    transmit_count  = graph[node_id][successor]["weight"]
+                    transmit        = TransmitInfo(
+                                        id=transmit_id, 
+                                        require=transmit_count)
+                    transmit_list.append(transmit)
+
+                # Sorting based on shortest transmit first
+                transmit_list.sort(key=lambda transmit_info: transmit_info.require,)
+
+
+            task = TaskInfo(
+                task_id                     = node_id, 
+                processing_cycles           = node["processing_time"], 
+                expected_generated_packets  = node["generate"], 
+                require_list                = require_list, 
+                is_transmit_task            = is_transmit_node, 
+                transmit_list               = transmit_list, 
+            )
+
+            task_list.append(task)
+
+        return task_list
 
     def get_random_mapping(self, tasks: list[TaskInfo]) -> list[Map]:
         """
@@ -184,10 +239,20 @@ if __name__ == "__main__":
     import random
 
     from src.processing_element import TaskInfo, RequireInfo, TransmitInfo
+    from data.utils import load_graph_from_json, visualize_graph
 
     random.seed(0)
 
     sim = Simulator(num_rows=3, num_cols=3, debug_mode=True)
+
+    graph_path  = "data/test_task_graph.json"
+    graph       = load_graph_from_json(graph_path)
+    task_list   = sim.graph_to_task(graph)
+    # visualize_graph(graph)
+    # print(graph)
+    exit()
+
+
 
     task_0  = TaskInfo(
                 task_id                     = 0, 

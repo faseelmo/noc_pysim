@@ -32,9 +32,6 @@ class TransmitInfo:
     require:    int 
     count:      int = 0
 
-    # def __repr__(self) -> None
-    #     return f""
-
 @dataclass
 class TaskInfo:
     task_id:                    int 
