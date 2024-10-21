@@ -370,6 +370,9 @@ class ProcessingElement:
                 )
 
     def _empty_output_buffer(self, compute_task: TaskInfo) -> None:
+        """
+        Used for emptying  the output buffer of the PE in test conditions 
+        """
         self.output_network_interface.empty()
         compute_task.generated_packet_count += 1
         print(f"Generated {compute_task.generated_packet_count}/{compute_task.expected_generated_packets} packets of task id {compute_task.task_id}")

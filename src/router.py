@@ -113,7 +113,7 @@ class Router:
                     self._debug_print( f"Forwading: "+ f"{buffer}".split()[0] +" -> PE" )
                     flit = buffer.remove()
                     pe.receive_flits( flit )
-                    buffer.fill_emtpy_slots()
+                    # buffer.fill_emtpy_slots()
 
                 self._debug_print( f"Local output: {buffer}" )
 

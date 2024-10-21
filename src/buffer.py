@@ -191,9 +191,10 @@ class Buffer:
         for flit in self.queue:
             if isinstance(flit, EmptyFlit):
                 empty_flit_count += 1
-
-
-        if len(self.queue) == empty_flit_count:
+        
+        # If the buffer has all empty flits and less than the buffer size
+        # fill it to the brim with empty flits.
+        if len(self.queue) < self.size and len(self.queue) == empty_flit_count:
             self.fill_emtpy_slots()
         
 
@@ -207,9 +208,6 @@ class Buffer:
 
         if isinstance(self.queue[0], EmptyFlit) :
             return False
-
-        # if isinstance(self.queue[-1], EmptyFlit) :
-        #     return False
 
         elif len(self.queue) < self.size:
             return False    
