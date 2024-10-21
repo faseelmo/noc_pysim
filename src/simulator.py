@@ -117,7 +117,6 @@ class Simulator:
         """
         Get mapping list when tasks are defined as graphs. 
         """
-
         mapping_list = []
 
         for task in tasks: 
@@ -192,7 +191,7 @@ class Simulator:
 
     def _draw_active_routers(self, cycle_count: int, color_map: dict, axes) -> None:
         from matplotlib import pyplot as plt
-        from src.utils              import draw_router_status
+        from src.utils  import draw_router_status
         
         num_rows = len(axes)  # Assuming axes is a 2D array-like structure
     
@@ -207,17 +206,25 @@ class Simulator:
         plt.suptitle(f"Cycle: {cycle_count}")
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0, hspace=0)  # Remove spacing
 
-    def _get_tasks_status(self) -> None:
+    def get_tasks_status(self) -> list[TaskInfo]:
         """
         Reports the start_cycle and end_cycle of each tasks in the mapping list. 
+        Also returns compute_list for data.utils.visualize_graph
         """
+        compute_list = []
 
         print(f"\n---------Final Report---------")
         for map in self._mapping_list:
             task        = map.task
+            compute_list.append(task)
             print(f"Task {task.task_id} \t Start: {task.start_cycle} \t End: {task.end_cycle}")
 
+        return compute_list 
+
     def get_graph_report(self, graph: nx.DiGraph) -> nx.DiGraph:
+        """
+        Updates the node of the application graph with the processing start_cycle and end_cycle.
+        """
 
         for node_id, node in graph.nodes(data=True):
 
@@ -262,7 +269,6 @@ class Simulator:
                 # self._visualizer(cycle_count)
 
             if self.is_stop_condition_met(status_list, cycle_count):
-                self._get_tasks_status()
                 return cycle_count - 1
 
 
@@ -283,10 +289,10 @@ class Simulator:
         from src.visualizer import Visualizer
 
         visualizer = Visualizer(
-                        num_rows    =self._num_rows, 
-                        num_cols    =self._num_cols, 
-                        routers     =self._routers,
-                        pes         =self._pes)
+                        num_rows=self._num_rows, 
+                        num_cols=self._num_cols, 
+                        routers =self._routers,
+                        pes     =self._pes)
                 
 
         return visualizer
@@ -315,10 +321,7 @@ if __name__ == "__main__":
     sim.run()
 
     graph_report    = sim.get_graph_report(graph)
-
-    compute_list    = []
-    for map in mapping_list:
-        compute_list.append(map.task)   
+    compute_list    = sim.get_tasks_status()
 
     visualize_graph(graph, compute_list=compute_list)
     
