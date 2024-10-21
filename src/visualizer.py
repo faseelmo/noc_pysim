@@ -1,14 +1,20 @@
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import random
 
 from src.router import Router
 from src.flit import EmptyFlit, HeaderFlit, PayloadFlit, TailFlit
+from src.processing_element import ProcessingElement
+from src.simulator import Map
 
 
 class Visualizer:
-    def __init__(self, num_rows: int, num_cols:int,  routers: list[Router]): 
+    def __init__(self, num_rows: int, num_cols:int,  routers: list[Router], pes: list[ProcessingElement]) -> None: 
         self._router            = routers 
+        self._pes               = pes
+        self._mapping_list      = []  
+
         self._color_map         = { }
         self._num_rows          = num_rows
         self._num_cols          = num_cols
@@ -28,6 +34,9 @@ class Visualizer:
         self.fig.canvas.mpl_connect('key_press_event', self._on_key_press)
         plt.ion()
 
+    def init_mapping(self, mapping_list: list[Map]) -> None:
+        self._mapping_list = mapping_list
+
     def __call__(self, cycle_count: int) -> None:
 
         self._next_cycle = False
@@ -39,6 +48,13 @@ class Visualizer:
             ax = self.axes[x, y]
             self._draw_router(router, ax)
 
+        for pe in self._pes.values():
+            pe_xy = pe.get_pos()
+            x, y = self._transform_xy(pe_xy[0], pe_xy[1])
+
+            ax = self.axes[x, y]
+            self._draw_pe(pe, ax)
+
         plt.suptitle(f"Cycle: {cycle_count}")
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0, hspace=0)  # Remove spacing
         plt.draw()
@@ -49,6 +65,22 @@ class Visualizer:
     def _on_key_press(self, event) -> None:
         if event.key == 'enter':
             self._next_cycle = True
+
+    def _draw_pe(self, pe: ProcessingElement, ax) -> None:
+
+        assigned_task = ""
+
+        for map in self._mapping_list:
+            if pe.get_pos() == map.assigned_pe:
+                assigned_task = map.task.task_id    
+
+        box_size = 0.5
+        if pe.get_status():
+            fill_box = Rectangle((-box_size, -box_size), box_size*2, box_size*2, linewidth=0, edgecolor='none', facecolor='red', alpha=0.2)
+            ax.add_patch(fill_box)
+
+        ax.text(0, 0, f"Task: {assigned_task}", ha='center', va='center', fontsize=12, color='black')
+        ax.axis('off')
 
     def _draw_router(self, router: Router, ax) -> None:
 

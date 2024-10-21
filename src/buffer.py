@@ -107,7 +107,7 @@ class Buffer:
             return True
 
         elif len(self._acceptable_flit_uids) == 1:
-            if empty_count == 0:
+            if empty_count == 0 and has_tail:
                 return True
 
         if empty_count > 0 and has_tail:
@@ -181,27 +181,17 @@ class Buffer:
 
     def fill_emtpy_slots(self) -> None:
         """Fill non occupied spaces with Empty Flits"""
-        non_occupied_space = self.size - len(self.queue)
+        non_occupied_space = self.size - len(self.queue) 
         for _ in range(non_occupied_space):
             self.queue.append(EmptyFlit())
 
-        # if len(self.queue) == 2:
-        #     self.queue.append(EmptyFlit())
-
-
     def manager(self) -> None:
 
-        # if len(self.queue) < self.size - 1:
-        #     if isinstance(self.queue[-1], (TailFlit, EmptyFlit)): 
-        #         print(f"adding empty flit in {self}")
-        #         self.queue.append(EmptyFlit())
-        #         print(f"updated {self}")
-
-        # If the buffer is full of empty flits
         empty_flit_count = 0
         for flit in self.queue:
             if isinstance(flit, EmptyFlit):
                 empty_flit_count += 1
+
 
         if len(self.queue) == empty_flit_count:
             self.fill_emtpy_slots()
@@ -217,6 +207,9 @@ class Buffer:
 
         if isinstance(self.queue[0], EmptyFlit) :
             return False
+
+        # if isinstance(self.queue[-1], EmptyFlit) :
+        #     return False
 
         elif len(self.queue) < self.size:
             return False    

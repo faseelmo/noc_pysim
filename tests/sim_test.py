@@ -112,8 +112,7 @@ def test_sim_2(debug_mode: bool = False):
                                                     required_packets=2), 
                                                 RequireInfo(
                                                     require_type_id=2,
-                                                    required_packets=2) ],
-                ) 
+                                                    required_packets=2) ] ) 
 
     task_1  = TaskInfo(
                 task_id                     = 1, 
@@ -146,10 +145,39 @@ def test_sim_2(debug_mode: bool = False):
 
 
 def test_graph_to_task_fn(): 
-    """"
+    r""""
     Test for shortest transmit is given priority first  
+        1 PE(1,2)
+       /
+      /2
+     /
+    0 PE(0,1)
+     \
+      \3
+       \ 
+        2 PE(0,2)
     """
-    pass
+    import networkx as nx 
+
+    graph = nx.DiGraph()
+    graph.add_node(0, type="task", processing_time=5, generate=5)
+    graph.add_node(1, type="task", processing_time=3, generate=2)
+    graph.add_node(2, type="task", processing_time=4, generate=1)
+
+    # First defined edge has higher weight than the second  
+    # So, when graph is converted, the order should be changed. 
+    graph.add_edge(0, 2, weight=3)
+    graph.add_edge(0, 1, weight=2)
+
+    sim = Simulator(num_rows=3, num_cols=3, debug_mode=True, max_cycles=100)    
+    task_list = sim.graph_to_task(graph)
+
+    for task in task_list: 
+        if task.transmit_list:
+            
+            for i in range( len(task.transmit_list) - 1 ): 
+                # Checking if the transmit list is sorted in ascending order
+                assert task.transmit_list[i].require <= task.transmit_list[i+1].require, "Transmit list is not sorted"
 
 
 if __name__ == "__main__":
@@ -159,5 +187,7 @@ if __name__ == "__main__":
 
     # test_sim_simple(DEBUG_MODE)
     # test_sim_1(DEBUG_MODE)
-    test_sim_2(DEBUG_MODE)
+    # test_sim_2(DEBUG_MODE)
+    test_graph_to_task_fn()
+
     pass

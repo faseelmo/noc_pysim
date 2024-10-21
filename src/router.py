@@ -115,6 +115,8 @@ class Router:
                     pe.receive_flits( flit )
                     buffer.fill_emtpy_slots()
 
+                self._debug_print( f"Local output: {buffer}" )
+
                 continue
 
             next_router_input_buffer = next_router._get_buffer( direction = next_hop_buffer, is_input = True )
@@ -136,10 +138,6 @@ class Router:
                 flit = buffer.remove()
                 flit_list.append( flit )
 
-        if flit_list:
-            print(f"Flit list is ")
-            for flit in flit_list:
-                print(flit)
         return flit_list 
 
     def _forward_input_buffer_flits( self ) -> None:

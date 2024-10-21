@@ -3,7 +3,7 @@ import networkx as nx
 from dataclasses import dataclass
 
 from src.router             import Router 
-from src.processing_element import ProcessingElement, TaskInfo
+from src.processing_element import ProcessingElement, TaskInfo, RequireInfo, TransmitInfo
 
 @dataclass 
 class Map:
@@ -35,8 +35,9 @@ class Simulator:
     def graph_to_task(self, graph: nx.DiGraph) -> list[TaskInfo]:
         """
         Convert the graph to a list of TaskInfo objects. 
-        Have to do shortest job arbitration here
+        In a transmit node, priority give to the task that requires the least number of packets.
         """
+
         task_list = []
 
         for node_id, node in graph.nodes(data=True):
@@ -124,6 +125,9 @@ class Simulator:
             active_pes.add(map.assigned_pe)
 
         self._pe_active_count = len(active_pes)
+
+        if self._debug_mode:
+            self._visualizer.init_mapping(mapping_list)
 
     def _create_routers(self) -> dict[tuple[int, int], Router]:
         router_lookup = {}
@@ -227,9 +231,11 @@ class Simulator:
         from src.visualizer import Visualizer
 
         visualizer = Visualizer(
-                        num_rows=self._num_rows, 
-                        num_cols=self._num_cols, 
-                        routers=self._routers)
+                        num_rows    =self._num_rows, 
+                        num_cols    =self._num_cols, 
+                        routers     =self._routers,
+                        pes         =self._pes)
+                
 
         return visualizer
 
@@ -245,9 +251,22 @@ if __name__ == "__main__":
 
     sim = Simulator(num_rows=3, num_cols=3, debug_mode=True)
 
-    graph_path  = "data/test_task_graph.json"
-    graph       = load_graph_from_json(graph_path)
-    task_list   = sim.graph_to_task(graph)
+    graph_path      = "data/test_sim_task.json"
+    graph           = load_graph_from_json(graph_path)
+    task_list       = sim.graph_to_task(graph)
+    mapping_list    = sim.get_random_mapping(task_list)
+    
+    # for task in task_list: 
+    #     print(f"\nTask is {task}")
+    #     if task.require_list: 
+    #         for require in task.require_list: 
+    #             print(f"Require is {require}")
+    #     if task.transmit_list:  
+    #         for transmit in task.transmit_list: 
+    #             print(f"Transmit is {transmit}")    
+
+    sim.map(mapping_list)
+    sim.run()
     # visualize_graph(graph)
     # print(graph)
     exit()

@@ -500,6 +500,12 @@ class ProcessingElement:
         if self._check_task_requirements_met(): # stops the simulation now 
             return True
 
+    def get_pos(self) -> tuple[int, int]:
+        return self.xy
+
+    def get_status(self) -> bool:
+        return self.compute_is_busy
+
     def __repr__(self) -> str:
         if self.compute_is_busy:
             status = "Computing"
