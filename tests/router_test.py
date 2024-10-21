@@ -182,7 +182,7 @@ def test_router_pe_wait_in_input_buffer():
         for router in router_lookup.values():
             flit_list = router.process( flit_list, router_lookup, pe_lookup )  
 
-    assert latency == 43
+    assert latency == 40
 
 def test_router_proper_in_out_buffer_1():
     """

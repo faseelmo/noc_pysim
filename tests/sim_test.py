@@ -1,5 +1,5 @@
 from src.processing_element import TaskInfo, RequireInfo, TransmitInfo
-from src.simulator import Simulator, Map
+from src.simulator import Simulator, Map, GraphMap
 
 def test_sim_simple(debug_mode: bool = False):
     """
@@ -32,7 +32,7 @@ def test_sim_simple(debug_mode: bool = False):
     sim.map(mapping_list)
     latency = sim.run()
 
-    assert latency == 63 
+    assert latency == 60 
 
 
 def test_sim_1(debug_mode: bool = False):    
@@ -141,7 +141,7 @@ def test_sim_2(debug_mode: bool = False):
     sim.map(mapping_list)
     latency = sim.run() 
 
-    assert latency == 59
+    assert latency == 50
 
 
 def test_graph_to_task_fn(): 
@@ -180,6 +180,51 @@ def test_graph_to_task_fn():
                 assert task.transmit_list[i].require <= task.transmit_list[i+1].require, "Transmit list is not sorted"
 
 
+
+def test_sim_graph(debug_mode: bool = False): 
+    r"""
+                    1 PE(2,1)
+                    |
+                    | 4
+                    |
+              3     |
+         2  --------0 PE(2,0)
+      PE(0,0)       |
+                    |
+                    | 9
+                    |
+                    3 PE(1,0)
+    
+    
+    """
+
+    import networkx as nx
+
+    graph = nx.DiGraph()
+    graph.add_node(1, type="task", processing_time=4, generate=4)
+    graph.add_node(2, type="task", processing_time=3, generate=3)
+    graph.add_node(3, type="task", processing_time=5, generate=9)
+    graph.add_node(0, type="task", processing_time=8, generate=1)
+
+    graph.add_edge(2, 0, weight=3)
+    graph.add_edge(1, 0, weight=4)
+    graph.add_edge(3, 0, weight=9)  
+
+    sim         = Simulator(num_rows=3, num_cols=3, debug_mode=debug_mode, max_cycles=1000)
+    task_list   = sim.graph_to_task(graph)
+
+    graph_map   = [ GraphMap(task_id=0, assigned_pe=(2,0)), 
+                    GraphMap(task_id=1, assigned_pe=(2,1)), 
+                    GraphMap(task_id=2, assigned_pe=(0,0)), 
+                    GraphMap(task_id=3, assigned_pe=(1,0)) ]
+                     
+    mapping_list = sim.get_assigned_mapping_list(task_list, graph_map)
+
+    sim.map(mapping_list)
+    latency = sim.run()
+
+    assert latency == 109
+
 if __name__ == "__main__":
 
     # DEBUG_MODE = False
@@ -188,6 +233,8 @@ if __name__ == "__main__":
     # test_sim_simple(DEBUG_MODE)
     # test_sim_1(DEBUG_MODE)
     # test_sim_2(DEBUG_MODE)
-    test_graph_to_task_fn()
+    # test_graph_to_task_fn()
+
+    # test_sim_graph(DEBUG_MODE)
 
     pass

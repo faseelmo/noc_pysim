@@ -68,7 +68,7 @@ class Router:
         """
         self._mapping_list = mapping_list
 
-    def _filter_required_flits(self, flit_list: list[Union[HeaderFlit, PayloadFlit, TailFlit]]) -> list[Union[HeaderFlit, PayloadFlit, TailFlit]]:
+    def _filter_required_flits( self, flit_list: list[Union[HeaderFlit, PayloadFlit, TailFlit]] ) -> list[Union[HeaderFlit, PayloadFlit, TailFlit]]:
         """Filter the flits that are required by the router."""
         filtered_flits = []
         for flit in flit_list:
@@ -176,7 +176,7 @@ class Router:
 
                 self._debug_print(f"\t-> {next_buffer}", with_tag=False)
 
-    def management(self) -> None:
+    def management( self ) -> None:
         
         for buffer in self._input_buffers:
             buffer.manager()

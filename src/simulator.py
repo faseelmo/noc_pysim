@@ -13,6 +13,11 @@ class Map:
     def __str__(self) -> str:
         return f"Task: {self.task.task_id} -> PE: {self.assigned_pe}"
 
+@dataclass
+class GraphMap:
+    task_id     : int
+    assigned_pe : tuple[int, int]
+
 class Simulator: 
     def __init__(self, num_rows:int, num_cols:int, debug_mode: bool = False, max_cycles: int = 1000):
         self._debug_mode    = debug_mode   
@@ -107,6 +112,23 @@ class Simulator:
 
         print()
         return mapping_list
+
+    def get_assigned_mapping_list(self, tasks: list[TaskInfo], mapping: list[ GraphMap ] ) -> list[Map]:
+
+        mapping_list = []
+
+        for task in tasks: 
+            for graph_map in mapping: 
+
+                if task.task_id == graph_map.task_id:
+                    pe  = graph_map.assigned_pe
+                    map = Map(task=task, assigned_pe=pe)
+                    mapping_list.append(map)
+                    break
+
+
+        return mapping_list 
+
 
     def map(self, mapping_list: list[Map]) -> None:
         """

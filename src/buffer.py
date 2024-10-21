@@ -22,8 +22,6 @@ class Buffer:
         Adds flit to the buffer if it is not full.
         Full is defined as having all non-empty flits.
         """
-        
-        
         if self.is_full(): 
             raise Exception( "Cannot add flit to full buffer." )
 
