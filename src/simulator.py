@@ -114,6 +114,9 @@ class Simulator:
         return mapping_list
 
     def get_assigned_mapping_list(self, tasks: list[TaskInfo], mapping: list[ GraphMap ] ) -> list[Map]:
+        """
+        Get mapping list when tasks are defined as graphs. 
+        """
 
         mapping_list = []
 
@@ -125,7 +128,6 @@ class Simulator:
                     map = Map(task=task, assigned_pe=pe)
                     mapping_list.append(map)
                     break
-
 
         return mapping_list 
 
@@ -169,8 +171,9 @@ class Simulator:
 
     def _get_required_flit(self, flit_list: list, router: Router) -> list:
         """
-        Check the flit_list and return the flits that are required by the router.
-        Also updates the flit_list by removing the required flits.
+        `flit_list` is a list of flits that are in the network.
+        This function checks the `flit_list` and returns the flits that are required by `router`.
+        Also updates the `flit_list` by removing the flits used by the `router`.
         """
         if len(flit_list) == 0:
             return []
@@ -204,6 +207,31 @@ class Simulator:
         plt.suptitle(f"Cycle: {cycle_count}")
         plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0, hspace=0)  # Remove spacing
 
+    def _get_tasks_status(self) -> None:
+        """
+        Reports the start_cycle and end_cycle of each tasks in the mapping list. 
+        """
+
+        print(f"\n---------Final Report---------")
+        for map in self._mapping_list:
+            task        = map.task
+            print(f"Task {task.task_id} \t Start: {task.start_cycle} \t End: {task.end_cycle}")
+
+    def get_graph_report(self, graph: nx.DiGraph) -> nx.DiGraph:
+
+        for node_id, node in graph.nodes(data=True):
+
+            for map in self._mapping_list:
+                task = map.task
+
+                if task.task_id == node_id:
+                    start_cycle = task.start_cycle
+                    end_cycle   = task.end_cycle    
+                    node["start_cycle"] = start_cycle
+                    node["end_cycle"]   = end_cycle
+                    break
+
+        return graph
 
     def run(self) -> int:
         assert self._mapping_list, "Tasks have not been assigned to PEs"
@@ -230,11 +258,13 @@ class Simulator:
 
             current_flit_list = flits_for_next_cycle
 
-            if self._debug_mode:
-                self._visualizer(cycle_count)
+            # if self._debug_mode:
+                # self._visualizer(cycle_count)
 
             if self.is_stop_condition_met(status_list, cycle_count):
+                self._get_tasks_status()
                 return cycle_count - 1
+
 
     def is_stop_condition_met(self, status_list: list[bool], cycle_count: int) -> bool:
         assert cycle_count < self._max_cycles, f"Simulation did not finish in {self._max_cycles} cycles"
@@ -271,29 +301,28 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    sim = Simulator(num_rows=3, num_cols=3, debug_mode=True)
+    sim             = Simulator(
+                        num_rows=3, 
+                        num_cols=3, 
+                        debug_mode=False)
 
     graph_path      = "data/test_sim_task.json"
     graph           = load_graph_from_json(graph_path)
     task_list       = sim.graph_to_task(graph)
     mapping_list    = sim.get_random_mapping(task_list)
     
-    # for task in task_list: 
-    #     print(f"\nTask is {task}")
-    #     if task.require_list: 
-    #         for require in task.require_list: 
-    #             print(f"Require is {require}")
-    #     if task.transmit_list:  
-    #         for transmit in task.transmit_list: 
-    #             print(f"Transmit is {transmit}")    
-
     sim.map(mapping_list)
     sim.run()
-    # visualize_graph(graph)
-    # print(graph)
+
+    graph_report    = sim.get_graph_report(graph)
+
+    compute_list    = []
+    for map in mapping_list:
+        compute_list.append(map.task)   
+
+    visualize_graph(graph, compute_list=compute_list)
+    
     exit()
-
-
 
     task_0  = TaskInfo(
                 task_id                     = 0, 
