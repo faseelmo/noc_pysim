@@ -37,6 +37,7 @@ class Simulator:
         if self._debug_mode:
             self._visualizer = self._init_visualizer()
 
+
     def graph_to_task(self, graph: nx.DiGraph) -> list[TaskInfo]:
         """
         Convert the graph to a list of TaskInfo objects. 
@@ -91,6 +92,7 @@ class Simulator:
 
         return task_list
 
+
     def get_random_mapping(self, tasks: list[TaskInfo]) -> list[Map]:
         """
         One-to-one mapping of tasks to PE. 
@@ -112,6 +114,7 @@ class Simulator:
 
         print()
         return mapping_list
+
 
     def get_assigned_mapping_list(self, tasks: list[TaskInfo], mapping: list[ GraphMap ] ) -> list[Map]:
         """
@@ -152,6 +155,7 @@ class Simulator:
         if self._debug_mode:
             self._visualizer.init_mapping(mapping_list)
 
+
     def _create_routers(self) -> dict[tuple[int, int], Router]:
         router_lookup = {}
         for x in range(self._num_cols):
@@ -160,6 +164,7 @@ class Simulator:
                 router_lookup[(x, y)] = router
         return router_lookup
 
+
     def _create_pes(self) -> dict[tuple[int, int], ProcessingElement]:
         pe_lookup = {}
         for x in range(self._num_cols):
@@ -167,6 +172,7 @@ class Simulator:
                 pe = ProcessingElement( xy=(x, y), debug_mode=self._debug_mode, router_lookup=self._routers )
                 pe_lookup[(x, y)] = pe
         return pe_lookup
+
 
     def _get_required_flit(self, flit_list: list, router: Router) -> list:
         """
@@ -189,22 +195,6 @@ class Simulator:
 
         return required_flit
 
-    def _draw_active_routers(self, cycle_count: int, color_map: dict, axes) -> None:
-        from matplotlib import pyplot as plt
-        from src.utils  import draw_router_status
-        
-        num_rows = len(axes)  # Assuming axes is a 2D array-like structure
-    
-        for router in self._routers.values():
-            router_xy = router.get_pos()
-            transformed_x = num_rows - 1 - router_xy[1]  # Transform y-coordinate
-            transformed_y = router_xy[0]  # x-coordinate remains the same
-            
-            ax = axes[transformed_x, transformed_y]
-            color_map = draw_router_status(router, color_map=color_map, ax=ax)
-    
-        plt.suptitle(f"Cycle: {cycle_count}")
-        plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0, hspace=0)  # Remove spacing
 
     def get_tasks_status(self) -> list[TaskInfo]:
         """
@@ -220,26 +210,6 @@ class Simulator:
             print(f"Task {task.task_id} \t Start: {task.start_cycle} \t End: {task.end_cycle}")
 
         return compute_list 
-
-    def get_graph_report(self, graph: nx.DiGraph) -> nx.DiGraph:
-        """
-        Updates the node of the application graph with the processing start_cycle and end_cycle.
-        """
-
-        for node_id, node in graph.nodes(data=True):
-
-            for map in self._mapping_list:
-                task        = map.task
-
-                if task.task_id == node_id:
-                    start_cycle = task.start_cycle
-                    end_cycle   = task.end_cycle    
-                    node["start_cycle"] = start_cycle
-                    node["end_cycle"]   = end_cycle
-                    node["assigned_pe"] = map.assigned_pe
-                    break
-
-        return graph
 
 
     def run(self) -> int:
@@ -295,7 +265,6 @@ class Simulator:
                         num_cols=self._num_cols, 
                         routers =self._routers,
                         pes     =self._pes)
-                
 
         return visualizer
 
@@ -306,13 +275,14 @@ if __name__ == "__main__":
 
     from src.processing_element import TaskInfo, RequireInfo, TransmitInfo
     from data.utils import load_graph_from_json, visualize_graph
+    from src.utils import get_mesh_network, get_graph_report
 
     random.seed(0)
 
     sim             = Simulator(
                         num_rows=3, 
                         num_cols=3, 
-                        debug_mode=True)
+                        debug_mode=False)
 
     graph_path      = "data/test_sim_task.json"
     graph           = load_graph_from_json(graph_path)
@@ -322,13 +292,12 @@ if __name__ == "__main__":
     sim.map(mapping_list)
     sim.run()
 
-    graph_report    = sim.get_graph_report(graph)
+    graph_report    = get_graph_report(graph, mapping_list)
     compute_list    = sim.get_tasks_status()
 
-    visualize_graph(graph, compute_list=compute_list)
+    get_mesh_network(3, graph, mapping_list)
+    visualize_graph(graph_report, compute_list=compute_list)
     
-    exit()
-
     task_0  = TaskInfo(
                 task_id                     = 0, 
                 processing_cycles           = 4, 
