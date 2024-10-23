@@ -32,7 +32,7 @@ def test_sim_simple(debug_mode: bool = False):
     sim.map(mapping_list)
     latency = sim.run()
 
-    assert latency == 60 
+    assert latency == 63
 
 
 def test_sim_1(debug_mode: bool = False):    

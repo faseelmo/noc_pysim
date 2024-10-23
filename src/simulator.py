@@ -229,16 +229,18 @@ class Simulator:
         for node_id, node in graph.nodes(data=True):
 
             for map in self._mapping_list:
-                task = map.task
+                task        = map.task
 
                 if task.task_id == node_id:
                     start_cycle = task.start_cycle
                     end_cycle   = task.end_cycle    
                     node["start_cycle"] = start_cycle
                     node["end_cycle"]   = end_cycle
+                    node["assigned_pe"] = map.assigned_pe
                     break
 
         return graph
+
 
     def run(self) -> int:
         assert self._mapping_list, "Tasks have not been assigned to PEs"
@@ -265,8 +267,8 @@ class Simulator:
 
             current_flit_list = flits_for_next_cycle
 
-            # if self._debug_mode:
-                # self._visualizer(cycle_count)
+            if self._debug_mode:
+                self._visualizer(cycle_count)
 
             if self.is_stop_condition_met(status_list, cycle_count):
                 return cycle_count - 1
@@ -310,7 +312,7 @@ if __name__ == "__main__":
     sim             = Simulator(
                         num_rows=3, 
                         num_cols=3, 
-                        debug_mode=False)
+                        debug_mode=True)
 
     graph_path      = "data/test_sim_task.json"
     graph           = load_graph_from_json(graph_path)

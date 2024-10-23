@@ -177,9 +177,12 @@ class Buffer:
 
         return self._in_transmit_mode
 
-    def fill_emtpy_slots(self) -> None:
-        """Fill non occupied spaces with Empty Flits"""
-        non_occupied_space = self.size - len(self.queue) 
+    def fill_emtpy_slots(self, n: int = 0) -> None:
+        """
+        Fill non occupied spaces with Empty Flits
+        Arg n: Number of spaces that should remain unfilled with Empty Flits.
+        """
+        non_occupied_space = self.size - len(self.queue) - n 
         for _ in range(non_occupied_space):
             self.queue.append(EmptyFlit())
 
@@ -194,7 +197,13 @@ class Buffer:
         # fill it to the brim with empty flits.
         if len(self.queue) < self.size and len(self.queue) == empty_flit_count:
             self.fill_emtpy_slots()
-        
+
+        # If there are no empty flits and the buffer is not full (one slot remaining),
+        # fill the buffer with empty flits, leaving one slot empty.
+        if empty_flit_count == 0:
+            if len(self.queue) < (self.size - 1): 
+                self.fill_emtpy_slots(1)
+
 
     def is_full(self) -> bool:
         """
