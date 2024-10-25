@@ -274,8 +274,8 @@ if __name__ == "__main__":
     import random
 
     from src.processing_element import TaskInfo, RequireInfo, TransmitInfo
-    from data.utils import load_graph_from_json, visualize_graph
-    from src.utils import get_mesh_network, get_graph_report
+    from data.utils             import load_graph_from_json, save_graph_to_json
+    from src.utils              import get_mesh_network, get_graph_report
 
     random.seed(0)
 
@@ -295,8 +295,10 @@ if __name__ == "__main__":
     graph_report    = get_graph_report(graph, mapping_list)
     compute_list    = sim.get_tasks_status()
 
-    get_mesh_network(3, graph, mapping_list)
-    visualize_graph(graph_report, compute_list=compute_list)
+    training_graph  = get_mesh_network(3, graph, mapping_list, show_graph=True)
+    save_graph_to_json(training_graph, "data/training_graph.json")
+    print(training_graph)
+    exit()
     
     task_0  = TaskInfo(
                 task_id                     = 0, 
