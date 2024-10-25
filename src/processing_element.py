@@ -127,6 +127,9 @@ class ProcessingElement:
                     require.received_packet_count += 1
                     # return
 
+        if self.debug_mode:
+            self._get_packet_count()
+
     def _recieve_packets(self, packet: Packet) -> None:
         """
         Checks if the packet received is required by the PE
@@ -182,7 +185,7 @@ class ProcessingElement:
         """
 
         tasks_ready_to_execute = []
-
+        
         for compute_task in self.compute_list:
             readiness_check     = []
 
@@ -455,13 +458,13 @@ class ProcessingElement:
             self._process_compute_task(compute_task)
 
     def _get_packet_count(self) -> None:
-        print(f"{self}Require List:")
+        # print(f"{self}Require List:")
         for compute_task in self.compute_list:
-            print(f"\t\t\t- Task {compute_task.task_id}")
+            # print(f"- Task {compute_task.task_id}")
             for require in compute_task.require_list:
 
                 self._debug_print(
-                    f"\t\t\t • type {require.require_type_id} "
+                    f"Type {require.require_type_id} "
                     f"({require.received_packet_count}/{require.required_packets})"
                 )
 

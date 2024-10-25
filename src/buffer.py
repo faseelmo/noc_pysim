@@ -72,8 +72,6 @@ class Buffer:
 
         self._acceptable_flit_uids.append(flit_uid)
 
-        print("\t->",f"{self}".split()[0], "Registered new flit")
-
 
     def _can_accept_new_packet(self) -> bool:    
         """
@@ -93,6 +91,9 @@ class Buffer:
         """
         empty_count     = 0
         has_tail        = False
+
+        if len(self._acceptable_flit_uids) == 2:
+            return False
 
         for flits in self.queue:
             if isinstance(flits, EmptyFlit):

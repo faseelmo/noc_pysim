@@ -38,6 +38,41 @@ class Simulator:
             self._visualizer = self._init_visualizer()
 
 
+    def run(self) -> int:
+        assert self._mapping_list, "Tasks have not been assigned to PEs"
+        self._debug_print(f"\nRunning simulation with {self._num_rows}x{self._num_cols} mesh PEs")
+
+        cycle_count         = 0
+        current_flit_list   = []
+        
+        while True: 
+
+            self._debug_print(f"\n>{cycle_count}")
+
+            cycle_count += 1
+            status_list = [] # To check if simulation is done
+
+            for pe in self._pes.values():
+                is_done = pe.process(None)
+                status_list.append(is_done)
+
+            flits_for_next_cycle = []
+
+            for router in self._routers.values():
+                required_flit           = self._get_required_flit( current_flit_list, router )  
+                flits_from_out_buffers  = router.process( required_flit, self._routers, self._pes)
+                flits_for_next_cycle.extend(flits_from_out_buffers)
+
+            current_flit_list = flits_for_next_cycle
+
+            if self._debug_mode:
+                self._visualizer(cycle_count)
+
+            if self.is_stop_condition_met(status_list, cycle_count):
+                return cycle_count - 1
+
+
+
     def graph_to_task(self, graph: nx.DiGraph) -> list[TaskInfo]:
         """
         Convert the graph to a list of TaskInfo objects. 
@@ -100,7 +135,7 @@ class Simulator:
         """
         import random
 
-        print(f"\nRandomly mapping {len(tasks)} tasks to PEs")
+        self._debug_print(f"\nRandomly mapping {len(tasks)} tasks to PEs")
 
         mapping_list    = []
         list_of_pes     = list(self._pes.keys())
@@ -110,9 +145,9 @@ class Simulator:
             list_of_pes.remove(random_pe)
             map = Map(task=task, assigned_pe=random_pe)
             mapping_list.append(map)
-            print(f"Mapping {map}")
+            self._debug_print(f"Mapping {map}")
 
-        print()
+        self._debug_print("")
         return mapping_list
 
 
@@ -203,46 +238,13 @@ class Simulator:
         """
         compute_list = []
 
-        print(f"\n---------Final Report---------")
+        self._debug_print(f"\n---------Final Report---------")
         for map in self._mapping_list:
             task        = map.task
             compute_list.append(task)
-            print(f"Task {task.task_id} \t Start: {task.start_cycle} \t End: {task.end_cycle}")
+            self._debug_print(f"Task {task.task_id} \t Start: {task.start_cycle} \t End: {task.end_cycle}")
 
         return compute_list 
-
-
-    def run(self) -> int:
-        assert self._mapping_list, "Tasks have not been assigned to PEs"
-        print(f"\nRunning simulation with {self._num_rows}x{self._num_cols} mesh PEs")
-
-        cycle_count         = 0
-        current_flit_list   = []
-        
-        while True: 
-            print(f"\n>{cycle_count}")
-            cycle_count += 1
-            status_list = [] # To check if simulation is done
-
-            for pe in self._pes.values():
-                is_done = pe.process(None)
-                status_list.append(is_done)
-
-            flits_for_next_cycle = []
-
-            for router in self._routers.values():
-                required_flit           = self._get_required_flit( current_flit_list, router )  
-                flits_from_out_buffers  = router.process( required_flit, self._routers, self._pes)
-                flits_for_next_cycle.extend(flits_from_out_buffers)
-
-            current_flit_list = flits_for_next_cycle
-
-            if self._debug_mode:
-                self._visualizer(cycle_count)
-
-            if self.is_stop_condition_met(status_list, cycle_count):
-                return cycle_count - 1
-
 
     def is_stop_condition_met(self, status_list: list[bool], cycle_count: int) -> bool:
         assert cycle_count < self._max_cycles, f"Simulation did not finish in {self._max_cycles} cycles"
@@ -252,7 +254,7 @@ class Simulator:
                 self._pe_done_count += 1
 
         if self._pe_done_count == self._pe_active_count:
-            print(f"\nSimulation finished in {cycle_count - 1} cycles")
+            self._debug_print(f"\nSimulation finished in {cycle_count - 1} cycles")
             return True
 
         return False
@@ -268,6 +270,10 @@ class Simulator:
 
         return visualizer
 
+    def _debug_print(self, message: str) -> None:
+        if self._debug_mode:
+            print(message)
+
 
 if __name__ == "__main__":
 
@@ -275,7 +281,7 @@ if __name__ == "__main__":
 
     from src.processing_element import TaskInfo, RequireInfo, TransmitInfo
     from data.utils             import load_graph_from_json, save_graph_to_json
-    from src.utils              import get_mesh_network, get_graph_report
+    from src.utils              import get_mesh_network, get_graph_report, visuailize_noc_application
 
     random.seed(0)
 
@@ -295,7 +301,9 @@ if __name__ == "__main__":
     graph_report    = get_graph_report(graph, mapping_list)
     compute_list    = sim.get_tasks_status()
 
-    training_graph  = get_mesh_network(3, graph, mapping_list, show_graph=True)
+    training_graph  = get_mesh_network(3, graph, mapping_list)
+    visuailize_noc_application(training_graph)
+
     save_graph_to_json(training_graph, "data/training_graph.json")
     print(training_graph)
     exit()
@@ -306,7 +314,6 @@ if __name__ == "__main__":
                 expected_generated_packets  = 1, 
                 require_list                = [], 
                 is_transmit_task            = True, 
-
                 transmit_list               = [ TransmitInfo(
                                                     id = 1, 
                                                     require=1) ] )

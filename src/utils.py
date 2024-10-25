@@ -252,31 +252,79 @@ def get_graph_report(graph: nx.DiGraph, mapping_list: list[Map]) -> nx.DiGraph:
 
     return graph
 
-def get_mesh_network(mesh_size: int, application_graph: nx.DiGraph, mapping_list: list[Map], show_graph: bool) -> nx.DiGraph: 
-    import numpy                as np
-    import networkx             as nx
-    import matplotlib.pyplot    as plt
-    import re 
 
-    seed        = 0
-    router_tilt = 0.4
-    pe_offset   = 0.2
-    application_graph_pos = nx.spring_layout(application_graph, seed=seed)
+def visuailize_noc_application(graph: nx.DiGraph):
+    import matplotlib.pyplot  as plt
+    import numpy as np
+    import re
 
-    # Normalizing the positions of the application graph to fit in the mesh network graph
-    x_values = np.array([pos[0] for pos in application_graph_pos.values()])
-    y_values = np.array([pos[1] for pos in application_graph_pos.values()])
+    router_tilt                 = 0.4
+    pe_offset                   = 0.2
+    normalization_factor        = 3 
+    application_graph_offset    = 4.0
+
+    pos         = {}
+    task_nodes  = [node for node, data in graph.nodes(data=True) if data.get('type') == 'task']
+    task_pos    = nx.spring_layout(graph.subgraph(task_nodes), seed=0)
+    pos.update(task_pos)
+
+    # Finding normalized positions for the task nodes
+    x_values = np.array([pos[0] for pos in pos.values()])
+    y_values = np.array([pos[1] for pos in pos.values()])
 
     x_min, x_max = x_values.min(), x_values.max()
     y_min, y_max = y_values.min(), y_values.max()
 
-    x_values = 3 * (x_values - x_min) / (x_max - x_min)
-    y_values = 3 * (y_values - y_min) / (y_max - y_min)
-    y_offset = 4.0  
+    x_values = normalization_factor * (x_values - x_min) / (x_max - x_min)
+    y_values = normalization_factor * (y_values - y_min) / (y_max - y_min)
+
+    y_offset = application_graph_offset  
     y_values += y_offset
 
-    for i, node in enumerate(application_graph_pos.keys()):
-        application_graph_pos[node] = (x_values[i], y_values[i])
+    # Updating pos with normalized task positions
+    for i, node in enumerate(pos.keys()):
+        pos[node] = (x_values[i], y_values[i])
+
+    # Updating the positions of the router and PE nodes
+    for node_str in graph.nodes():
+        if graph.nodes[node_str].get('type') == 'router':
+            x, y                = tuple( map( int, re.findall(r'\d+', node_str) ) ) 
+            pos[node_str]       = ( x + router_tilt * y, y )
+            pos[f"PE({x},{y})"] = ( x + (router_tilt * y) + pe_offset, y + pe_offset )
+
+    # Custom labels for the nodes
+    custom_labels = {}
+    for id, node in graph.nodes(data=True): 
+        label       = [f"{id}"]
+        node_type   = node.get('type')
+        if node_type == "task":
+            label.append(f"{node.get('start_cycle', 'N/A')} -> {node.get('end_cycle', 'N/A')}")
+        custom_labels[id] = "\n".join(label)
+
+    plt.figure(figsize=(10, 10))
+    nx.draw(graph, 
+            pos, 
+            with_labels = True, 
+            node_color  = 'lightblue', 
+            node_size   = 500, 
+            labels      = custom_labels, 
+            font_size   = 10, 
+            font_weight = 'bold', 
+            edge_color  = 'gray')
+
+    pe_nodes = [n for n in graph.nodes() if isinstance(n, str) and n.startswith("PE")]
+
+    nx.draw_networkx_nodes(graph, pos, nodelist=pe_nodes, node_color='lightgreen', node_size=300)
+    edge_labels = nx.get_edge_attributes(graph, 'weight')
+
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_color='red')
+    plt.show()
+
+
+def get_mesh_network(mesh_size: int, application_graph: nx.DiGraph, mapping_list: list[Map]) -> nx.DiGraph: 
+
+    import re 
+    import networkx as nx
 
     # Creating the Router network graph
     graph       = nx.grid_2d_graph(mesh_size, mesh_size, create_using=nx.DiGraph)
@@ -284,30 +332,22 @@ def get_mesh_network(mesh_size: int, application_graph: nx.DiGraph, mapping_list
     graph       = nx.relabel_nodes(graph, rename_map, copy=False)
     nx.set_node_attributes(graph, "router", "type")
 
-    pos         = {}
-    for node_str in graph.nodes():
-        x, y            = tuple( map( int, re.findall(r'\d+', node_str) ) ) 
-        pos[node_str]   = ( x + router_tilt * y, y)
-
-    pos.update(application_graph_pos)
-
     router_nodes = list(graph.nodes())  
 
     # Adding edges of the application graph in the mesh network graph
     for task_id in application_graph.nodes():
         successors = list(application_graph.successors(task_id))
         for successor in successors:
-            graph.add_edge(task_id, successor)
+            weight = application_graph[task_id][successor]["weight"]
+            graph.add_edge(task_id, successor, weight=weight)
 
     # Adding the processing elements (PEs) to the mesh network graph
     for router_str in router_nodes: 
         x, y = tuple(map(int, re.findall(r'\d+', router_str)))
         pe_node = f"PE({x},{y})"            # Create a label for each PE node
         graph.add_node(pe_node, type="pe")  # Add the PE node
-        graph.add_edge(pe_node, router_str)     # Connect PE to the router (directed edge)
-        graph.add_edge(router_str, pe_node)     # Connect the router to the PE (directed edge)
-        
-        pos[pe_node] = (pos[router_str][0] + pe_offset, pos[router_str][1] + pe_offset)
+        graph.add_edge(pe_node, router_str) # Connect PE to the router (directed edge)
+        graph.add_edge(router_str, pe_node) # Connect the router to the PE (directed edge)
 
     # Adding the tasks from the application graph to mesh network graph
     for task_id in application_graph.nodes():
@@ -318,31 +358,5 @@ def get_mesh_network(mesh_size: int, application_graph: nx.DiGraph, mapping_list
                 graph.nodes[task_id]["end_cycle"]   = map_.task.end_cycle
                 pe_x, pe_y = map_.assigned_pe
                 graph.add_edge(task_id, f"PE({pe_x},{pe_y})")
-
-    custom_labels = {}
-    for id, node in graph.nodes(data=True): 
-        label       = [f"{id}"]
-        node_type   = node.get('type')
-        if node_type == "task":
-            label.append(f"{node.get('start_cycle', 'N/A')} -> {node.get('end_cycle', 'N/A')}")
-        custom_labels[id] = "\n".join(label)
-            
-    if show_graph:
-        plt.figure(figsize=(10, 10))
-        nx.draw(graph, 
-                pos, 
-                with_labels = True, 
-                node_color  = 'lightblue', 
-                node_size   = 500, 
-                labels      = custom_labels, 
-                font_size   = 10, 
-                font_weight = 'bold', 
-                edge_color  = 'gray')
-    
-        # Highlight the processing elements (PEs) in a different color
-        pe_nodes = [n for n in graph.nodes() if isinstance(n, str) and n.startswith("PE")]
-        nx.draw_networkx_nodes(graph, pos, nodelist=pe_nodes, node_color='lightgreen', node_size=300)
-
-        plt.show()
 
     return graph
