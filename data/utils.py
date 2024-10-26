@@ -1,14 +1,14 @@
 import networkx as nx
-import json
-
 
 def save_graph_to_json(graph: nx.DiGraph, filename: str):
+    import json
     data = nx.node_link_data(graph)
     with open(filename, "w") as file:
         json.dump(data, file)
 
 
 def load_graph_from_json(filename: str):
+    import json
     with open(filename, "r") as file:
         data = json.load(file)
     return nx.node_link_graph(data)
@@ -32,6 +32,7 @@ def get_compute_list_from_json(filename: str) -> dict:
     Converts the node cycle information from the json file to a dictionary
     used in inspect_data.py
     """
+    import json
     json_dict = json.load(open(filename))
 
     compute_list = {}

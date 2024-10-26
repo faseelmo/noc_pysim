@@ -22,8 +22,6 @@ class Buffer:
         Adds flit to the buffer if it is not full.
         Full is defined as having all non-empty flits.
         """
-        
-        
         if self.is_full(): 
             raise Exception( "Cannot add flit to full buffer." )
 
@@ -44,6 +42,7 @@ class Buffer:
     def can_accept_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
         # To do: Call this function in add_flit and remove the if condition from add_flit.
         # I dont wanna do it now, because test conditions will have to be adjusted accordingly. urgh. 
+        
         if self.is_full():
             return False
 
@@ -73,8 +72,6 @@ class Buffer:
 
         self._acceptable_flit_uids.append(flit_uid)
 
-        print("\t->",f"{self}".split()[0], "Registered new flit")
-
 
     def _can_accept_new_packet(self) -> bool:    
         """
@@ -95,6 +92,9 @@ class Buffer:
         empty_count     = 0
         has_tail        = False
 
+        if len(self._acceptable_flit_uids) == 2:
+            return False
+
         for flits in self.queue:
             if isinstance(flits, EmptyFlit):
                 empty_count += 1
@@ -106,7 +106,7 @@ class Buffer:
             return True
 
         elif len(self._acceptable_flit_uids) == 1:
-            if empty_count == 0:
+            if empty_count == 0 and has_tail:
                 return True
 
         if empty_count > 0 and has_tail:
@@ -178,46 +178,43 @@ class Buffer:
 
         return self._in_transmit_mode
 
-    def fill_emtpy_slots(self) -> None:
-        """Fill non occupied spaces with Empty Flits"""
-        non_occupied_space = self.size - len(self.queue)
+    def fill_emtpy_slots(self, n: int = 0) -> None:
+        """
+        Fill non occupied spaces with Empty Flits
+        Arg n: Number of spaces that should remain unfilled with Empty Flits.
+        """
+        non_occupied_space = self.size - len(self.queue) - n 
         for _ in range(non_occupied_space):
             self.queue.append(EmptyFlit())
 
-        # if len(self.queue) == 2:
-        #     self.queue.append(EmptyFlit())
-
-
     def manager(self) -> None:
 
-        # if len(self.queue) < self.size - 1:
-        #     if isinstance(self.queue[-1], (TailFlit, EmptyFlit)): 
-        #         print(f"adding empty flit in {self}")
-        #         self.queue.append(EmptyFlit())
-        #         print(f"updated {self}")
-
-        # If the buffer is full of empty flits
         empty_flit_count = 0
         for flit in self.queue:
             if isinstance(flit, EmptyFlit):
                 empty_flit_count += 1
-
-        if len(self.queue) == empty_flit_count:
-            self.fill_emtpy_slots()
         
+        # If the buffer has all empty flits and less than the buffer size
+        # fill it to the brim with empty flits.
+        if len(self.queue) < self.size and len(self.queue) == empty_flit_count:
+            self.fill_emtpy_slots()
+
+        # If there are no empty flits and the buffer is not full (one slot remaining),
+        # fill the buffer with empty flits, leaving one slot empty.
+        if empty_flit_count == 0:
+            if len(self.queue) < (self.size - 1): 
+                self.fill_emtpy_slots(1)
 
 
-
-    def is_full(self, inter_router_transfer:bool = False) -> bool:
+    def is_full(self) -> bool:
         """
         Returns True if the buffer is full  
         Full is defined as having all non - EmptyFlit.
         """
-        if inter_router_transfer: 
-            if isinstance(self.queue[-1], EmptyFlit):
-                return False
+        if len(self.queue) == 0:
+            return False
 
-        if isinstance(self.queue[0], EmptyFlit):
+        if isinstance(self.queue[0], EmptyFlit) :
             return False
 
         elif len(self.queue) < self.size:
@@ -261,9 +258,9 @@ if __name__ == "__main__":
     Test 1: Adding 4 flits to the buffer and then removing them.
     """
     print( "\n- Test 1: Adding 4 flits to the buffer and then removing them." )
-    packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
-                    source_task_id=0)
+    packet = Packet(source_xy       = (0, 0), 
+                    dest_id         = 1, 
+                    source_task_id  = 0)
 
     packet_is_transmitted = False
     while not packet_is_transmitted:
@@ -282,9 +279,9 @@ if __name__ == "__main__":
     """
     print( "\n- Test 2: Adding 2 flits to the buffer and then removing them." )
     
-    packet = Packet(source_xy=(0, 0), 
-                    dest_xy=(1, 1), 
-                    source_task_id=0)
+    packet = Packet(source_xy       = (0, 0), 
+                    dest_id         = 1, 
+                    source_task_id  = 0)
 
     buffer = Buffer(4)
 

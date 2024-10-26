@@ -22,6 +22,31 @@ def generate_graph(num_nodes: int):
     return random.choice(graph_generator)()
 
 
+def modify_graph_to_application_graph(graph: nx.DiGraph):
+    """
+    Adds weight attribute to the edges of the graph.
+    Adds processing_time attribute to the nodes of the graph.
+    Sum of the successor weights is assigned as generate attribute to the node.
+    """
+    for node in graph.nodes:
+        processing_time = random.randint(1, 10)
+        graph.nodes[node]["processing_time"] = processing_time
+        successors = list(graph.successors(node))
+        
+        generate_count = 0
+        for successor in successors:
+            edge_weight = random.randint(1, 5)
+            graph[node][successor]["weight"] = edge_weight
+            generate_count += edge_weight
+        graph.nodes[node]["generate"] = generate_count
+
+        final_node_generate_count = random.randint(1, 5)
+        if len(successors) == 0:
+            graph.nodes[node]["generate"] = final_node_generate_count
+
+    return graph
+
+
 def modify_graph_to_task_graph(graph: nx.DiGraph):
     """
     Add Task information as node (generate) and edge attributes (require)
