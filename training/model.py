@@ -306,8 +306,8 @@ if __name__ == "__main__":
 
     import sys
 
-    from training.dataset import CustomDataset, load_data
-    from data.utils import visualize_graph
+    from data.utils         import visualize_graph
+    from training.dataset   import CustomDataset, load_data
 
     if len(sys.argv) > 1:   
         HETERO_MODEL    = sys.argv[1].lower() in ['true', '1']
@@ -319,7 +319,7 @@ if __name__ == "__main__":
         HETERO_MODEL    = False
         DO_POOLING      = False
         HAS_WAIT_TIME   = False
-        HAS_SCHEDULER    = False
+        HAS_SCHEDULER   = False
 
     print( f"Hetero Model   = {HETERO_MODEL}" )
     print( f"Do Pooling     = {DO_POOLING}" )

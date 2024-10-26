@@ -299,25 +299,34 @@ class CustomDataset(Dataset):
 
 def load_data(
         training_data_dir, 
-        is_hetero           : bool, 
-        has_wait_time       : bool, 
-        has_scheduler_node  : bool,     
         batch_size          : int =32, 
-        validation_split    : float =0.1
+        validation_split    : float =0.1,
+        **kwargs
 
     ) -> tuple[DataLoader, DataLoader]:
 
-    print(f"\n[load_data] Is hetero graph: \t{is_hetero}")
-    print(f"[load_data] Has wait time: \t{has_wait_time}")
+    is_hetero           = kwargs.get( "is_hetero", False )
+    has_wait_time       = kwargs.get( "has_wait_time", False )
+    has_scheduler_node  = kwargs.get( "has_scheduler_node", False )
+    is_noc_dataset      = kwargs.get( "is_noc_dataset", False )
 
-    dataset             = CustomDataset(
-                            training_data_dir   = training_data_dir, 
-                            is_hetero           = is_hetero, 
-                            has_wait_time       = has_wait_time, 
-                            has_scheduler_node  = has_scheduler_node,
-                            return_graph        = False)
 
-    validation_size     = int( validation_split * len( dataset ) )
+    if is_noc_dataset:    
+        from training.noc_dataset import NocDataset
+        dataset = NocDataset( training_data_dir )
+        print(f"\n[load_data] Is NOC dataset: \t{is_noc_dataset}")
+
+    else: 
+        print(f"\n[load_data] Is hetero graph: \t{is_hetero}")
+        print(f"[load_data] Has wait time: \t{has_wait_time}")
+        dataset = CustomDataset(
+                    training_data_dir   = training_data_dir, 
+                    is_hetero           = is_hetero, 
+                    has_wait_time       = has_wait_time, 
+                    has_scheduler_node  = has_scheduler_node,
+                    return_graph        = False)
+
+    validation_size = int( validation_split * len( dataset ) )
 
     if validation_size == 0: # ensure at least one validation sample
         validation_size = 1  

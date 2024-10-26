@@ -334,13 +334,6 @@ def get_mesh_network(mesh_size: int, application_graph: nx.DiGraph, mapping_list
 
     router_nodes = list(graph.nodes())  
 
-    # Adding edges of the application graph in the mesh network graph
-    for task_id in application_graph.nodes():
-        successors = list(application_graph.successors(task_id))
-        for successor in successors:
-            weight = application_graph[task_id][successor]["weight"]
-            graph.add_edge(task_id, successor, weight=weight)
-
     # Adding the processing elements (PEs) to the mesh network graph
     for router_str in router_nodes: 
         x, y = tuple(map(int, re.findall(r'\d+', router_str)))
@@ -350,13 +343,27 @@ def get_mesh_network(mesh_size: int, application_graph: nx.DiGraph, mapping_list
         graph.add_edge(router_str, pe_node) # Connect the router to the PE (directed edge)
 
     # Adding the tasks from the application graph to mesh network graph
+    # + create the mapping edge between the task and the PE
     for task_id in application_graph.nodes():
         for map_ in mapping_list:
             if map_.task.task_id == task_id:
-                graph.add_node(task_id, type="task")
-                graph.nodes[task_id]["start_cycle"] = map_.task.start_cycle
-                graph.nodes[task_id]["end_cycle"]   = map_.task.end_cycle
+
+                graph.add_node(
+                    task_id, 
+                    type            = "task", 
+                    generate        = map_.task.expected_generated_packets, 
+                    processing_time = map_.task.processing_cycles, 
+                    start_cycle     = map_.task.start_cycle, 
+                    end_cycle       = map_.task.end_cycle)
+
                 pe_x, pe_y = map_.assigned_pe
                 graph.add_edge(task_id, f"PE({pe_x},{pe_y})")
+
+    # Adding edges of the application graph in the mesh network graph
+    for task_id in application_graph.nodes():
+        successors = list(application_graph.successors(task_id))
+        for successor in successors:
+            weight = application_graph[task_id][successor]["weight"]
+            graph.add_edge(task_id, successor, weight=weight)
 
     return graph
