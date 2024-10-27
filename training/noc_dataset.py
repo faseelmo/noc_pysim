@@ -56,8 +56,8 @@ class NocDataset(Dataset):
         num_routers         = len(global_to_local_indexing["router"])
         num_pes             = len(global_to_local_indexing["pe"])
 
-        data["router"].x    = torch.empty( num_routers, dtype=torch.float )
-        data["pe"].x        = torch.empty( num_pes, 0, dtype=torch.float )
+        data["router"].x    = torch.empty( (num_routers, 0), dtype=torch.float )
+        data["pe"].x        = torch.empty( (num_pes, 0), dtype=torch.float )
 
         # Creating the edge index tensor
         task_edge       = "depends_on"
