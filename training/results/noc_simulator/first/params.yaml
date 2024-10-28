@@ -1,6 +1,6 @@
 # Model Parameters
 NUM_MPN_LAYERS      : 3     # Number of conv layers in MPN
-HIDDEN_CHANNELS     : 40    # Number of output node embeddings 
+HIDDEN_CHANNELS     : 50    # Number of output node embeddings 
 USE_NOC_DATASET     : True # Uses the NoC dataset for training
 IS_HETERO           : True  # Converts using to_hetero() if True
 DO_POOLING          : False # Applies pooling to the output node embeddings
@@ -19,7 +19,7 @@ MAX_CYCLE           : 100
 
 # Hyperparameters 
 LEARNING_RATE       : 0.01
-EPOCHS              : 100 
+EPOCHS              : 200 
 WEIGHT_DECAY        : 0
 BATCH_SIZE          : 20
 

@@ -253,10 +253,15 @@ def get_graph_report(graph: nx.DiGraph, mapping_list: list[Map]) -> nx.DiGraph:
     return graph
 
 
-def visuailize_noc_application(graph: nx.DiGraph):
+def visuailize_noc_application(graph: nx.DiGraph, prediction: list):
     import matplotlib.pyplot  as plt
     import numpy as np
     import re
+
+    assert isinstance(prediction, list), "Prediction should be a list"
+    has_prediction = False
+    if len(prediction) > 0:
+        has_prediction = True
 
     router_tilt                 = 0.4
     pe_offset                   = 0.2
@@ -297,8 +302,14 @@ def visuailize_noc_application(graph: nx.DiGraph):
     for id, node in graph.nodes(data=True): 
         label       = [f"{id}"]
         node_type   = node.get('type')
+
         if node_type == "task":
-            label.append(f"{node.get('start_cycle', 'N/A')} -> {node.get('end_cycle', 'N/A')}")
+            label.append(f"True: {node.get('start_cycle', 'N/A')} -> {node.get('end_cycle', 'N/A')}")
+            if has_prediction:
+                start = int(prediction[id][0])
+                end  = int(prediction[id][1])
+                label.append(f"Pred: {start} -> {end}")
+
         custom_labels[id] = "\n".join(label)
 
     plt.figure(figsize=(10, 10))

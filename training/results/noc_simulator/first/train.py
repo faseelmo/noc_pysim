@@ -278,6 +278,8 @@ def main():
     train_loss_list     = []
     test_metric_list    = []
 
+    saved_test_metric = []
+
     for epoch in range(EPOCHS):
 
         train_loss          = train_fn(train_loader, model, optimizer, loss_fn, DO_POOLING, HAS_WAIT_TIME)
@@ -296,8 +298,13 @@ def main():
             test_metric_list, 
             args.name)
 
-        if test_metric > 0.84:
+        if test_metric > 0.80:
         # if (epoch + 1) % 10 == 0 or (epoch + 1) == 1:
+
+            test_metric = int( round(test_metric, 2) * 100 )
+
+            if test_metric in saved_test_metric:
+                continue
 
             torch.save(model, f"{SAVE_RESULTS}/LatNet_{test_metric}_{epoch+1}.pth")
             torch.save(
@@ -306,6 +313,8 @@ def main():
 
             end_time        = time.time()
             time_elapsed    = (end_time - start_time) / 60
+
+            saved_test_metric.append(test_metric)
 
             print(f"\n[Saving mode] Total Training Time: {time_elapsed} minutes\n")
 
