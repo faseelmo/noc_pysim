@@ -5,14 +5,14 @@ import torch
 
 import networkx                 as nx
 
-from natsort                    import natsorted
 from typing                     import Union
+from natsort                    import natsorted
 
-from torch_geometric.utils      import from_networkx
-from torch.utils.data           import Dataset, random_split
 from torch_geometric.loader     import DataLoader
-from torch_geometric.data       import HeteroData, Data
 from torch_geometric.transforms import ToUndirected
+from torch_geometric.utils      import from_networkx
+from torch_geometric.data       import HeteroData, Data
+from torch.utils.data           import Dataset, random_split
 
 
 class CustomDataset(Dataset):
@@ -308,13 +308,13 @@ def load_data(
     is_hetero           = kwargs.get( "is_hetero", False )
     has_wait_time       = kwargs.get( "has_wait_time", False )
     has_scheduler_node  = kwargs.get( "has_scheduler_node", False )
-    is_noc_dataset      = kwargs.get( "is_noc_dataset", False )
+    use_noc_dataset      = kwargs.get( "use_noc_dataset", False )
 
 
-    if is_noc_dataset:    
+    if use_noc_dataset:    
         from training.noc_dataset import NocDataset
         dataset = NocDataset( training_data_dir )
-        print(f"\n[load_data] Is NOC dataset: \t{is_noc_dataset}")
+        print(f"\n[load_data] Is NOC dataset: \t{use_noc_dataset}")
 
     else: 
         print(f"\n[load_data] Is hetero graph: \t{is_hetero}")

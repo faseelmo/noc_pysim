@@ -100,8 +100,6 @@ class NocDataset(Dataset):
         for edge_type in data.edge_types: 
             data[edge_type].edge_index = torch.tensor(data[edge_type].edge_index, dtype=torch.long).contiguous()
 
-        print(f"Data is {data}")
-
         self._do_checks(data)
 
         return data
@@ -116,6 +114,8 @@ class NocDataset(Dataset):
 if __name__ == "__main__": 
 
     from training.dataset import load_data
+    from training.model import GNNHetero
+    from training.utils import initialize_model
 
     # Dataset testing 
     dataset = NocDataset("data/training_data/simulator/test")
@@ -123,11 +123,21 @@ if __name__ == "__main__":
     dataset[0]
 
     # DataLoader testing
-    dataloader = load_data( 
-                    training_data_dir   = "data/training_data/simulator/test", 
-                    batch_size          = 10, 
-                    is_noc_dataset      = True)
+    dataloader, _   = load_data( 
+                        training_data_dir   = "data/training_data/simulator/test", 
+                        batch_size          = 10, 
+                        use_noc_dataset     = True)
 
     
+    metadata    = dataset[0].metadata()
+    model       = GNNHetero(hidden_channels=3, num_mpn_layers=3, metadata=metadata)
+
+    print(f"Model is {model}")
+
+    initialize_model(model, dataloader)
+
+
+
+
 
 
