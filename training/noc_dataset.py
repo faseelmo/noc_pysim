@@ -3,17 +3,20 @@ import os
 import yaml 
 import torch
 
+from natsort import natsorted
+
 from data.utils import load_graph_from_json
 
 from torch.utils.data import Dataset    
 from torch_geometric.data import HeteroData
+from torch_geometric.transforms import ToUndirected
 
 
 class NocDataset(Dataset): 
     def __init__(self, training_data_dir): 
 
         self._file_dir              = training_data_dir  
-        self._training_files        = os.listdir(training_data_dir)
+        self._training_files        = natsorted(os.listdir(training_data_dir))
 
         training_parameters         = yaml.safe_load(open("training/params.yaml"))
         self.max_generate           = training_parameters["MAX_GENERATE"]
@@ -64,9 +67,11 @@ class NocDataset(Dataset):
         task_pe_edge    = "mapped_to"
         router_edge     = "link"
         router_pe_edge  = "interface"
+        pe_task_edge    = "rev_mapped_to"
 
         data["task",    task_edge,      "task"].edge_index     = [ [], [] ]
         data["task",    task_pe_edge,   "pe"].edge_index       = [ [], [] ]
+        data["pe",      pe_task_edge,   "task"].edge_index     = [ [], [] ]
         data["router",  router_edge,    "router"].edge_index   = [ [], [] ]
         data["router",  router_pe_edge, "pe"].edge_index       = [ [], [] ]
         data["pe",      router_pe_edge, "router"].edge_index   = [ [], [] ]
@@ -82,6 +87,7 @@ class NocDataset(Dataset):
                 edge_type = task_edge   
             elif src_type == "task" and dst_type == "pe": 
                 edge_type = task_pe_edge
+                is_map_edge = True  
             elif src_type == "router" and dst_type == "router":
                 edge_type = router_edge
             elif src_type == "router" and dst_type == "pe":
@@ -100,6 +106,7 @@ class NocDataset(Dataset):
         for edge_type in data.edge_types: 
             data[edge_type].edge_index = torch.tensor(data[edge_type].edge_index, dtype=torch.long).contiguous()
 
+        # data = ToUndirected()(data) 
         self._do_checks(data)
 
         return data
