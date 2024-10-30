@@ -218,7 +218,7 @@ def test_sim_graph(debug_mode: bool = False):
                     GraphMap(task_id=2, assigned_pe=(0,0)), 
                     GraphMap(task_id=3, assigned_pe=(1,0)) ]
                      
-    mapping_list = sim.get_assigned_mapping_list(task_list, graph_map)
+    mapping_list = sim.set_assigned_mapping_list(task_list, graph_map)
 
     sim.map(mapping_list)
     latency = sim.run()

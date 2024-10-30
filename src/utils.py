@@ -234,7 +234,7 @@ def get_random_packet_list(graph: nx.DiGraph, shuffle=False) -> list:
 
     return packet_list
 
-def get_graph_report(graph: nx.DiGraph, mapping_list: list[Map]) -> nx.DiGraph:
+def get_graph_report(graph: nx.DiGraph, mapping_list: list[Map], show: bool = False) -> nx.DiGraph:
     """
     Updates the node of the application graph with the processing start_cycle and end_cycle.
     """
@@ -248,19 +248,21 @@ def get_graph_report(graph: nx.DiGraph, mapping_list: list[Map]) -> nx.DiGraph:
                 node["start_cycle"] = start_cycle
                 node["end_cycle"]   = end_cycle
                 node["assigned_pe"] = map.assigned_pe
+                if show:
+                    print(f"Task {node_id} assigned to PE {map.assigned_pe}. Processing from {start_cycle} to {end_cycle}.")
                 break
 
     return graph
 
 
-def visuailize_noc_application(graph: nx.DiGraph, prediction: list):
+def visuailize_noc_application(graph: nx.DiGraph, prediction: list = None):
     import matplotlib.pyplot  as plt
     import numpy as np
     import re
 
-    assert isinstance(prediction, list), "Prediction should be a list"
     has_prediction = False
-    if len(prediction) > 0:
+    if prediction: 
+        assert isinstance(prediction, list), "Prediction should be a list"
         has_prediction = True
 
     router_tilt                 = 0.4

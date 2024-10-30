@@ -29,6 +29,7 @@ class Simulator:
         self._routers       = self._create_routers()
         self._pes           = self._create_pes()
 
+        self._task_list     = []
         self._mapping_list  = []
 
         self._pe_done_count     = 0    
@@ -125,15 +126,21 @@ class Simulator:
 
             task_list.append(task)
 
+        self._task_list = task_list
+
         return task_list
 
 
-    def get_random_mapping(self, tasks: list[TaskInfo]) -> list[Map]:
+    def get_random_mapping(self, tasks: list[TaskInfo] = None, do_map: bool = False) -> list[Map]:
         """
         One-to-one mapping of tasks to PE. 
         As of now, only one task per PE is supported. 
         """
         import random
+
+        if not tasks : 
+            tasks = self._task_list
+            assert tasks, "Tasks have not been defined"
 
         self._debug_print(f"\nRandomly mapping {len(tasks)} tasks to PEs")
 
@@ -148,10 +155,14 @@ class Simulator:
             self._debug_print(f"Mapping {map}")
 
         self._debug_print("")
+
+        if do_map:
+            self.map(mapping_list)
+
         return mapping_list
 
 
-    def get_assigned_mapping_list(self, tasks: list[TaskInfo], mapping: list[ GraphMap ] ) -> list[Map]:
+    def set_assigned_mapping_list(self, tasks: list[TaskInfo], mapping: list[ GraphMap ] ) -> list[Map]:
         """
         Get mapping list when tasks are defined as graphs. 
         """
@@ -230,6 +241,9 @@ class Simulator:
 
         return required_flit
 
+    def get_mapping_list(self) -> list[Map]:    
+        return self._mapping_list
+
 
     def get_tasks_status(self) -> list[TaskInfo]:
         """
@@ -292,16 +306,15 @@ if __name__ == "__main__":
 
     graph_path      = "data/test_sim_task.json"
     graph           = load_graph_from_json(graph_path)
-    task_list       = sim.graph_to_task(graph)
-    mapping_list    = sim.get_random_mapping(task_list)
-    
-    sim.map(mapping_list)
+
+    sim.graph_to_task(graph)
+    sim.get_random_mapping(do_map=True)
     sim.run()
 
-    graph_report    = get_graph_report(graph, mapping_list)
+    graph_report    = get_graph_report(graph, sim.get_mapping_list())
     compute_list    = sim.get_tasks_status()
 
-    training_graph  = get_mesh_network(3, graph, mapping_list)
+    training_graph  = get_mesh_network(3, graph, sim.get_mapping_list())
     visuailize_noc_application(training_graph)
 
     save_graph_to_json(training_graph, "data/training_graph.json")
