@@ -302,7 +302,7 @@ def visuailize_noc_application(graph: nx.DiGraph, prediction: list = None):
     # Custom labels for the nodes
     custom_labels = {}
     for id, node in graph.nodes(data=True): 
-        label       = [f"{id}"]
+        label       = [f"id: {id}"]
         node_type   = node.get('type')
 
         if node_type == "task":
@@ -371,6 +371,7 @@ def get_mesh_network(mesh_size: int, application_graph: nx.DiGraph, mapping_list
 
                 pe_x, pe_y = map_.assigned_pe
                 graph.add_edge(task_id, f"PE({pe_x},{pe_y})")
+                # graph.add_edge(f"PE({pe_x},{pe_y})", task_id)
 
     # Adding edges of the application graph in the mesh network graph
     for task_id in application_graph.nodes():
