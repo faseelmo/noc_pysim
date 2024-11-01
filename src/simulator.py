@@ -245,18 +245,24 @@ class Simulator:
         return self._mapping_list
 
 
-    def get_tasks_status(self) -> list[TaskInfo]:
+    def get_tasks_status(self, show: bool= False) -> list[TaskInfo]:
         """
         Reports the start_cycle and end_cycle of each tasks in the mapping list. 
         Also returns compute_list for data.utils.visualize_graph
         """
         compute_list = []
 
-        self._debug_print(f"\n---------Final Report---------")
+        if show or self._debug_mode:
+            print("---------Final Report---------")
+            print(f"Task \t PE \t Start \t End")
+
+
         for map in self._mapping_list:
             task        = map.task
             compute_list.append(task)
-            self._debug_print(f"Task {task.task_id} \t Start: {task.start_cycle} \t End: {task.end_cycle}")
+            if show or self._debug_mode:
+                print
+                print(f" {task.task_id}\t{map.assigned_pe} \t {task.start_cycle} \t {task.end_cycle}")
 
         return compute_list 
 

@@ -10,7 +10,7 @@ class Buffer:
     def __init__(self, size: int, name: str = "Buffer"):
         self.size               = size
         self.queue              = deque(maxlen=size)
-        self._in_transmit_mode  = False # maybe this is not needed. Check with router. 
+        self._in_transmit_mode  = False 
         self._name              = name
 
         self._acceptable_flit_uids = deque(maxlen=2)

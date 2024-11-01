@@ -248,9 +248,6 @@ def get_graph_report(graph: nx.DiGraph, mapping_list: list[Map], show: bool = Fa
                 node["start_cycle"] = start_cycle
                 node["end_cycle"]   = end_cycle
                 node["assigned_pe"] = map.assigned_pe
-                if show:
-                    print(f"Task {node_id} assigned to PE {map.assigned_pe}. Processing from {start_cycle} to {end_cycle}.")
-                break
 
     return graph
 

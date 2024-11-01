@@ -43,12 +43,11 @@ class Packet:
         for i in range(self._payload_size):
             packet_content.append( 
                             PayloadFlit( 
-                                packet_uid = uid, 
                                 payload_index = i+1 , 
                                 header_flit = header_flit) 
                             )
 
-        packet_content.append( TailFlit( packet_uid = uid, header_flit = header_flit ) )
+        packet_content.append( TailFlit( header_flit = header_flit ) )
 
 
     def pop_flit( self ) -> tuple[bool, Union[HeaderFlit, PayloadFlit, TailFlit]]: 

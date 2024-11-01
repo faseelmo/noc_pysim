@@ -9,4 +9,4 @@ sim.graph_to_task( graph )
 sim.get_random_mapping( do_map=True )
 sim.run()
 
-get_graph_report( graph, sim.get_mapping_list(), show=True )
+sim.get_tasks_status( show=True )
