@@ -42,7 +42,6 @@ class Buffer:
     def can_accept_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
         # To do: Call this function in add_flit and remove the if condition from add_flit.
         # I dont wanna do it now, because test conditions will have to be adjusted accordingly. urgh. 
-        
         if self.is_full():
             return False
 

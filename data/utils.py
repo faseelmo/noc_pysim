@@ -44,6 +44,14 @@ def get_compute_list_from_json(filename: str) -> dict:
 
     return compute_list
 
+def get_weights_from_directory(directory: str, file_name: str):
+    import os 
+    files = os.listdir(directory)
+    for file in files:
+        if file_name in file:
+            return os.path.join(directory, file)
+    else: 
+        raise Exception(f"File {file_name} not found in directory {directory}")
 
 def visualize_graph(
         graph: nx.DiGraph, 
