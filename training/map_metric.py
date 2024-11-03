@@ -5,7 +5,7 @@ import argparse
 
 from scipy.stats import kendalltau  
 
-from training.model import GNNHetero
+from training.model import GNNHetero, HeteroGNN
 from training.noc_dataset import NocDataset
 from data.utils import get_weights_from_directory
 
@@ -22,13 +22,21 @@ if __name__ == "__main__" :
 
     HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
     NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
+    USE_HETERO_WRAPPER  = params["USE_HETERO_WRAPPER"]
 
     dataset = NocDataset("data/training_data/simulator/test")
     data    = dataset[0]
 
-    model = GNNHetero( HIDDEN_CHANNELS, NUM_MPN_LAYERS, data.metadata() )  
+    if not USE_HETERO_WRAPPER:
+        model = GNNHetero( HIDDEN_CHANNELS, NUM_MPN_LAYERS, data.metadata() )  
+        print(f"Using GNNHetero")
+    else: 
+        model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )
+        print(f"Using HeteroGNN")
+
     model(data)
     weights_path = get_weights_from_directory(args.model_path, f"{args.epoch}.pth" )
+    print(f"Loading weights from {weights_path}")
     model.load_state_dict(torch.load(weights_path))
 
     map_test_dir    = "data/training_data/simulator/map_test"
