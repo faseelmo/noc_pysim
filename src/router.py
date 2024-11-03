@@ -53,6 +53,7 @@ class Router:
         # TODO: 
         # No need for filtering any more. simulator takes care of it. 
         # Instead throw an exception if non relevant flits are received.
+        # UPDATE (03-11-2024): tests/router_test.py:443 test is failing. Non Critical. 
         filtered_flit_list = self._filter_required_flits( receive_flit_list )
         for flit in filtered_flit_list:
             self._receive_flit( flit )

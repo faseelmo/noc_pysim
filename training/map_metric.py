@@ -42,7 +42,7 @@ if __name__ == "__main__" :
     map_test_dir    = "data/training_data/simulator/map_test"
     num_dirs        = len(os.listdir(map_test_dir))
 
-    tau_list   = []
+    tau_list = []
 
     for i in range(num_dirs): 
         dir = os.path.join(map_test_dir, f"{i}")
@@ -70,10 +70,8 @@ if __name__ == "__main__" :
     average_tau = round(average_tau, 2)
     print(f"Average tau is {average_tau}")
 
-    # Create the file path
     file_path = os.path.join(args.model_path, f'avg_tau_{average_tau}.txt')
 
-    # Write the average tau to the file
     with open(file_path, 'w') as file:
         file.write(f"Average tau is {average_tau}\n")
 
