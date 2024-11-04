@@ -1,6 +1,5 @@
 
 import os 
-import re
 import yaml 
 import torch
 
@@ -34,9 +33,8 @@ class NocDataset(Dataset):
 
         data = HeteroData()
 
-        task_input_feature      = []
-        task_target             = []
-        router_input_feature    = []
+        task_input_feature  = []
+        task_target         = []
 
         # Each node type has its own indexing
         global_to_local_indexing = { "task": {}, "router": {}, "pe": {} } 
@@ -52,12 +50,6 @@ class NocDataset(Dataset):
                 task_input_feature.append([generate, processing_time])
                 task_target.append([start_cycle, end_cycle])    
 
-            elif node_type == "router":
-                x_pos,y_pos     = self._extract_coordinates(node_id)
-                norm_x_pos      = x_pos / 3
-                norm_y_pos      = y_pos / 3 
-                router_input_feature.append([norm_x_pos, norm_y_pos])
-
             global_to_local_indexing[node_type][node_id] = len(global_to_local_indexing[node_type])
 
         # Creating the input and target tensors
@@ -68,8 +60,7 @@ class NocDataset(Dataset):
         num_routers         = len(global_to_local_indexing["router"])
         num_pes             = len(global_to_local_indexing["pe"])
 
-        # data["router"].x    = torch.ones( num_routers, 1, dtype=torch.float )
-        data["router"].x    = torch.tensor( router_input_feature, dtype=torch.float )
+        data["router"].x    = torch.ones( num_routers, 1, dtype=torch.float )
         data["pe"].x        = torch.ones( num_pes, 1, dtype=torch.float )
 
         # Creating the edge index tensor
@@ -134,10 +125,6 @@ class NocDataset(Dataset):
         self._do_checks(data)
 
         return data
-
-    def _extract_coordinates(self, element_str: str) -> tuple: 
-        x, y = tuple(map(int, re.findall(r'\d+', element_str)))
-        return x, y
 
 
     def _do_checks( self, data: HeteroData ) -> None:

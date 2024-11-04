@@ -231,9 +231,6 @@ class HeteroGNN(torch.nn.Module):
         final_conv = self._get_hetero_conv(hidden_channels, 2)
         self._convs.append(final_conv)
 
-        # self.pe_embedding       = nn.Embedding( 9, hidden_channels )
-        # self.router_embedding   = nn.Embedding( 9, hidden_channels )
-
 
     def _get_hetero_conv(self, in_channels, out_channels): 
         conv = HeteroConv({
@@ -248,10 +245,8 @@ class HeteroGNN(torch.nn.Module):
         return conv
 
     def forward(self, data):
-        x_dict              = data.x_dict
-        # x_dict['pe']        = self.pe_embedding(x_dict['pe'].long()).squeeze()
-        # x_dict['router']    = self.router_embedding(x_dict['router'].long()).squeeze()
-        edge_index_dict     = data.edge_index_dict
+        x_dict          = data.x_dict
+        edge_index_dict = data.edge_index_dict
 
         for conv in self._convs[:-1]:
             x_dict = conv(x_dict, edge_index_dict)

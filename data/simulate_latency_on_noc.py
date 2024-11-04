@@ -1,5 +1,7 @@
 
 import networkx as nx
+import numpy    as np
+import shutil
 
 from src.simulator              import Simulator
 from src.utils                  import get_mesh_network
@@ -42,10 +44,10 @@ if __name__ == "__main__":
     random.seed(0)
 
     test_split          = 400
-    training_data_count = 8000
+    training_data_count = 12000
     maps_per_graph      = 1
     training_graphs     = []
-    node_range          = (2, 5)
+    node_range          = (2, 6)
 
     # Simulating
     for i in range(training_data_count): 
@@ -61,7 +63,6 @@ if __name__ == "__main__":
 
     test_data_dir   = os.path.join("data", "training_data", "simulator", "test")
     traing_data_dir = os.path.join("data", "training_data", "simulator", "train")
-    map_test_dir    = os.path.join("data", "training_data", "simulator", "map_test")
 
     # Creating test data dir 
     if not os.path.exists(test_data_dir): 
@@ -78,25 +79,52 @@ if __name__ == "__main__":
         save_graph_to_json(graph, os.path.join(traing_data_dir, f"{i}.json"))
 
     # Creating data for mapping test metric 
-    if not os.path.exists(map_test_dir): 
-        os.makedirs(map_test_dir)
+    map_test_dir    = os.path.join("data", "training_data", "simulator", "map_test")
+    if os.path.exists(map_test_dir): 
+        shutil.rmtree(map_test_dir)
 
-    count = 0
-    for i in range(20): 
+    os.makedirs(map_test_dir)
+
+    num_metric_graph        = 10
+    metric_maps_per_graph   = 100
+    count                   = 0
+    std_threshold           = 10    
+    map_node_range          = (3, 5)
+
+    while count < num_metric_graph:
         
-        nodes           = random.randint(*node_range)
-        map_graph_list  = simulate(nodes, map_count=20)
+        nodes           = random.randint(*map_node_range)
+        map_graph_list  = simulate(nodes, map_count=metric_maps_per_graph)
 
-        for j, graph in enumerate(map_graph_list): 
-            dir = os.path.join(map_test_dir, f"{i}")
+        latency_list = []
+        for _, graph in enumerate(map_graph_list): 
+            # Checking the distribution of the latency
+            end_cycle_list = []
+            for node_id, node_data in graph.nodes(data=True): 
+                if node_data["type"] == "task": 
+                    end_cycle = node_data["end_cycle"] 
+                    end_cycle_list.append(end_cycle)    
+
+            latency_list.append(max(end_cycle_list))
+
+        
+        num_nodes = len(map_graph_list[0].nodes) - 18
+
+        std = np.std(latency_list)
+
+        # print(f"Std: {std}")
+        if std > std_threshold:
+            dir     = os.path.join(map_test_dir, f"{count}")
 
             if not os.path.exists(dir): 
+                
                 os.makedirs(dir)
 
-            save_graph_to_json(graph, os.path.join(dir, f"{j}.json"))
+            for j, graph in enumerate(map_graph_list):
+                save_graph_to_json(graph, os.path.join(dir, f"{j}.json"))
 
-            count += 1
-            print( f"\rCreating Mapping Test grap {count}", end='', flush=True )
+            print( f"\rCreating Mapping Test graph {count}, std {std}, num_nodes {num_nodes}", end='', flush=True )
+            count   += 1
 
     print()
 

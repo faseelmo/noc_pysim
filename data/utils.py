@@ -7,7 +7,7 @@ def save_graph_to_json(graph: nx.DiGraph, filename: str):
         json.dump(data, file)
 
 
-def load_graph_from_json(filename: str):
+def load_graph_from_json(filename: str) -> nx.DiGraph:
     import json
     with open(filename, "r") as file:
         data = json.load(file)

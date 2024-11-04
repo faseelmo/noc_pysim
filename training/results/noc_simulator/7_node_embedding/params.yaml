@@ -1,0 +1,38 @@
+# Model Parameters
+NUM_MPN_LAYERS      : 3     # Number of conv layers in MPN
+HIDDEN_CHANNELS     : 50    # Number of output node embeddings 
+USE_NOC_DATASET     : True # Uses the NoC dataset for training
+IS_HETERO           : True  # Converts using to_hetero() if True
+DO_POOLING          : False # Applies pooling to the output node embeddings
+HAS_WAIT_TIME       : True  # Adds wait time as a feature
+HAS_SCHEDULER       : False  # Creates a node (type: scheduler) and connects it to all task nodes (inc task and task_depend)
+USE_HETERO_WRAPPER  : True
+
+# Dataset 
+CREATE_DATASET      : False
+GEN_COUNT           : 8000
+MAX_NODES           : 5
+
+# Normalization Constants
+MAX_GENERATE        : 10
+MAX_PROCESSING_TIME : 10
+MAX_CYCLE           : 100
+
+# Hyperparameters 
+LEARNING_RATE       : 0.01
+EPOCHS              : 200 
+WEIGHT_DECAY        : 0
+BATCH_SIZE          : 20
+
+# Load pre-trained model
+LOAD_MODEL          : False
+MODEL_PATH          : null
+
+# Data Path
+DATA_DIR            : 'data/training_data'
+
+# Results directory 
+RESULTS_DIR         : 'training/results' 
+SAVE_THRESHOLD      : 0.8
+
+

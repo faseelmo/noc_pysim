@@ -29,7 +29,7 @@ def modify_graph_to_application_graph(graph: nx.DiGraph):
     Sum of the successor weights is assigned as generate attribute to the node.
     """
     for node in graph.nodes:
-        processing_time = random.randint(1, 10)
+        processing_time = random.randint(5, 10)
         graph.nodes[node]["processing_time"] = processing_time
         successors = list(graph.successors(node))
         

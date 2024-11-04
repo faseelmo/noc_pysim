@@ -2,8 +2,9 @@ import os
 import yaml 
 import torch
 import argparse 
+import numpy as np
 
-from scipy.stats import kendalltau  
+from scipy.stats import kendalltau, spearmanr, pearsonr 
 
 from training.model import GNNHetero, HeteroGNN
 from training.noc_dataset import NocDataset
@@ -42,7 +43,9 @@ if __name__ == "__main__" :
     map_test_dir    = "data/training_data/simulator/map_test"
     num_dirs        = len(os.listdir(map_test_dir))
 
-    tau_list = []
+    tau_list        = []
+    p_value_list    = []
+    std_list        = []
 
     for i in range(num_dirs): 
         dir = os.path.join(map_test_dir, f"{i}")
@@ -62,13 +65,24 @@ if __name__ == "__main__" :
             pred_list.append(latency_pred.item())
 
         tau, p_val = kendalltau(truth_list, pred_list)
-
         tau_list.append(tau)
-        print(f"Tau: {tau}, p_val: {p_val}")
+        p_value_list.append(p_val)
 
-    average_tau = sum(tau_list)/len(tau_list)   
-    average_tau = round(average_tau, 2)
-    print(f"Average tau is {average_tau}")
+        max_truth = max(truth_list) 
+        min_truth = min(truth_list)
+        std_truth = np.std(truth_list)
+        std_list.append(std_truth)
+        range_truth = max_truth - min_truth
+        print(f"Tau: {round(tau, 2)}, \tp_val: {round(p_val, 2)}, \trange: {round(range_truth, 2)}, \tStd: {round(std_truth, 2)}")
+
+    average_tau     = round(sum(tau_list)/len(tau_list), 2)
+    average_p_val   = round(sum(p_value_list)/len(p_value_list), 2)
+    print(f"Average tau = {average_tau} \t Average p_val = {average_p_val}")
+
+    pearsonr_val = pearsonr(tau_list, std_list) 
+    spearmanr_val = spearmanr(tau_list, std_list)
+
+    print(f"Pearsonr: {pearsonr_val}, Spearmanr: {spearmanr_val}")
 
     file_path = os.path.join(args.model_path, f'avg_tau_{average_tau}.txt')
 

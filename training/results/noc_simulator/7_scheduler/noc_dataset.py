@@ -1,6 +1,5 @@
 
 import os 
-import re
 import yaml 
 import torch
 
@@ -34,12 +33,32 @@ class NocDataset(Dataset):
 
         data = HeteroData()
 
-        task_input_feature      = []
-        task_target             = []
-        router_input_feature    = []
+        task_input_feature  = []
+        task_target         = []
 
         # Each node type has its own indexing
         global_to_local_indexing = { "task": {}, "router": {}, "pe": {} } 
+
+
+        # Scheduler Code 
+
+        global_to_local_indexing["scheduler"] = {}
+
+        scheduler_node_id   = "scheduler"
+        scheduler_edge_type = "schedules"    
+        rev_scheduler_edge_type = f"rev_{scheduler_edge_type}"
+
+        graph.add_node(scheduler_node_id, type="scheduler")
+
+        for node_id, node_data in graph.nodes(data=True):
+
+            if node_data["type"] == "router":
+                graph.add_edge(scheduler_node_id, node_id, type=scheduler_edge_type)
+                graph.add_edge(node_id, scheduler_node_id, type=rev_scheduler_edge_type)
+
+        data["scheduler"].x = torch.ones(1, 1, dtype=torch.float)
+        data["scheduler", scheduler_edge_type,     "router"].edge_index     = [[], []]
+        data["router",    rev_scheduler_edge_type, "scheduler"].edge_index = [[], []]
 
         for node_id, node_data in graph.nodes(data=True): 
             node_type = node_data["type"]
@@ -52,12 +71,6 @@ class NocDataset(Dataset):
                 task_input_feature.append([generate, processing_time])
                 task_target.append([start_cycle, end_cycle])    
 
-            elif node_type == "router":
-                x_pos,y_pos     = self._extract_coordinates(node_id)
-                norm_x_pos      = x_pos / 3
-                norm_y_pos      = y_pos / 3 
-                router_input_feature.append([norm_x_pos, norm_y_pos])
-
             global_to_local_indexing[node_type][node_id] = len(global_to_local_indexing[node_type])
 
         # Creating the input and target tensors
@@ -68,8 +81,7 @@ class NocDataset(Dataset):
         num_routers         = len(global_to_local_indexing["router"])
         num_pes             = len(global_to_local_indexing["pe"])
 
-        # data["router"].x    = torch.ones( num_routers, 1, dtype=torch.float )
-        data["router"].x    = torch.tensor( router_input_feature, dtype=torch.float )
+        data["router"].x    = torch.ones( num_routers, 1, dtype=torch.float )
         data["pe"].x        = torch.ones( num_pes, 1, dtype=torch.float )
 
         # Creating the edge index tensor
@@ -97,6 +109,8 @@ class NocDataset(Dataset):
             src_type = graph.nodes[src_node]["type"]
             dst_type = graph.nodes[dst_node]["type"]
 
+            # print(f"Edge from {src_node} ({src_type}) to {dst_node} ({dst_type})")
+
             if src_type == "task" and dst_type == "task": 
                 edge_type = task_edge   
 
@@ -113,6 +127,12 @@ class NocDataset(Dataset):
 
             elif src_type == "pe" and dst_type == "router":
                 edge_type = pe_router_edge  
+
+            elif src_type == "scheduler" and dst_type == "router":
+                edge_type = scheduler_edge_type
+
+            elif src_type == "router" and dst_type == "scheduler":
+                edge_type = rev_scheduler_edge_type
 
             else:
                 raise ValueError(f"Invalid edge type from {src_type} to {dst_type}")
@@ -134,10 +154,6 @@ class NocDataset(Dataset):
         self._do_checks(data)
 
         return data
-
-    def _extract_coordinates(self, element_str: str) -> tuple: 
-        x, y = tuple(map(int, re.findall(r'\d+', element_str)))
-        return x, y
 
 
     def _do_checks( self, data: HeteroData ) -> None:
