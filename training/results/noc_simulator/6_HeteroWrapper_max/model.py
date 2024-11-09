@@ -8,8 +8,7 @@ from torch_geometric.nn     import (
                                 SAGEConv,
                                 GraphConv,
                                 to_hetero,
-                                HeteroConv, 
-                                GATConv
+                                HeteroConv
                             )
 
 from training.utils         import get_norm_adj
@@ -221,69 +220,42 @@ class HeteroGNN(torch.nn.Module):
     def __init__(self, hidden_channels: int, num_mpn_layers: int, **kwargs): 
         super().__init__()
 
+        self._convs = nn.ModuleList()
 
         assert num_mpn_layers >= 2, "Number of layers should be at least 2."
 
-        self._convs = nn.ModuleList()
-
         for _ in range(num_mpn_layers - 1):
-            intermediate_conv = self._get_hetero_conv(-1, hidden_channels, aggr="cat")
+            intermediate_conv = self._get_hetero_conv(-1, hidden_channels)
             self._convs.append(intermediate_conv)
 
-        final_conv = self._get_hetero_conv(hidden_channels, 2, aggr="sum")
+        final_conv = self._get_hetero_conv(hidden_channels, 2)
         self._convs.append(final_conv)
 
-        self.task_aggr      = self._get_deep_mlp(hidden_channels * 3, hidden_channels, 2)
-        self.pe_aggr        = self._get_deep_mlp(hidden_channels * 2, hidden_channels, 2)
-        self.router_aggr    = self._get_deep_mlp(hidden_channels * 2, hidden_channels, 2)
-
-    def _get_deep_mlp(self, input_channel, hidden_channels, num_layers):
-
-        layers = []
-        
-        for _ in range(num_layers):
-            if len(layers) == 0:
-                layers.append(torch.nn.Linear(input_channel, hidden_channels))
-
-            else: 
-                layers.append(torch.nn.Linear(hidden_channels, hidden_channels))
-
-            layers.append(torch.nn.ReLU())
-
-        return torch.nn.Sequential(*layers)        
+        # self.pe_embedding       = nn.Embedding( 9, hidden_channels )
+        # self.router_embedding   = nn.Embedding( 9, hidden_channels )
 
 
-    def _get_hetero_conv(self, in_channels, out_channels, aggr): 
+    def _get_hetero_conv(self, in_channels, out_channels): 
         conv = HeteroConv({
-            ("task", "depends_on", "task"):         GraphConv(in_channels, out_channels, aggr="max"),
-            ("task", "rev_depends_on", "task"):     GraphConv(in_channels, out_channels, aggr="add"),
-            ("task", "mapped_to", "pe"):            GraphConv(in_channels, out_channels, aggr="add"), 
-            ("pe", "rev_mapped_to", "task"):        GraphConv(in_channels, out_channels, aggr="add"), 
-            ("router", "link", "router"):           GraphConv(in_channels, out_channels, aggr="add"), 
-            ("router", "interface", "pe"):          GraphConv(in_channels, out_channels, aggr="add"), 
-            ("pe", "rev_interface", "router"):      GraphConv(in_channels, out_channels, aggr="add"),
-        }, aggr=aggr)
+            ("task", "depends_on", "task"):     GraphConv(in_channels, out_channels, aggr="max"),
+            ("task", "mapped_to", "pe"):        GraphConv(in_channels, out_channels, aggr="max"), 
+            ("pe", "rev_mapped_to", "task"):    GraphConv(in_channels, out_channels, aggr="max"), 
+            ("router", "link", "router"):       GraphConv(in_channels, out_channels, aggr="max"), 
+            ("router", "interface", "pe"):      GraphConv(in_channels, out_channels, aggr="max"), 
+            ("pe", "rev_interface", "router"):  GraphConv(in_channels, out_channels, aggr="max"),
+        }, aggr="sum")
 
         return conv
 
     def forward(self, data):
         x_dict              = data.x_dict
+        # x_dict['pe']        = self.pe_embedding(x_dict['pe'].long()).squeeze()
+        # x_dict['router']    = self.router_embedding(x_dict['router'].long()).squeeze()
         edge_index_dict     = data.edge_index_dict
 
         for conv in self._convs[:-1]:
             x_dict = conv(x_dict, edge_index_dict)
-            
-            for key, x in x_dict.items():
-                x_dict[key] = x.relu()
-
-                if key == "task":
-                    x_dict[key] = self.task_aggr(x_dict[key])
-
-                elif key == "pe":
-                    x_dict[key] = self.pe_aggr(x_dict[key])
-
-                elif key == "router":
-                    x_dict[key] = self.router_aggr(x_dict[key])
+            x_dict = {key: x.relu() for key, x in x_dict.items()}
 
         x_dict = self._convs[-1](x_dict, edge_index_dict)
 

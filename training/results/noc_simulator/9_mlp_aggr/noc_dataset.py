@@ -74,7 +74,6 @@ class NocDataset(Dataset):
 
         # Creating the edge index tensor
         task_edge       = "depends_on"
-        rev_task_edge   = "rev_depends_on"
         task_pe_edge    = "mapped_to"
         router_edge     = "link"
         router_pe_edge  = "interface"
@@ -83,7 +82,6 @@ class NocDataset(Dataset):
         pe_router_edge  = "rev_interface"
 
         data["task",    task_edge,      "task"].edge_index     = [ [], [] ]
-        data["task",    rev_task_edge,  "task"].edge_index     = [ [], [] ]
         data["task",    task_pe_edge,   "pe"].edge_index       = [ [], [] ]
         data["pe",      pe_task_edge,   "task"].edge_index     = [ [], [] ]
         data["router",  router_edge,    "router"].edge_index   = [ [], [] ]
@@ -92,17 +90,19 @@ class NocDataset(Dataset):
 
         for edge in graph.edges(data=True):
 
+            is_map_edge = False
+
             src_node, dst_node, edge_data = edge
 
             src_type = graph.nodes[src_node]["type"]
             dst_type = graph.nodes[dst_node]["type"]
 
             if src_type == "task" and dst_type == "task": 
-                edge_type       = task_edge   
-                rev_edge_type   = rev_task_edge
+                edge_type = task_edge   
 
             elif src_type == "task" and dst_type == "pe": 
                 edge_type       = task_pe_edge
+                is_map_edge     = True  
                 rev_edge_type   = pe_task_edge
 
             elif src_type == "router" and dst_type == "router":
@@ -123,11 +123,9 @@ class NocDataset(Dataset):
             data[src_type, edge_type, dst_type].edge_index[0].append(src_local_index)
             data[src_type, edge_type, dst_type].edge_index[1].append(dst_local_index)
 
-            if ( edge_type == task_pe_edge ) or ( edge_type == task_edge ) : 
-                # Reversee edge for task-pe and task-task edges
+            if is_map_edge:
                 data[dst_type, rev_edge_type, src_type].edge_index[0].append(dst_local_index)
                 data[dst_type, rev_edge_type, src_type].edge_index[1].append(src_local_index)   
-
 
         for edge_type in data.edge_types: 
             data[edge_type].edge_index = torch.tensor(data[edge_type].edge_index, dtype=torch.long).contiguous()

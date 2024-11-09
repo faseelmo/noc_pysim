@@ -275,6 +275,8 @@ class HeteroGNN(torch.nn.Module):
             
             for key, x in x_dict.items():
                 x_dict[key] = x.relu()
+                # print(f"Key is {key} and shape is {x.shape}")
+                # print(f"X is {x}")
 
                 if key == "task":
                     x_dict[key] = self.task_aggr(x_dict[key])

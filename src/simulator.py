@@ -79,7 +79,6 @@ class Simulator:
         Convert the graph to a list of TaskInfo objects. 
         In a transmit node, priority give to the task that requires the least number of packets.
         """
-
         task_list = []
 
         for node_id, node in graph.nodes(data=True):

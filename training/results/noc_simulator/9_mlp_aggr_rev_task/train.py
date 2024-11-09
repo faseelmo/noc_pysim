@@ -311,7 +311,7 @@ def main():
             args.name)
 
         save_multiple = False
-        if epoch % 10 == 0:
+        if epoch % 5 == 0:
             save_multiple = True
 
         if test_metric > SAVE_THRESHOLD or save_multiple:

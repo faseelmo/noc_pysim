@@ -233,35 +233,36 @@ class HeteroGNN(torch.nn.Module):
         final_conv = self._get_hetero_conv(hidden_channels, 2, aggr="sum")
         self._convs.append(final_conv)
 
-        self.task_aggr      = self._get_deep_mlp(hidden_channels * 3, hidden_channels, 2)
-        self.pe_aggr        = self._get_deep_mlp(hidden_channels * 2, hidden_channels, 2)
-        self.router_aggr    = self._get_deep_mlp(hidden_channels * 2, hidden_channels, 2)
+        self.task_aggr = torch.nn.Sequential(
+            torch.nn.Linear(hidden_channels * 2, hidden_channels * 2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_channels * 2, hidden_channels),
+            torch.nn.ReLU()
+        )
 
-    def _get_deep_mlp(self, input_channel, hidden_channels, num_layers):
+        self.pe_aggr = torch.nn.Sequential(
+            torch.nn.Linear(hidden_channels * 2, hidden_channels * 2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_channels * 2, hidden_channels),
+            torch.nn.ReLU()
+        )
 
-        layers = []
-        
-        for _ in range(num_layers):
-            if len(layers) == 0:
-                layers.append(torch.nn.Linear(input_channel, hidden_channels))
-
-            else: 
-                layers.append(torch.nn.Linear(hidden_channels, hidden_channels))
-
-            layers.append(torch.nn.ReLU())
-
-        return torch.nn.Sequential(*layers)        
+        self.router_aggr = torch.nn.Sequential(
+            torch.nn.Linear(hidden_channels * 2, hidden_channels * 2),
+            torch.nn.ReLU(),
+            torch.nn.Linear(hidden_channels * 2, hidden_channels),
+            torch.nn.ReLU()
+        )
 
 
     def _get_hetero_conv(self, in_channels, out_channels, aggr): 
         conv = HeteroConv({
-            ("task", "depends_on", "task"):         GraphConv(in_channels, out_channels, aggr="max"),
-            ("task", "rev_depends_on", "task"):     GraphConv(in_channels, out_channels, aggr="add"),
-            ("task", "mapped_to", "pe"):            GraphConv(in_channels, out_channels, aggr="add"), 
-            ("pe", "rev_mapped_to", "task"):        GraphConv(in_channels, out_channels, aggr="add"), 
-            ("router", "link", "router"):           GraphConv(in_channels, out_channels, aggr="add"), 
-            ("router", "interface", "pe"):          GraphConv(in_channels, out_channels, aggr="add"), 
-            ("pe", "rev_interface", "router"):      GraphConv(in_channels, out_channels, aggr="add"),
+            ("task", "depends_on", "task"):     GraphConv(in_channels, out_channels, aggr="max"),
+            ("task", "mapped_to", "pe"):        GraphConv(in_channels, out_channels, aggr="sum"), 
+            ("pe", "rev_mapped_to", "task"):    GraphConv(in_channels, out_channels, aggr="sum"), 
+            ("router", "link", "router"):       GraphConv(in_channels, out_channels, aggr="sum"), 
+            ("router", "interface", "pe"):      GraphConv(in_channels, out_channels, aggr="sum"), 
+            ("pe", "rev_interface", "router"):  GraphConv(in_channels, out_channels, aggr="sum"),
         }, aggr=aggr)
 
         return conv
@@ -275,6 +276,8 @@ class HeteroGNN(torch.nn.Module):
             
             for key, x in x_dict.items():
                 x_dict[key] = x.relu()
+                # print(f"Key is {key} and shape is {x.shape}")
+                # print(f"X is {x}")
 
                 if key == "task":
                     x_dict[key] = self.task_aggr(x_dict[key])

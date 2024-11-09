@@ -310,17 +310,12 @@ def main():
             test_metric_list, 
             args.name)
 
-        save_multiple = False
-        if epoch % 10 == 0:
-            save_multiple = True
-
-        if test_metric > SAVE_THRESHOLD or save_multiple:
+        if test_metric > SAVE_THRESHOLD:
 
             test_metric = int( round(test_metric, 2) * 100 )
 
-            if not save_multiple:
-                if test_metric in saved_test_metric: 
-                    continue
+            if test_metric in saved_test_metric:
+                continue
 
             torch.save(model, f"{SAVE_RESULTS}/LatNet_{test_metric}_{epoch+1}.pth")
             torch.save(
