@@ -60,6 +60,7 @@ class NocDataset(Dataset):
 
             global_to_local_indexing[node_type][node_id] = len(global_to_local_indexing[node_type])
 
+        # print(f"Global to local indexing is {global_to_local_indexing}")
 
         # Creating the input and target tensors
         data["task"].x = torch.tensor( task_input_feature, dtype=torch.float )
@@ -70,7 +71,7 @@ class NocDataset(Dataset):
         num_pes             = len(global_to_local_indexing["pe"])
 
         # data["router"].x    = torch.ones( num_routers, 1, dtype=torch.float )
-        data["router"].x    = torch.tensor( router_input_feature, dtype=torch.float )
+        data["router"].x    = torch.ones( num_routers, 1, dtype=torch.float )
         data["pe"].x        = torch.ones( num_pes, 1, dtype=torch.float )
 
         # Creating the edge index tensor
