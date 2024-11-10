@@ -237,9 +237,6 @@ class HeteroGNN(torch.nn.Module):
         self.pe_aggr        = self._get_deep_mlp(hidden_channels * 2, hidden_channels, 2)
         self.router_aggr    = self._get_deep_mlp(hidden_channels * 2, hidden_channels, 2)
 
-        self.pe_embedding       = nn.Embedding( 9, 3 )
-        # self.router_embedding   = nn.Embedding( 9, 8 )
-
     def _get_deep_mlp(self, input_channel, hidden_channels, num_layers):
 
         layers = []
@@ -272,9 +269,6 @@ class HeteroGNN(torch.nn.Module):
     def forward(self, data):
         x_dict              = data.x_dict
         edge_index_dict     = data.edge_index_dict
-
-        x_dict['pe']        = self.pe_embedding(x_dict['pe'].long()).squeeze()
-        # x_dict['router']    = self.router_embedding(x_dict['router'].long()).squeeze()
 
         for conv in self._convs[:-1]:
             x_dict = conv(x_dict, edge_index_dict)
