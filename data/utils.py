@@ -48,7 +48,7 @@ def get_weights_from_directory(directory: str, file_name: str):
     import os 
     files = os.listdir(directory)
     for file in files:
-        if file_name in file:
+        if f"_{file_name}" in file:
             return os.path.join(directory, file)
     else: 
         raise Exception(f"File {file_name} not found in directory {directory}")

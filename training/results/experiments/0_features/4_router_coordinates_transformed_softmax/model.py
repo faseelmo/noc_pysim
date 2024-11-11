@@ -28,9 +28,25 @@ class HeteroGNN(torch.nn.Module):
         final_conv = self._get_hetero_conv(hidden_channels, 2, aggr="sum")
         self._convs.append(final_conv)
 
-        projection_size     = 4
-        self.pe_embedding   = nn.Embedding(9, projection_size)
-        self._pos_project   = Linear(2, projection_size)
+        projection_size     = 32
+        # self._pos_project   = Linear(2, projection_size)
+
+        self._pos_project   = nn.Sequential( 
+            Linear(2, projection_size),  
+            nn.Softmax(dim=1)
+        ) 
+        # self._task_projet   = nn.Sequential( 
+        #     Linear(2, projection_size), 
+        #     nn.ReLU(),
+        #     Linear(projection_size, projection_size), 
+        #     nn.ReLU()  )
+
+
+        # self._pe_project   = nn.Sequential( 
+        #     Linear(1, projection_size), 
+        #     nn.ReLU(),
+        #     Linear(projection_size, projection_size), 
+        #     nn.ReLU()  )
 
 
     def _get_hetero_conv(self, in_channels, out_channels, aggr): 
@@ -50,10 +66,9 @@ class HeteroGNN(torch.nn.Module):
         x_dict              = data.x_dict
         edge_index_dict     = data.edge_index_dict
 
-        batch_size = x_dict['pe'].size(0) // 9
-
-        x_dict['pe']        = self.pe_embedding.weight.repeat(batch_size, 1)
         x_dict['router']    = self._pos_project(x_dict['router'])
+        # x_dict['task']   = self._task_projet(x_dict['task'])
+        # x_dict['pe']     = self._pe_project(x_dict['pe'])
 
         for conv in self._convs[:-1]:
             x_dict = conv(x_dict, edge_index_dict)
@@ -92,7 +107,7 @@ if __name__ == "__main__":
 
 
     IDX             = 10
-    BATCH_SIZE      = 10
+    BATCH_SIZE      = 1
     HIDDEN_CHANNELS = 40
 
     torch.manual_seed(0)

@@ -1,8 +1,6 @@
-import os 
 import time
 import math
 import yaml
-import numpy as np
 import random   
 import argparse
 import subprocess
@@ -181,21 +179,9 @@ def test_fn(test_loader, model, is_pooling_model, has_wait_time):
 
 def main():
 
-    # Reproducibility
     random.seed(0)
     torch.manual_seed(0)
-    np.random.seed(0)
-    torch.use_deterministic_algorithms(True)
 
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed(0)
-        torch.cuda.manual_seed_all(0)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-
-    os.environ["PYTHONHASHSEED"] = str(0)
-
-    # Training Parameters  
     NUM_MPN_LAYERS      = TRAINING_PARAMS["NUM_MPN_LAYERS"]
     HIDDEN_CHANNELS     = TRAINING_PARAMS["HIDDEN_CHANNELS"]
     USE_NOC_DATASET     = TRAINING_PARAMS["USE_NOC_DATASET"]

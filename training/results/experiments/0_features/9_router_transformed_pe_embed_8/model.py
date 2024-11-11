@@ -28,7 +28,7 @@ class HeteroGNN(torch.nn.Module):
         final_conv = self._get_hetero_conv(hidden_channels, 2, aggr="sum")
         self._convs.append(final_conv)
 
-        projection_size     = 4
+        projection_size     = 8
         self.pe_embedding   = nn.Embedding(9, projection_size)
         self._pos_project   = Linear(2, projection_size)
 
@@ -54,6 +54,8 @@ class HeteroGNN(torch.nn.Module):
 
         x_dict['pe']        = self.pe_embedding.weight.repeat(batch_size, 1)
         x_dict['router']    = self._pos_project(x_dict['router'])
+
+        
 
         for conv in self._convs[:-1]:
             x_dict = conv(x_dict, edge_index_dict)
