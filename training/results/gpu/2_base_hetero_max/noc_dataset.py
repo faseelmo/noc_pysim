@@ -13,6 +13,7 @@ from torch_geometric.data import HeteroData
 from torch_geometric.transforms import ToUndirected
 
 
+
 class NocDataset(Dataset): 
     def __init__(self, training_data_dir): 
 
@@ -53,11 +54,12 @@ class NocDataset(Dataset):
 
             elif node_type == "router":
                 x_pos,y_pos     = self._extract_coordinates(node_id)
-                norm_x_pos      = x_pos / 3 
-                norm_y_pos      = y_pos / 3
+                norm_x_pos      = x_pos / 3
+                norm_y_pos      = y_pos / 3 
                 router_input_feature.append([norm_x_pos, norm_y_pos])
 
             global_to_local_indexing[node_type][node_id] = len(global_to_local_indexing[node_type])
+
 
         # Creating the input and target tensors
         data["task"].x = torch.tensor( task_input_feature, dtype=torch.float )
@@ -150,12 +152,8 @@ class NocDataset(Dataset):
 if __name__ == "__main__": 
 
     from training.dataset import load_data
-    from training.model import  HeteroGNN
-
-    import random 
-    import torch
-    random.seed(0)
-    torch.manual_seed(0)
+    from training.model import GNNHetero, HeteroGNN
+    from training.utils import initialize_model
 
     # Dataset testing 
     dataset = NocDataset("data/training_data/simulator/test")
@@ -168,11 +166,11 @@ if __name__ == "__main__":
     # output = model(data)
     # print(output['task'])
 
-    # print(f"HeteroConv is ")
-    # model = HeteroGNN(hidden_channels=3, num_mpn_layers=3)
-    # print(model)
-    # output = model(data)
-    # print(output['task'])
+    print(f"HeteroConv is ")
+    model = HeteroGNN(hidden_channels=3, num_mpn_layers=3)
+    print(model)
+    output = model(data)
+    print(output['task'])
 
 
     # print(f"X dict is \n{data.x_dict}")
@@ -184,22 +182,22 @@ if __name__ == "__main__":
 
     
     # DataLoader testing
-    # print(f"\n\nDataLoader testing")
-    # dataloader, _   = load_data( 
-    #                     training_data_dir   = "data/training_data/simulator/test", 
-    #                     batch_size          = 2, 
-    #                     use_noc_dataset     = True)
+    print(f"\n\nDataLoader testing")
+    dataloader, _   = load_data( 
+                        training_data_dir   = "data/training_data/simulator/test", 
+                        batch_size          = 2, 
+                        use_noc_dataset     = True)
 
     
-    # metadata    = dataset[0].metadata()
-    # print(f"Metadata is {metadata}")
-    # data        = next(iter(dataloader))
+    metadata    = dataset[0].metadata()
+    print(f"Metadata is {metadata}")
+    data        = next(iter(dataloader))
     # model       = GNNHetero(hidden_channels=3, num_mpn_layers=3, metadata=metadata)
     # print(model)
     # initialize_model(model, dataloader)
 
-    # model = HeteroGNN(hidden_channels=3, num_mpn_layers=3)
-    # model(data)
+    model = HeteroGNN(hidden_channels=3, num_mpn_layers=3)
+    model(data)
 
 
 

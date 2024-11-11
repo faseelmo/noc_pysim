@@ -1,7 +1,6 @@
 import time
 import math
 import yaml
-import random   
 import argparse
 import subprocess
 
@@ -23,6 +22,7 @@ from training.utils     import (
                             initialize_model
                         )
 
+torch.manual_seed(1)
 
 parser  = argparse.ArgumentParser(description="Train the GCN model")
 
@@ -179,7 +179,6 @@ def test_fn(test_loader, model, is_pooling_model, has_wait_time):
 
 def main():
 
-    random.seed(0)
     torch.manual_seed(0)
 
     NUM_MPN_LAYERS      = TRAINING_PARAMS["NUM_MPN_LAYERS"]

@@ -33,30 +33,16 @@ class HeteroGNN(torch.nn.Module):
         encoder_size        = 10
         num_routers         = 9
         projection_size     = 10
-
         self._pos_encoder   = PositionalEncoding(encoder_size)
         self._pos_project   = Sequential( 'x' , [
-            (Linear(encoder_size * 2, projection_size), 'x -> x'), 
+            (Linear(encoder_size * 2, 18), 'x -> x'), 
             nn.ReLU(),
-            Linear(projection_size, projection_size), 
-            nn.ReLU() ] )
+            Linear(18, 10), 
+            nn.ReLU()
+        ]
+
+        )
         
-        self._task_projet   = Sequential( 'x' , [
-            (Linear(2, projection_size), 'x -> x'),
-            nn.ReLU(),
-            Linear(projection_size, projection_size), 
-            nn.ReLU() ] )
-
-
-        self._pe_project   = Sequential( 'x' , [
-            (Linear(1, projection_size), 'x -> x'),
-            nn.ReLU(),
-            Linear(projection_size, projection_size), 
-            nn.ReLU() ] )
-
-
-        
-
         nn.Linear(encoder_size * 2, num_routers)
 
 
@@ -77,13 +63,10 @@ class HeteroGNN(torch.nn.Module):
         x_dict              = data.x_dict
         edge_index_dict     = data.edge_index_dict
 
-
         batch_size = x_dict['router'].shape[0] // 9
         pos_encodings = self._pos_encoder(x_dict['router']).unsqueeze(0).view(batch_size, 9, -1)
 
         x_dict['router'] = self._pos_project(pos_encodings).view(batch_size * 9, -1)
-        x_dict['task']   = self._task_projet(x_dict['task'])
-        x_dict['pe']     = self._pe_project(x_dict['pe'])
 
         for conv in self._convs[:-1]:
             x_dict = conv(x_dict, edge_index_dict)
@@ -122,7 +105,7 @@ if __name__ == "__main__":
 
 
     IDX             = 10
-    BATCH_SIZE      = 1
+    BATCH_SIZE      = 10
     HIDDEN_CHANNELS = 40
 
     torch.manual_seed(0)

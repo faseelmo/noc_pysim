@@ -8,16 +8,15 @@ from torch_geometric.nn     import (
                                 GraphConv,
                                 to_hetero,
                                 HeteroConv, 
-                                GATConv, 
-                                Linear, 
-                                Sequential
+                                GATv2Conv
                             )
 
-from torch_geometric.nn.encoding import PositionalEncoding
+from torch_geometric.nn.aggr import MLPAggregation
 
 class HeteroGNN(torch.nn.Module):
     def __init__(self, hidden_channels: int, num_mpn_layers: int): 
         super().__init__()
+
 
         assert num_mpn_layers >= 2, "Number of layers should be at least 2."
 
@@ -27,43 +26,14 @@ class HeteroGNN(torch.nn.Module):
             intermediate_conv = self._get_hetero_conv(-1, hidden_channels, aggr="sum")
             self._convs.append(intermediate_conv)
 
+        # self._task_aggr = MLPAggregation()
         final_conv = self._get_hetero_conv(hidden_channels, 2, aggr="sum")
         self._convs.append(final_conv)
-
-        encoder_size        = 10
-        num_routers         = 9
-        projection_size     = 10
-
-        self._pos_encoder   = PositionalEncoding(encoder_size)
-        self._pos_project   = Sequential( 'x' , [
-            (Linear(encoder_size * 2, projection_size), 'x -> x'), 
-            nn.ReLU(),
-            Linear(projection_size, projection_size), 
-            nn.ReLU() ] )
-        
-        self._task_projet   = Sequential( 'x' , [
-            (Linear(2, projection_size), 'x -> x'),
-            nn.ReLU(),
-            Linear(projection_size, projection_size), 
-            nn.ReLU() ] )
-
-
-        self._pe_project   = Sequential( 'x' , [
-            (Linear(1, projection_size), 'x -> x'),
-            nn.ReLU(),
-            Linear(projection_size, projection_size), 
-            nn.ReLU() ] )
-
-
-        
-
-        nn.Linear(encoder_size * 2, num_routers)
-
 
     def _get_hetero_conv(self, in_channels, out_channels, aggr): 
         conv = HeteroConv({
             ("task", "depends_on", "task"):         GraphConv(in_channels, out_channels, aggr="max"),
-            ("task", "rev_depends_on", "task"):     GraphConv(in_channels, out_channels, aggr="add"),
+            ("task", "rev_depends_on", "task"):     GraphConv(in_channels, out_channels, aggr="min"),
             ("task", "mapped_to", "pe"):            GraphConv(in_channels, out_channels, aggr="add"), 
             ("pe", "rev_mapped_to", "task"):        GraphConv(in_channels, out_channels, aggr="add"), 
             ("router", "link", "router"):           GraphConv(in_channels, out_channels, aggr="add"), 
@@ -76,14 +46,6 @@ class HeteroGNN(torch.nn.Module):
     def forward(self, data):
         x_dict              = data.x_dict
         edge_index_dict     = data.edge_index_dict
-
-
-        batch_size = x_dict['router'].shape[0] // 9
-        pos_encodings = self._pos_encoder(x_dict['router']).unsqueeze(0).view(batch_size, 9, -1)
-
-        x_dict['router'] = self._pos_project(pos_encodings).view(batch_size * 9, -1)
-        x_dict['task']   = self._task_projet(x_dict['task'])
-        x_dict['pe']     = self._pe_project(x_dict['pe'])
 
         for conv in self._convs[:-1]:
             x_dict = conv(x_dict, edge_index_dict)
@@ -122,7 +84,7 @@ if __name__ == "__main__":
 
 
     IDX             = 10
-    BATCH_SIZE      = 1
+    BATCH_SIZE      = 10
     HIDDEN_CHANNELS = 40
 
     torch.manual_seed(0)
@@ -130,7 +92,7 @@ if __name__ == "__main__":
     dataloader, _ = load_data(
                         "data/training_data/simulator/train",
                         batch_size          = BATCH_SIZE,
-                        use_noc_dataset    = True 
+                        use_noc_dataset     = True 
                         )
 
     data        = next(iter(dataloader))

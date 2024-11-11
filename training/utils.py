@@ -61,10 +61,16 @@ def get_metadata(dataset_path, has_wait_time, use_noc_dataset: False):
 
     return metadata
 
-def initialize_model(model, dataloader):
+def initialize_model(model, dataloader, device):
     """Necessary since GraphConv is lazily initialized"""
-    data = next(iter(dataloader))
-    model(data)
+    import torch 
+    model.to(device)
+    model.eval()
+    with torch.no_grad(): 
+        for data in dataloader: 
+            data = data.to(device)
+            model(data)
+            break 
     print(f"Model initialized")
 
 
@@ -106,46 +112,3 @@ def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
     ) as file:
         pickle.dump(loss_dict, file)
 
-
-from torch_sparse import mul
-from torch_sparse import sum as sparsesum
-from torch_geometric.nn.conv.gcn_conv import gcn_norm
-
-
-def row_norm(adj):
-    """
-    Applies the row-wise normalization:
-        \mathbf{D}_{out}^{-1} \mathbf{A}
-    """
-    row_sum = sparsesum(adj, dim=1)
-
-    return mul(adj, 1 / row_sum.view(-1, 1))
-
-
-def directed_norm(adj):
-    """
-    Applies the normalization for directed graphs:
-        \mathbf{D}_{out}^{-1/2} \mathbf{A} \mathbf{D}_{in}^{-1/2}.
-    """
-    in_deg = sparsesum(adj, dim=0)
-    in_deg_inv_sqrt = in_deg.pow_(-0.5)
-    in_deg_inv_sqrt.masked_fill_(in_deg_inv_sqrt == float("inf"), 0.0)
-
-    out_deg = sparsesum(adj, dim=1)
-    out_deg_inv_sqrt = out_deg.pow_(-0.5)
-    out_deg_inv_sqrt.masked_fill_(out_deg_inv_sqrt == float("inf"), 0.0)
-
-    adj = mul(adj, out_deg_inv_sqrt.view(-1, 1))
-    adj = mul(adj, in_deg_inv_sqrt.view(1, -1))
-    return adj
-
-
-def get_norm_adj(adj, norm):
-    if norm == "sym":
-        return gcn_norm(adj, add_self_loops=False)
-    elif norm == "row":
-        return row_norm(adj)
-    elif norm == "dir":
-        return directed_norm(adj)
-    else:
-        raise ValueError(f"{norm} normalization is not supported")

@@ -26,7 +26,7 @@ if __name__ == "__main__" :
     dataset_module = importlib.util.module_from_spec(dataset_spec)
     dataset_spec.loader.exec_module(dataset_module)
 
-    GNNHetero = model_module.GNNHetero
+    # GNNHetero = model_module.GNNHetero
     HeteroGNN = model_module.HeteroGNN
 
     NocDataset = dataset_module.NocDataset
@@ -52,7 +52,7 @@ if __name__ == "__main__" :
     model(data)
     weights_path = get_weights_from_directory(args.model_path, f"{args.epoch}.pth" )
     print(f"Loading weights from {weights_path}")
-    model.load_state_dict(torch.load(weights_path))
+    model.load_state_dict(torch.load(weights_path, weights_only=True))
 
     map_test_dir    = "data/training_data/simulator/map_test"
     num_dirs        = len(os.listdir(map_test_dir))
