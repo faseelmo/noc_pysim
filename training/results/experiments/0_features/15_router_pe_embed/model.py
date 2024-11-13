@@ -28,7 +28,7 @@ class HeteroGNN(torch.nn.Module):
         final_conv = self._get_hetero_conv(hidden_channels, 2, aggr="sum")
         self._convs.append(final_conv)
 
-        projection_size         = 16
+        projection_size         = 32
         self.pe_embedding       = nn.Embedding(9, projection_size)
         self.router_embedding   = nn.Embedding(9, projection_size)
         self._pos_project       = Linear(2, projection_size)
