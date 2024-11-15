@@ -3,11 +3,10 @@ import os
 import yaml
 import torch
 import argparse
+import importlib.util 
 
 from src.utils              import visuailize_noc_application
 from data.utils             import load_graph_from_json, get_weights_from_directory
-from training.noc_dataset   import NocDataset
-from training.model         import GNNHetero, HeteroGNN
 
 if __name__ == "__main__" :
 
@@ -18,14 +17,28 @@ if __name__ == "__main__" :
     parser.add_argument("--epoch", type=str, default="50" ,help="Epoch number of the model to load")
     args = parser.parse_args()
 
+
+    model_spec = importlib.util.spec_from_file_location("model", os.path.join(args.model_path, "model.py"))
+    model_module = importlib.util.module_from_spec(model_spec)
+    model_spec.loader.exec_module(model_module)
+
+    dataset_spec = importlib.util.spec_from_file_location("noc_dataset", os.path.join(args.model_path, "noc_dataset.py"))
+    dataset_module = importlib.util.module_from_spec(dataset_spec)
+    dataset_spec.loader.exec_module(dataset_module)
+
+    # GNNHetero = model_module.GNNHetero
+    HeteroGNN = model_module.HeteroGNN
+
+    NocDataset = dataset_module.NocDataset
+
     index = args.idx
-    graph = load_graph_from_json(f"data/training_data/simulator/map_test/11/{index}.json")
+    graph = load_graph_from_json(f"data/training_data/simulator/map_test/9/{index}.json")
 
     if not args.infer:
         visuailize_noc_application(graph)
         exit()
 
-    dataset = NocDataset("data/training_data/simulator/map_test/11")
+    dataset = NocDataset("data/training_data/simulator/map_test/9")
     data    = dataset[index]
     print(f"Edge index dict is {data.edge_index_dict['task', 'mapped_to', 'pe']}")
     print(f"data is {data['task'].y}")
@@ -43,10 +56,8 @@ if __name__ == "__main__" :
         model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )
     model(data)
 
-    weights_path        = get_weights_from_directory(
-                            args.model_path, 
-                            f"{args.epoch}.pth" )
-
+    weights_path = get_weights_from_directory(args.model_path, f"{args.epoch}.pth" )
+    print(f"Loading weights from {weights_path}")
     model.load_state_dict(torch.load(weights_path))
 
     output = model(data)['task']

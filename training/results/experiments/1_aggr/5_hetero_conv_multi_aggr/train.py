@@ -38,7 +38,6 @@ args    = parser.parse_args()
 
 does_path_exist(args.name)
 
-
 results     = f"training/results/{args.name}"
 model_path  = f"training/model.py"
 train_path  = f"training/train.py"
@@ -338,7 +337,7 @@ def main():
                 if test_metric in saved_test_metric: 
                     continue
 
-            torch.save(model, f"{SAVE_RESULTS}/models/LatNet_{test_metric}_{epoch+1}.pth")
+            torch.save(model, f"{SAVE_RESULTS}/LatNet_{test_metric}_{epoch+1}.pth")
             torch.save(
                 model.state_dict(), 
                 f"{SAVE_RESULTS}/LatNet_{test_metric}_{epoch+1}.pth")
@@ -350,8 +349,8 @@ def main():
 
             print(f"\n[Saving mode] Total Training Time: {time_elapsed} minutes\n")
 
-    torch.save(model.state_dict(), f"{SAVE_RESULTS}/models/LatNet_state_dict.pth")
-    torch.save(model, f"{SAVE_RESULTS}/models/LatNet_final.pth")
+    torch.save(model.state_dict(), f"{SAVE_RESULTS}/LatNet_state_dict.pth")
+    torch.save(model, f"{SAVE_RESULTS}/LatNet_final.pth")
 
 
 if __name__ == "__main__":

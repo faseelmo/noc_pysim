@@ -17,6 +17,11 @@ def does_path_exist(model_name):
 
     training_params = yaml.safe_load(open("training/params.yaml"))
     dir_path = os.path.join(training_params["RESULTS_DIR"], model_name)
+    model_path = os.path.join(dir_path, "models")   
+
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+        print(f"Folder '{model_path}' created.")
 
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
@@ -62,15 +67,20 @@ def get_metadata(dataset_path, has_wait_time, use_noc_dataset: False):
     return metadata
 
 def initialize_model(model, dataloader, device):
-    """Necessary since GraphConv is lazily initialized"""
-    import torch 
+    """Initialize the model by performing a dummy forward pass."""
+    import torch
     model.to(device)
     model.eval()
-    with torch.no_grad(): 
-        for data in dataloader: 
-            data = data.to(device)
-            model(data)
-            break 
+    with torch.no_grad():
+        data = next(iter(dataloader))
+        data = data.to(device)  # Ensure data is on the correct device
+        model(data)  # Trigger lazy initialization
+        # print(f"Data passed through the model is {data}")
+
+    # Verify all parameters are initialized
+    for name, param in model.named_parameters():
+        if isinstance(param, torch.nn.parameter.UninitializedParameter):
+            raise ValueError(f"Parameter {name} is still uninitialized.")
     print(f"Model initialized")
 
 

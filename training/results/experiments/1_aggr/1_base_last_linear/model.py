@@ -8,46 +8,29 @@ from torch_geometric.nn     import (
                                 Linear, 
                             )
 
+from torch_geometric.data import HeteroData
+
+from torch_geometric.nn.models import MLP
+
 class HeteroGNN(torch.nn.Module):
     def __init__(self, hidden_channels: int, num_mpn_layers: int): 
         super().__init__()
 
         assert num_mpn_layers >= 2, "Number of layers should be at least 2."
 
-        self._convs = nn.ModuleList()
+        projection_size         = 16
+        self._pe_embedding      = nn.Embedding(9, projection_size)
+        self._router_embedding  = nn.Embedding(9, projection_size)
 
-        for _ in range(num_mpn_layers - 1):
+        self._convs     = nn.ModuleList()
+        self._conv_aggr = ["sum", "mean", "max"]
+
+        for _ in range(num_mpn_layers):
             intermediate_conv = self._get_hetero_conv(-1, hidden_channels, aggr="sum")
             self._convs.append(intermediate_conv)
 
-        final_conv = self._get_hetero_conv(hidden_channels, 2, aggr="sum")
-        self._convs.append(final_conv)
-
-        projection_size     = 32
-        # self.pe_embedding  = nn.Embedding(9, projection_size)
-        # self._pos_project   = Linear(2, projection_size)
-
-        # self._pos_project   = nn.Sequential( 
-        #     Linear(2, projection_size),  
-        #     nn.ReLU(), 
-        #     Linear(projection_size, projection_size),  
-        #     nn.ReLU(),
-        #     # nn.Softmax(dim=1)
-        # ) 
-
-        self._task_project   = Linear(2, projection_size)
-        # self._task_projet   = nn.Sequential( 
-        #     Linear(2, projection_size), 
-        #     nn.ReLU(),
-        #     Linear(projection_size, projection_size), 
-        #     nn.ReLU()  )
-
-
-        # self._pe_project   = nn.Sequential( 
-        #     Linear(1, projection_size), 
-        #     nn.ReLU(),
-        #     Linear(projection_size, projection_size), 
-        #     nn.ReLU()  )
+        # self._feedforward = MLP( [hidden_channels, hidden_channels // 2, hidden_channels // 2, 2])   
+        self._feedforward = Linear(hidden_channels, 2)  
 
 
     def _get_hetero_conv(self, in_channels, out_channels, aggr): 
@@ -63,24 +46,23 @@ class HeteroGNN(torch.nn.Module):
 
         return conv
 
-    def forward(self, data):
+    def forward(self, data: HeteroData) -> HeteroData:
         x_dict              = data.x_dict
         edge_index_dict     = data.edge_index_dict
 
-        # batch_size = x_dict['pe'].size(0) // 9
+        batch_size = x_dict['pe'].size(0) // 9
 
-        # x_dict['pe']        = self.pe_embedding.weight.repeat(batch_size, 1)
-        x_dict['task']      = self._task_project(x_dict['task'])    
+        x_dict['pe']        = self._pe_embedding.weight.repeat(batch_size, 1)
+        x_dict['router']    = self._router_embedding.weight.repeat(batch_size, 1)
 
-        
 
-        for conv in self._convs[:-1]:
+        for conv in self._convs:
             x_dict = conv(x_dict, edge_index_dict)
             
             for key, x in x_dict.items():
                 x_dict[key] = x.relu()
 
-        x_dict = self._convs[-1](x_dict, edge_index_dict)
+        x_dict['task'] = self._feedforward(x_dict['task'])
 
         return x_dict
 
@@ -108,20 +90,25 @@ if __name__ == "__main__":
 
     from training.dataset   import load_data
     from training.noc_dataset import NocDataset
-
+    from training.utils     import print_parameter_count, initialize_model
 
     IDX             = 10
-    BATCH_SIZE      = 10
-    HIDDEN_CHANNELS = 40
+    BATCH_SIZE      = 1
+    HIDDEN_CHANNELS = 50
 
     torch.manual_seed(0)
 
     dataloader, _ = load_data(
-                        "data/training_data/simulator/train",
+                        "data/training_data/simulator/test",
                         batch_size          = BATCH_SIZE,
                         use_noc_dataset    = True 
                         )
 
     data        = next(iter(dataloader))
+    print(f"Data shape is {data.x_dict['task'].shape}, {data.x_dict['pe'].shape}, {data.x_dict['router'].shape}")
+
     model       = HeteroGNN(HIDDEN_CHANNELS, num_mpn_layers=3)
     output      = model(data)
+
+    print(f"Output shape is {output['task'].shape}, {output['pe'].shape}, {output['router'].shape}")
+    print_parameter_count(model)

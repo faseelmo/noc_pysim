@@ -1,59 +1,18 @@
 import os 
+import re 
 import yaml 
 import torch
 import argparse 
 import numpy as np
 import importlib.util 
 
-from scipy.stats import kendalltau, spearmanr, pearsonr 
+from scipy.stats import kendalltau, spearmanr, pearsonr
 
-# from training.model import GNNHetero, HeteroGNN
-# from training.noc_dataset import NocDataset
-from data.utils import get_weights_from_directory
+from data.utils import get_weights_from_directory, get_all_weights_from_directory
+from training.utils import print_parameter_count
 
-if __name__ == "__main__" : 
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="" ,help="Path to the results folder")
-    parser.add_argument("--epoch", type=str, default="50" ,help="Epoch number of the model to load")
-    args = parser.parse_args()
-
-    model_spec = importlib.util.spec_from_file_location("model", os.path.join(args.model_path, "model.py"))
-    model_module = importlib.util.module_from_spec(model_spec)
-    model_spec.loader.exec_module(model_module)
-
-    dataset_spec = importlib.util.spec_from_file_location("noc_dataset", os.path.join(args.model_path, "noc_dataset.py"))
-    dataset_module = importlib.util.module_from_spec(dataset_spec)
-    dataset_spec.loader.exec_module(dataset_module)
-
-    # GNNHetero = model_module.GNNHetero
-    HeteroGNN = model_module.HeteroGNN
-
-    NocDataset = dataset_module.NocDataset
-
-    params_yaml_path    = os.path.join(args.model_path, "params.yaml")
-    params_yaml_path    = os.path.join(args.model_path, "params.yaml")
-    params              = yaml.safe_load(open(params_yaml_path))
-
-    HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
-    NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
-    USE_HETERO_WRAPPER  = params["USE_HETERO_WRAPPER"]
-
-    dataset = NocDataset("data/training_data/simulator/test")
-    data    = dataset[0]
-
-    if not USE_HETERO_WRAPPER:
-        model = GNNHetero( HIDDEN_CHANNELS, NUM_MPN_LAYERS, data.metadata() )  
-        print(f"Using GNNHetero")
-    else: 
-        model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )
-        print(f"Using HeteroGNN")
-
-    model(data)
-    weights_path = get_weights_from_directory(args.model_path, f"{args.epoch}.pth" )
-    print(f"Loading weights from {weights_path}")
-    model.load_state_dict(torch.load(weights_path, weights_only=True))
-
+def get_mapping_tau(model, NocDataset, epoch, show): 
     map_test_dir    = "data/training_data/simulator/map_test"
     num_dirs        = len(os.listdir(map_test_dir))
 
@@ -88,24 +47,95 @@ if __name__ == "__main__" :
         std_truth = np.std(truth_list)
         std_list.append(std_truth)
         range_truth = max_truth - min_truth
-        print(f"{count}. Tau: {round(tau, 2)}, \tp_val: {round(p_val, 2)}, \trange: {round(range_truth, 2)}, \tStd: {round(std_truth, 2)}")
+        if show:
+            print(f"{count}. Tau: {round(tau, 2)}, \tp_val: {round(p_val, 2)}, \trange: {round(range_truth, 2)}, \tStd: {round(std_truth, 2)}")
         count += 1
 
     average_tau     = round(sum(tau_list)/len(tau_list), 2)
     average_p_val   = round(sum(p_value_list)/len(p_value_list), 2)
-    print(f"Average tau = {average_tau} \t Average p_val = {average_p_val}")
+    std_tau         = round(np.std(tau_list), 2)
 
-    pearsonr_val = pearsonr(tau_list, std_list) 
-    spearmanr_val = spearmanr(tau_list, std_list)
+    print(f"[{epoch}]\tAverage tau = {average_tau} \t Average p_val = {average_p_val} \t Std p_val = {std_tau}")
 
-    # print(f"Pearsonr: {pearsonr_val}, Spearmanr: {spearmanr_val}")
+    return average_tau, average_p_val
 
-    file_path = os.path.join(args.model_path, f'avg_tau_{args.epoch}_{average_tau}.txt')
+
+def extract_epoch(weight_path): 
+    match = re.search(r'(\d+).pth', weight_path)
+    return match.group(1)
+
+
+
+if __name__ == "__main__" : 
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_path", type=str, default="" ,help="Path to the results folder")
+    parser.add_argument("--epoch", type=str, default="50" ,help="Epoch number of the model to load")
+    parser.add_argument("--find", action="store_true", help="Find the best epoch")
+    args = parser.parse_args()
+
+    model_spec = importlib.util.spec_from_file_location("model", os.path.join(args.model_path, "model.py"))
+    model_module = importlib.util.module_from_spec(model_spec)
+    model_spec.loader.exec_module(model_module)
+
+    dataset_spec = importlib.util.spec_from_file_location("noc_dataset", os.path.join(args.model_path, "noc_dataset.py"))
+    dataset_module = importlib.util.module_from_spec(dataset_spec)
+    dataset_spec.loader.exec_module(dataset_module)
+
+    # GNNHetero = model_module.GNNHetero
+    HeteroGNN = model_module.HeteroGNN
+
+    NocDataset = dataset_module.NocDataset
+
+    params_yaml_path    = os.path.join(args.model_path, "params.yaml")
+    params_yaml_path    = os.path.join(args.model_path, "params.yaml")
+    params              = yaml.safe_load(open(params_yaml_path))
+
+    HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
+    NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
+    USE_HETERO_WRAPPER  = params["USE_HETERO_WRAPPER"]
+
+    dataset = NocDataset("data/training_data/simulator/test")
+    data    = dataset[0]
+
+    model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )
+    model(data)
+
+    print(f"Using HeteroGNN")
+    print_parameter_count(model)
+
+    weight_paths = []
+    model_path = os.path.join(args.model_path, "models")
+    if not args.find: 
+        weight_path = get_weights_from_directory(model_path, f"{args.epoch}.pth" )
+        weight_paths.append(weight_path)
+
+    else: 
+        weight_paths = get_all_weights_from_directory(model_path)
+    
+    max_tau     = 0
+    best_epoch  = 0
+    its_p_val   = 0
+    for weight_path in weight_paths:
+        model.load_state_dict(torch.load(weight_path))
+        epoch = extract_epoch(weight_path)
+
+        tau, p = get_mapping_tau(model, NocDataset, epoch, show=False)
+
+        if tau > max_tau: 
+            max_tau     = tau
+            best_epoch  = epoch
+            its_p_val   = p
+
+    result_str = f"Best epoch is {best_epoch} with tau = {max_tau} and p_val = {its_p_val}"
+    print(f"{result_str}")
+
+
+
+
+    file_path = os.path.join(args.model_path, f'results.txt')
 
     with open(file_path, 'w') as file:
-        file.write(f"Average tau is {average_tau}\n")
-
-
-
+        file.write(result_str)
 
 

@@ -53,6 +53,17 @@ def get_weights_from_directory(directory: str, file_name: str):
     else: 
         raise Exception(f"File {file_name} not found in directory {directory}")
 
+
+def get_all_weights_from_directory(directory: str):
+    import os
+    files = os.listdir(directory)
+    weights_files = []
+    for file in files:
+        if ".pth" in file:
+            path = os.path.join(directory, file)
+            weights_files.append(path)
+    return weights_files
+
 def visualize_graph(
         graph: nx.DiGraph, 
         latency_value=None, 
