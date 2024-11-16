@@ -5,6 +5,7 @@ __pycache__/
 *.pth 
 *.pkl
 *.txt
+!results.txt
 venv/
 data/training_data/input/
 data/training_data/target/

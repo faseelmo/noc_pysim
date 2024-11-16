@@ -1,0 +1,1 @@
+Best epoch is 71 with tau = 0.59 and p_val = 0.0

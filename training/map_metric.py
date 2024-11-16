@@ -102,25 +102,29 @@ if __name__ == "__main__" :
     model(data)
 
     print(f"Using HeteroGNN")
-    print_parameter_count(model)
+    # print_parameter_count(model)
 
     weight_paths = []
     model_path = os.path.join(args.model_path, "models")
     if not args.find: 
+        show_tau    = True
         weight_path = get_weights_from_directory(model_path, f"{args.epoch}.pth" )
         weight_paths.append(weight_path)
 
     else: 
-        weight_paths = get_all_weights_from_directory(model_path)
+        show_tau        = False
+        weight_paths    = get_all_weights_from_directory(model_path)
     
     max_tau     = 0
     best_epoch  = 0
     its_p_val   = 0
+
     for weight_path in weight_paths:
+        print(f"Loading model from {weight_path}")
         model.load_state_dict(torch.load(weight_path))
         epoch = extract_epoch(weight_path)
 
-        tau, p = get_mapping_tau(model, NocDataset, epoch, show=False)
+        tau, p = get_mapping_tau(model, NocDataset, epoch, show=show_tau)
 
         if tau > max_tau: 
             max_tau     = tau
