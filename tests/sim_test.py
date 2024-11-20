@@ -169,7 +169,7 @@ def test_graph_to_task_fn():
     graph.add_edge(0, 2, weight=3)
     graph.add_edge(0, 1, weight=2)
 
-    sim = Simulator(num_rows=3, num_cols=3, debug_mode=True, max_cycles=100)    
+    sim = Simulator(num_rows=3, num_cols=3, debug_mode=False, max_cycles=100)    
     task_list = sim.graph_to_task(graph)
 
     for task in task_list: 
