@@ -10,11 +10,9 @@ The *require* and *generate* of nodes/tasks in the graph should match. Might obs
 If your python version is earlier than 3.9, consider updating a newer one. Follow tutorial [here](https://docs.python-guide.org/starting/install3/linux/#install3-linux). 
 
 
+Run the following script 
 ```bash 
-unset PYTHONPATH  # to avoid conflits with system Python packages
-python3 -m venv "venv"
-source venv/bin/activate
-pip install -r requirements.txt
+source venv_script.sh 
 ```
 
 #### Run all tests using
@@ -62,5 +60,15 @@ Start the training using
 python3 -m training.train directory_name
 ```
 > Note: Results will be saved in training/results/directory_name 
+
+### 3. Performance Metric 
+#### Mapping Metric 
+
+```bash
+python3 -m training.map_metric --model_path training/results/directory_name --find
+```
+The find flag will check the mapping metric for each saved model. The results will be saved
+in training/results/directory_name/results.txt. 
+
 
 

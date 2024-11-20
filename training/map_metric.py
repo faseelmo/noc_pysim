@@ -55,15 +55,17 @@ def get_mapping_tau(model, NocDataset, epoch, show):
     average_p_val   = round(sum(p_value_list)/len(p_value_list), 2)
     std_tau         = round(np.std(tau_list), 2)
 
-    print(f"[{epoch}]\tAverage tau = {average_tau} \t Average p_val = {average_p_val} \t Std p_val = {std_tau}")
+    print(f"Epoch: {epoch}\tAverage tau = {average_tau}\tAverage p_val = {average_p_val}\tStd p_val = {std_tau}")
 
     return average_tau, average_p_val
 
 
 def extract_epoch(weight_path): 
-    match = re.search(r'(\d+).pth', weight_path)
-    return match.group(1)
-
+    match = re.search(r'_(\d+)_(\d+)_(\w+).pth', weight_path)
+    if match:
+        return match.group(2)
+    else:
+        return None
 
 
 if __name__ == "__main__" : 
@@ -71,7 +73,7 @@ if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="" ,help="Path to the results folder")
     parser.add_argument("--epoch", type=str, default="50" ,help="Epoch number of the model to load")
-    parser.add_argument("--find", action="store_true", help="Find the best epoch")
+    parser.add_argument("--find", action="store_true", help="Find the epoch with the best tau")
     args = parser.parse_args()
 
     model_spec = importlib.util.spec_from_file_location("model", os.path.join(args.model_path, "model.py"))
@@ -93,7 +95,6 @@ if __name__ == "__main__" :
 
     HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
     NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
-    USE_HETERO_WRAPPER  = params["USE_HETERO_WRAPPER"]
 
     dataset = NocDataset("data/training_data/simulator/test")
     data    = dataset[0]
@@ -102,7 +103,7 @@ if __name__ == "__main__" :
     model(data)
 
     print(f"Using HeteroGNN")
-    # print_parameter_count(model)
+    print_parameter_count(model)
 
     weight_paths = []
     model_path = os.path.join(args.model_path, "models")
@@ -120,8 +121,8 @@ if __name__ == "__main__" :
     its_p_val   = 0
 
     for weight_path in weight_paths:
-        print(f"Loading model from {weight_path}")
-        model.load_state_dict(torch.load(weight_path))
+        print(f"\nLoading model from {weight_path}")
+        model.load_state_dict(torch.load(weight_path, weights_only=True))
         epoch = extract_epoch(weight_path)
 
         tau, p = get_mapping_tau(model, NocDataset, epoch, show=show_tau)
@@ -133,9 +134,6 @@ if __name__ == "__main__" :
 
     result_str = f"Best epoch is {best_epoch} with tau = {max_tau} and p_val = {its_p_val}"
     print(f"{result_str}")
-
-
-
 
     file_path = os.path.join(args.model_path, f'results.txt')
 

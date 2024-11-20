@@ -1,12 +1,7 @@
 # Model Parameters
-NUM_MPN_LAYERS      : 3     # Number of conv layers in MPN
-HIDDEN_CHANNELS     : 50    # Number of output node embeddings 
-USE_NOC_DATASET     : True # Uses the NoC dataset for training
-IS_HETERO           : True  # Converts using to_hetero() if True
-DO_POOLING          : False # Applies pooling to the output node embeddings
-HAS_WAIT_TIME       : True  # Adds wait time as a feature
-HAS_SCHEDULER       : False  # Creates a node (type: scheduler) and connects it to all task nodes (inc task and task_depend)
-USE_HETERO_WRAPPER  : True
+NUM_MPN_LAYERS      : 3       # Number of conv layers in MPN
+HIDDEN_CHANNELS     : 50      # Number of output node embeddings 
+DEVICE              : 'cpu'  # 'cuda' or 'cpu'
 
 # Dataset 
 CREATE_DATASET      : False
