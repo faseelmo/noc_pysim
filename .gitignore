@@ -6,6 +6,8 @@ __pycache__/
 *.pkl
 *.txt
 !results.txt
+!tests/test_graphs/task_graph_0.json
+!tests/test_graphs/task_graph_1.json
 venv/
 data/training_data/input/
 data/training_data/target/

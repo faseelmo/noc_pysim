@@ -1,0 +1,68 @@
+{
+    "directed": true,
+    "multigraph": false,
+    "graph": {},
+    "nodes": [
+        {
+            "type": "task",
+            "generate": 7,
+            "processing_time": 3,
+            "id": 0
+        },
+        {
+            "type": "task",
+            "generate": 2,
+            "processing_time": 2,
+            "id": 1
+        },
+        {
+            "type": "dependency",
+            "generate": 8,
+            "id": 2
+        },
+        {
+            "type": "task",
+            "generate": 5,
+            "processing_time": 5,
+            "id": 3
+        },
+        {
+            "type": "task",
+            "generate": 5,
+            "processing_time": 7,
+            "id": 4
+        },
+        {
+            "type": "dependency",
+            "generate": 1,
+            "id": 5
+        }
+    ],
+    "links": [
+        {
+            "weight": 2,
+            "source": 1,
+            "target": 0
+        },
+        {
+            "weight": 8,
+            "source": 2,
+            "target": 1
+        },
+        {
+            "weight": 5,
+            "source": 3,
+            "target": 0
+        },
+        {
+            "weight": 5,
+            "source": 4,
+            "target": 3
+        },
+        {
+            "weight": 1,
+            "source": 5,
+            "target": 4
+        }
+    ]
+}
