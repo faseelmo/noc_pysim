@@ -131,6 +131,7 @@ def main():
     random.seed(0)
     torch.manual_seed(0)
     np.random.seed(0)
+    # torch.use_deterministic_algorithms(True)
     os.environ["PYTHONHASHSEED"] = str(0)
 
     # Training Parameters  
@@ -155,11 +156,10 @@ def main():
         if torch.cuda.is_available():
             # Set Seeds for Cuda Reproducibility
             DEVICE = torch.device("cuda")
-            torch.use_deterministic_algorithms(True)
-            torch.cuda.manual_seed(0)
-            torch.cuda.manual_seed_all(0)
-            torch.backends.cudnn.deterministic = True
-            torch.backends.cudnn.benchmark = False
+            # torch.cuda.manual_seed(0)
+            # torch.cuda.manual_seed_all(0)
+            # torch.backends.cudnn.deterministic = True
+            # torch.backends.cudnn.benchmark = False
         else: 
             raise ValueError("CUDA is not available. Please set DEVICE='cpu' in params.yaml")
 

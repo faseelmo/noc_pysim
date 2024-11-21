@@ -21,7 +21,7 @@ class HeteroGNN(torch.nn.Module):
         self._router_embedding  = nn.Embedding(9, projection_size)
 
         self._convs     = nn.ModuleList()
-        self._conv_aggr = ["sum"] # ["sum", "mean", "max", "min"]
+        self._conv_aggr = ["sum", "max"] # ["sum", "mean", "max", "min"]
 
         for _ in range(num_mpn_layers):
             intermediate_convs = self._get_hetero_conv(-1, hidden_channels)
@@ -38,7 +38,7 @@ class HeteroGNN(torch.nn.Module):
         for aggr in aggr_list:
 
             conv = HeteroConv({
-                ("task", "depends_on", "task"):         GraphConv(in_channels, out_channels, aggr="max"),
+                ("task", "depends_on", "task"):         GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
                 ("task", "rev_depends_on", "task"):     GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
                 ("task", "mapped_to", "pe"):            GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
                 ("pe", "rev_mapped_to", "task"):        GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 

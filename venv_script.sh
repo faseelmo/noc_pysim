@@ -19,7 +19,10 @@ fi
 
 export CUBLAS_WORKSPACE_CONFIG=:4096:8 # for torch.use_deterministic_algorithms(True)
 
-source venv/bin/activate
+echo source venv/bin/activate > activate_venv.sh
+
+source activate_venv.sh
+echo "Activating virtual environment..."
 
 echo "Installing requirements..."
 pip install -r requirements.txt 

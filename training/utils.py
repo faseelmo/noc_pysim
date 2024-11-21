@@ -19,9 +19,6 @@ def does_path_exist(model_name):
     dir_path = os.path.join(training_params["RESULTS_DIR"], model_name)
     model_path = os.path.join(dir_path, "models")   
 
-    if not os.path.exists(model_path):
-        os.makedirs(model_path)
-        print(f"Folder '{model_path}' created.")
 
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
@@ -31,6 +28,10 @@ def does_path_exist(model_name):
         continue_prompt = input("Do you want to continue? (yes/no): ")
         if continue_prompt.lower() != "yes":
             exit()
+
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+        print(f"Folder '{model_path}' created.")
 
 
 def copy_file(src_path, dest_path):

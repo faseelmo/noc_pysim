@@ -13,3 +13,4 @@ data/training_data/input/
 data/training_data/target/
 training/results/test
 training/results/test_cpu
+activate_venv.sh
