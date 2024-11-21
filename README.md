@@ -10,6 +10,7 @@ The *require* and *generate* of nodes/tasks in the graph should match. Might obs
 If your python version is earlier than 3.9, consider updating a newer one. Follow tutorial [here](https://docs.python-guide.org/starting/install3/linux/#install3-linux). 
 
 
+
 Run the following script 
 ```bash 
 source venv_script.sh 
