@@ -33,19 +33,19 @@ class HeteroGNN(torch.nn.Module):
 
     def _get_hetero_conv(self, in_channels, out_channels): 
         
-        aggr_list = ["sum", "max"] # ["sum", "mean", "max", "min"]
+        hetero_aggr_list = ["sum", "max"] # ["sum", "mean", "max", "min"]
         conv_list = []
 
-        for aggr in aggr_list:
+        for aggr in hetero_aggr_list:
 
             conv = HeteroConv({
                 ("task", "depends_on", "task"):         GATv2Conv(in_channels, out_channels, heads=4, concat=False),
-                ("task", "rev_depends_on", "task"):     GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
-                ("task", "mapped_to", "pe"):            GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("pe", "rev_mapped_to", "task"):        GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("router", "link", "router"):           GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("router", "interface", "pe"):          GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("pe", "rev_interface", "router"):      GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("task", "rev_depends_on", "task"):     GATv2Conv(in_channels, out_channels, heads=4, concat=False),
+                ("task", "mapped_to", "pe"):            GATv2Conv(in_channels, out_channels, heads=4, concat=False, add_self_loops=False), 
+                ("pe", "rev_mapped_to", "task"):        GATv2Conv(in_channels, out_channels, heads=4, concat=False, add_self_loops=False), 
+                ("router", "link", "router"):           GATv2Conv(in_channels, out_channels, heads=4, concat=False, add_self_loops=False), 
+                ("router", "interface", "pe"):          GATv2Conv(in_channels, out_channels, heads=4, concat=False, add_self_loops=False), 
+                ("pe", "rev_interface", "router"):      GATv2Conv(in_channels, out_channels, heads=4, concat=False, add_self_loops=False),
             }, aggr=aggr)
 
             conv_list.append(conv)
@@ -71,6 +71,7 @@ class HeteroGNN(torch.nn.Module):
         x_dict['task'] = self._feedforward(x_dict['task'])
 
         return x_dict
+
 
 
 if __name__ == "__main__":

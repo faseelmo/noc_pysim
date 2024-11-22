@@ -1,7 +1,7 @@
 # Model Parameters
 NUM_MPN_LAYERS      : 3       # Number of conv layers in MPN
 HIDDEN_CHANNELS     : 50      # Number of output node embeddings 
-DEVICE              : 'cpu'   # 'cuda' or 'cpu'
+DEVICE              : 'cpu'  # 'cuda' or 'cpu'
 
 # Dataset 
 CREATE_DATASET      : False

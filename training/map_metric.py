@@ -8,7 +8,7 @@ import importlib.util
 
 from scipy.stats import kendalltau, spearmanr, pearsonr
 
-from data.utils import get_weights_from_directory, get_all_weights_from_directory
+from data.utils import get_weights_from_directory, get_all_weights_from_directory, extract_epoch    
 from training.utils import print_parameter_count
 
 
@@ -59,15 +59,6 @@ def get_mapping_tau(model, NocDataset, epoch, show):
 
     return average_tau, average_p_val
 
-
-def extract_epoch(weight_path): 
-    match = re.search(r'_(\d+)_(\d+)_(\w+).pth', weight_path)
-    if match:
-        return match.group(2)
-    else:
-        return None
-
-
 if __name__ == "__main__" : 
 
     parser = argparse.ArgumentParser()
@@ -109,12 +100,12 @@ if __name__ == "__main__" :
     model_path = os.path.join(args.model_path, "models")
     if not args.find: 
         show_tau    = True
-        weight_path = get_weights_from_directory(model_path, f"{args.epoch}.pth" )
+        weight_path = get_weights_from_directory( model_path, args.epoch )
         weight_paths.append(weight_path)
 
     else: 
-        show_tau        = False
-        weight_paths    = get_all_weights_from_directory(model_path)
+        show_tau     = False
+        weight_paths = get_all_weights_from_directory(model_path)
     
     max_tau     = 0
     best_epoch  = 0

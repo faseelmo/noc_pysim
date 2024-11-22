@@ -1,4 +1,5 @@
 import networkx as nx
+import re 
 
 def save_graph_to_json(graph: nx.DiGraph, filename: str):
     import json
@@ -44,15 +45,23 @@ def get_compute_list_from_json(filename: str) -> dict:
 
     return compute_list
 
-def get_weights_from_directory(directory: str, file_name: str):
+def get_weights_from_directory(directory: str, epoch: str):
     import os 
     files = os.listdir(directory)
+
     for file in files:
-        if f"_{file_name}" in file:
+        extracted_epoch = extract_epoch(file)
+        if extracted_epoch == epoch:
             return os.path.join(directory, file)
     else: 
-        raise Exception(f"File {file_name} not found in directory {directory}")
+        raise Exception(f"File {epoch} not found in directory {directory}")
 
+def extract_epoch(weight_path): 
+    match = re.search(r'_(\d+)_(\d+)_(\w+).pth', weight_path)
+    if match:
+        return match.group(2)
+    else:
+        return None
 
 def get_all_weights_from_directory(directory: str):
     import os
