@@ -59,6 +59,7 @@ def get_mapping_tau(model, NocDataset, epoch, show):
 
     return average_tau, average_p_val
 
+
 if __name__ == "__main__" : 
 
     parser = argparse.ArgumentParser()
@@ -94,7 +95,7 @@ if __name__ == "__main__" :
     model(data)
 
     print(f"Using HeteroGNN")
-    print_parameter_count(model)
+    parameter_count = print_parameter_count(model)
 
     weight_paths = []
     model_path = os.path.join(args.model_path, "models")
@@ -107,9 +108,10 @@ if __name__ == "__main__" :
         show_tau     = False
         weight_paths = get_all_weights_from_directory(model_path)
     
-    max_tau     = 0
-    best_epoch  = 0
-    its_p_val   = 0
+    max_map_tau         = 0
+    best_epoch          = 0
+    its_p_val           = 0
+    path_of_best_model  = ""
 
     for weight_path in weight_paths:
         print(f"\nLoading model from {weight_path}")
@@ -118,12 +120,18 @@ if __name__ == "__main__" :
 
         tau, p = get_mapping_tau(model, NocDataset, epoch, show=show_tau)
 
-        if tau > max_tau: 
-            max_tau     = tau
+        if tau > max_map_tau: 
+            max_map_tau = tau
             best_epoch  = epoch
             its_p_val   = p
+            path_of_best_model = weight_path
 
-    result_str = f"Best epoch is {best_epoch} with tau = {max_tau} and p_val = {its_p_val}"
+    result_str = (
+        f"Best epoch is {best_epoch} with map tau = {max_map_tau} "
+        f"and p_val = {its_p_val}. "
+        f"Parameter count: {parameter_count}. "
+        f"Path: {path_of_best_model}"
+    )
     print(f"{result_str}")
 
     file_path = os.path.join(args.model_path, f'results.txt')

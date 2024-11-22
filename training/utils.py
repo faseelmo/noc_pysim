@@ -48,6 +48,7 @@ def print_parameter_count(model):
         if p.requires_grad
     )
     print(f"Number of parameters: {num_params}")
+    return num_params
 
 
 def get_metadata(dataset_path, has_wait_time, use_noc_dataset: False):
