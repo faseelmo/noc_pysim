@@ -32,7 +32,7 @@ class HeteroGNN(torch.nn.Module):
 
     def _get_hetero_conv(self, in_channels, out_channels): 
         
-        aggr_list = ["mean"] # ["sum", "mean", "max", "min"]
+        aggr_list = ["mean", "max"] # ["sum", "mean", "max", "min"]
         conv_list = []
 
         for aggr in aggr_list:
