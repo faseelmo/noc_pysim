@@ -50,7 +50,7 @@ class HeteroGNN(torch.nn.Module):
                 ("pe", "rev_interface", "router"):      GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
             }, aggr=aggr)
 
-            conv_list.append(conv)
+            conv_list.append((conv, powermean_aggr))
 
         return conv_list
 
@@ -64,16 +64,11 @@ class HeteroGNN(torch.nn.Module):
         x_dict['router']    = self._router_embedding.weight.repeat(batch_size, 1)
 
 
-        for conv in self._convs:
+        for conv, powermean_aggr in self._convs:
             x_dict = conv(x_dict, edge_index_dict)
-
-            print(f"Output shape is Task: {x_dict['task'].shape}, PE: {x_dict['pe'].shape}, Router: {x_dict['router'].shape}")
-            print(f"X dict is {x_dict}")
-            print(f"Edge index dict is {edge_index_dict}")
-
-            exit()
             
             for key, x in x_dict.items():
+                x_dict[key] = powermean_aggr(x)
                 x_dict[key] = x.relu()
 
         x_dict['task'] = self._feedforward(x_dict['task'])
@@ -108,7 +103,7 @@ if __name__ == "__main__":
 
     IDX             = 10
     BATCH_SIZE      = 1
-    HIDDEN_CHANNELS = 3
+    HIDDEN_CHANNELS = 50
 
     torch.manual_seed(0)
 
