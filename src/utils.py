@@ -1,9 +1,9 @@
-import networkx as nx
 import random
+import networkx as nx
 
+from src.simulator import Map
 from src.packet import PacketStatus, Packet
 from src.processing_element import TaskInfo
-from src.simulator import Map
 
 def graph_to_task_list(graph: nx.DiGraph) -> list:
     """
@@ -56,13 +56,10 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
     return computing_list
 
 
-def simulate(
-    computing_list: list[TaskInfo], 
-    packet_list: list[Packet], 
-    debug_mode=False, 
-    max_cycles=1000, 
-    sjf_scheduling=False
-) -> int:
+def simulate_application_on_pe( computing_list  : list[TaskInfo], 
+                                packet_list     : list[Packet], 
+                                debug_mode      : bool = False, 
+                                sjf_scheduling  : bool = False ) -> int:
     """
     Simulation of the processing element
 
@@ -86,8 +83,9 @@ def simulate(
 
     pe = ProcessingElement((0, 0), computing_list, debug_mode=debug_mode, shortest_job_first=sjf_scheduling)
     current_packet = packet_list.pop(0)
+    cycle = 0
 
-    for cycle in range(max_cycles):
+    while True: 
 
         if debug_mode:
             print(f"\n> {cycle}")
@@ -98,6 +96,8 @@ def simulate(
 
         if is_done_processing:
             break
+
+        cycle += 1
 
     return cycle
 
@@ -115,6 +115,10 @@ def update_current_packet(current_packet: Packet, packet_list: list[Packet]) -> 
 
 
 def get_ordered_packet_list(graph: nx.DiGraph) -> list:
+    """
+    Packets ordered based on wait_time of task_depend
+    lowest wait_time first 
+    """
 
     from dataclasses import dataclass
     from src.packet import Packet
