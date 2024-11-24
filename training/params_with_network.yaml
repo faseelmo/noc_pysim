@@ -9,9 +9,10 @@ GEN_COUNT           : 8000
 MAX_NODES           : 5
 
 # Normalization Constants
+# Generate and processing time should be the same during data generation and model training 
 MAX_GENERATE        : 10
 MAX_PROCESSING_TIME : 10
-MAX_CYCLE           : 100
+MAX_CYCLE           : 1000
 
 # Hyperparameters 
 LEARNING_RATE       : 0.01

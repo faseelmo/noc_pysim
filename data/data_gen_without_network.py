@@ -1,26 +1,35 @@
-import shutil
+import os 
+import yaml 
+import random 
 
-from src.utils                  import graph_to_task_list, simulate_application_on_pe, get_ordered_packet_list
-from data.utils                 import visualize_graph, update_graph_with_computing_list, save_graph_to_json, generate_graph, modify_graph_to_task_graph
+from src.utils  import ( graph_to_task_list, 
+                         simulate_application_on_pe, 
+                         get_ordered_packet_list )
+
+from data.utils import ( update_graph_with_computing_list, 
+                         save_graph_to_json, 
+                         generate_graph, 
+                         modify_graph_to_task_graph, 
+                         create_and_clear_dir )
+
+PARAMS = yaml.safe_load(open("training/params_without_network.yaml"))
 
 def simulate(num_nodes: int, debug_mode: bool, sjf_scheduling: bool ): 
 
-    graph = generate_graph(num_nodes)
-    graph = modify_graph_to_task_graph(graph) # Wait time is required for ordered packet injection
+    graph = generate_graph( num_nodes )
+    modify_graph_to_task_graph( graph, 
+                                PARAMS['MAX_GENERATE'], 
+                                PARAMS['MAX_PROCESSING_TIME'] ) # Wait time is required for ordered packet injection
 
-    computing_list  = graph_to_task_list(graph)
-    packet_list     = get_ordered_packet_list(graph)
+    computing_list  = graph_to_task_list( graph )
+    packet_list     = get_ordered_packet_list( graph )
 
-    packet_list_copy = []
-    for packet in packet_list: 
-        packet_list_copy.append( packet.get_source_task_id() )
+    simulate_application_on_pe( computing_list, 
+                                packet_list, 
+                                debug_mode      = debug_mode, 
+                                sjf_scheduling  = sjf_scheduling )
 
-    latency = simulate_application_on_pe( computing_list, 
-                                          packet_list, 
-                                          debug_mode      = debug_mode, 
-                                          sjf_scheduling  = sjf_scheduling )
-
-    graph = update_graph_with_computing_list(computing_list, graph)
+    update_graph_with_computing_list(computing_list, graph)
 
     if debug_mode:
         print(f"---- Debug Mode ----")
@@ -34,20 +43,7 @@ def simulate(num_nodes: int, debug_mode: bool, sjf_scheduling: bool ):
 
     return graph
 
-def create_and_clear_dir(directory_path):
-    if os.path.exists(directory_path):
-        print(f"The directory {directory_path} already exists. Remove it?")
-        user_input = input("Enter Yes to remove: ")
-        if user_input.lower() == "yes":
-            print(f"Removing {directory_path}")
-            shutil.rmtree(directory_path)
-    os.makedirs(directory_path)
-    print(f"Created directory: {directory_path}")
-
 if __name__ == "__main__":
-
-    import random 
-    import os 
 
     random.seed(0)
     training_data_dir    = os.path.join("data", "training_data", "without_network", "train")

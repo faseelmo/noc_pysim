@@ -247,7 +247,7 @@ class Simulator:
     def get_tasks_status(self, show: bool= False) -> list[TaskInfo]:
         """
         Reports the start_cycle and end_cycle of each tasks in the mapping list. 
-        Also returns compute_list for data.utils.visualize_graph
+        Also returns compute_list for data.utils.visualize_application
         """
         compute_list = []
 
@@ -299,8 +299,8 @@ if __name__ == "__main__":
     import random
 
     from src.processing_element import TaskInfo, RequireInfo, TransmitInfo
-    from data.utils             import load_graph_from_json, save_graph_to_json
-    from src.utils              import get_mesh_network, get_graph_report, visuailize_noc_application
+    from data.utils             import load_graph_from_json, save_graph_to_json, visualize_noc_application
+    from src.utils              import get_mesh_network, get_graph_report
 
     random.seed(0)
 
@@ -320,7 +320,7 @@ if __name__ == "__main__":
     compute_list    = sim.get_tasks_status()
 
     training_graph  = get_mesh_network(3, graph, sim.get_mapping_list())
-    visuailize_noc_application(training_graph)
+    visualize_noc_application(training_graph)
 
     save_graph_to_json(training_graph, "data/training_graph.json")
     print(training_graph)

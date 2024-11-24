@@ -4,7 +4,7 @@ import shutil
 
 from src.simulator              import Simulator
 from src.utils                  import get_mesh_network
-from data.utils                 import save_graph_to_json, visualize_graph, generate_graph, modify_graph_to_application_graph
+from data.utils                 import save_graph_to_json, visualize_application, generate_graph, modify_graph_to_application_graph
 
 def simulate(num_nodes: int, map_count : int = 1) -> list: 
 
@@ -12,7 +12,7 @@ def simulate(num_nodes: int, map_count : int = 1) -> list:
     graph       = modify_graph_to_application_graph(graph)
 
     debug_mode  = False 
-    if debug_mode: visualize_graph(graph)
+    if debug_mode: visualize_application(graph)
 
     graph_list = []
     for i in range(map_count): 

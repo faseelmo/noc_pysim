@@ -381,7 +381,7 @@ if __name__ == "__main__":
 
     import sys
 
-    from data.utils         import visualize_graph
+    from data.utils         import visualize_application
     from training.dataset   import CustomDataset, load_data
 
     if len(sys.argv) > 1:   
@@ -424,7 +424,7 @@ if __name__ == "__main__":
                     return_graph        = True)
 
     data_from_dataset, (index, graph) = dataset[IDX]
-    visualize_graph(graph)
+    visualize_application(graph)
 
     # data = data_from_dataset
 
