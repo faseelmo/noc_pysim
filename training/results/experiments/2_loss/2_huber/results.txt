@@ -1,0 +1,1 @@
+Best epoch is 22 with map tau = 0.77 and p_val = 0.0. Parameter count: 184490. Path: training/results/experiments/2_loss/2_huber/models/LatNet_91_22_best.pth
