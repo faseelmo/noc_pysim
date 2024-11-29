@@ -23,8 +23,15 @@ class NocDataset(Dataset):
         self.max_generate           = training_parameters["MAX_GENERATE"]
         self.max_processing_time    = training_parameters["MAX_PROCESSING_TIME"]
 
+        self.return_graph           = False    
+
     def __len__(self) -> int: 
         return len(self._training_files)
+
+    def get_graph(self, index: int):
+        file_path = os.path.join(self._file_dir, self._training_files[index])
+        graph = load_graph_from_json(file_path)
+        return graph    
 
     def __getitem__(self, index: int):
 
@@ -135,7 +142,10 @@ class NocDataset(Dataset):
         # data = ToUndirected()(data) 
         self._do_checks(data)
 
-        return data
+        if self.return_graph:
+            return data, graph
+
+        return data 
 
     def _extract_coordinates(self, element_str: str) -> tuple: 
         x, y = tuple(map(int, re.findall(r'\d+', element_str)))
