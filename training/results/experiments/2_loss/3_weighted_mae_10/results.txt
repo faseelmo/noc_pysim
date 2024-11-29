@@ -1,0 +1,1 @@
+Best epoch is 61 with map tau = 0.76 and p_val = 0.0. Parameter count: 184490. Path: training/results/experiments/2_loss/3_weighted_mae/models/LatNet_91_61_interval.pth

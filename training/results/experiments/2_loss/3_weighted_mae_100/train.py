@@ -65,7 +65,7 @@ def process_batch(data, model, loss_fn, device):
     _, max_indices  = scatter_max(target_task[:, 1], batch)
     weights         = torch.ones(target_task.shape[0], device=device)
 
-    weights[max_indices] = 10000.0
+    weights[max_indices] = 100.0
     weights = weights.unsqueeze(1)
 
     weighted_abs_diff   = weights * torch.abs(target_task - pred_task)
