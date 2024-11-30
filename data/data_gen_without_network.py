@@ -46,8 +46,8 @@ def simulate(num_nodes: int, debug_mode: bool, sjf_scheduling: bool ):
 if __name__ == "__main__":
 
     random.seed(0)
-    training_data_dir    = os.path.join("data", "training_data", "without_network", "train")
-    test_data_dir       = os.path.join("data", "training_data", "without_network", "test")
+    training_data_dir = os.path.join("data", "training_data", "without_network", "train")
+    test_data_dir     = os.path.join("data", "training_data", "without_network", "test")
 
     create_and_clear_dir(training_data_dir)
     create_and_clear_dir(test_data_dir)
