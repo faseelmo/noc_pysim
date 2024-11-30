@@ -1,9 +1,9 @@
-import networkx as nx
 import random
+import networkx as nx
 
+from src.simulator import Map
 from src.packet import PacketStatus, Packet
 from src.processing_element import TaskInfo
-from src.simulator import Map
 
 def graph_to_task_list(graph: nx.DiGraph) -> list:
     """
@@ -56,13 +56,10 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
     return computing_list
 
 
-def simulate(
-    computing_list: list[TaskInfo], 
-    packet_list: list[Packet], 
-    debug_mode=False, 
-    max_cycles=1000, 
-    sjf_scheduling=False
-) -> int:
+def simulate_application_on_pe( computing_list  : list[TaskInfo], 
+                                packet_list     : list[Packet], 
+                                debug_mode      : bool = False, 
+                                sjf_scheduling  : bool = False ) -> int:
     """
     Simulation of the processing element
 
@@ -86,8 +83,9 @@ def simulate(
 
     pe = ProcessingElement((0, 0), computing_list, debug_mode=debug_mode, shortest_job_first=sjf_scheduling)
     current_packet = packet_list.pop(0)
+    cycle = 0
 
-    for cycle in range(max_cycles):
+    while True: 
 
         if debug_mode:
             print(f"\n> {cycle}")
@@ -98,6 +96,8 @@ def simulate(
 
         if is_done_processing:
             break
+
+        cycle += 1
 
     return cycle
 
@@ -115,6 +115,10 @@ def update_current_packet(current_packet: Packet, packet_list: list[Packet]) -> 
 
 
 def get_ordered_packet_list(graph: nx.DiGraph) -> list:
+    """
+    Packets ordered based on wait_time of task_depend
+    lowest wait_time first 
+    """
 
     from dataclasses import dataclass
     from src.packet import Packet
@@ -135,7 +139,7 @@ def get_ordered_packet_list(graph: nx.DiGraph) -> list:
 
     for node_id, node in graph.nodes(data=True):
 
-        if node["type"] == "task_depend":
+        if node["wait_time"] != 0:
             # Fills the task_depend_nodes list
 
             wait_time       = node["wait_time"]
@@ -250,85 +254,6 @@ def get_graph_report(graph: nx.DiGraph, mapping_list: list[Map], show: bool = Fa
                 node["assigned_pe"] = map.assigned_pe
 
     return graph
-
-
-def visuailize_noc_application(graph: nx.DiGraph, prediction: list = None):
-    import matplotlib.pyplot  as plt
-    import numpy as np
-    import re
-
-    has_prediction = False
-    if prediction: 
-        assert isinstance(prediction, list), "Prediction should be a list"
-        has_prediction = True
-
-    router_tilt                 = 0.4
-    pe_offset                   = 0.2
-    normalization_factor        = 3 
-    application_graph_offset    = 4.0
-
-    pos         = {}
-    task_nodes  = [node for node, data in graph.nodes(data=True) if data.get('type') == 'task']
-    task_pos    = nx.spring_layout(graph.subgraph(task_nodes), seed=0)
-    pos.update(task_pos)
-
-    # Finding normalized positions for the task nodes
-    x_values = np.array([pos[0] for pos in pos.values()])
-    y_values = np.array([pos[1] for pos in pos.values()])
-
-    x_min, x_max = x_values.min(), x_values.max()
-    y_min, y_max = y_values.min(), y_values.max()
-
-    x_values = normalization_factor * (x_values - x_min) / (x_max - x_min)
-    y_values = normalization_factor * (y_values - y_min) / (y_max - y_min)
-
-    y_offset = application_graph_offset  
-    y_values += y_offset
-
-    # Updating pos with normalized task positions
-    for i, node in enumerate(pos.keys()):
-        pos[node] = (x_values[i], y_values[i])
-
-    # Updating the positions of the router and PE nodes
-    for node_str in graph.nodes():
-        if graph.nodes[node_str].get('type') == 'router':
-            x, y                = tuple( map( int, re.findall(r'\d+', node_str) ) ) 
-            pos[node_str]       = ( x + router_tilt * y, y )
-            pos[f"PE({x},{y})"] = ( x + (router_tilt * y) + pe_offset, y + pe_offset )
-
-    # Custom labels for the nodes
-    custom_labels = {}
-    for id, node in graph.nodes(data=True): 
-        label       = [f"id: {id}"]
-        node_type   = node.get('type')
-
-        if node_type == "task":
-            label.append(f"True: {node.get('start_cycle', 'N/A')} -> {node.get('end_cycle', 'N/A')}")
-            if has_prediction:
-                start = int(prediction[id][0])
-                end  = int(prediction[id][1])
-                label.append(f"Pred: {start} -> {end}")
-
-        custom_labels[id] = "\n".join(label)
-
-    plt.figure(figsize=(10, 10))
-    nx.draw(graph, 
-            pos, 
-            with_labels = True, 
-            node_color  = 'lightblue', 
-            node_size   = 500, 
-            labels      = custom_labels, 
-            font_size   = 10, 
-            font_weight = 'bold', 
-            edge_color  = 'gray')
-
-    pe_nodes = [n for n in graph.nodes() if isinstance(n, str) and n.startswith("PE")]
-
-    nx.draw_networkx_nodes(graph, pos, nodelist=pe_nodes, node_color='lightgreen', node_size=300)
-    edge_labels = nx.get_edge_attributes(graph, 'weight')
-
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_color='red')
-    plt.show()
 
 
 def get_mesh_network(mesh_size: int, application_graph: nx.DiGraph, mapping_list: list[Map]) -> nx.DiGraph: 
