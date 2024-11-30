@@ -14,8 +14,6 @@ import torch
 import torch.nn         as nn
 import torch.optim      as optim
 
-from torch_scatter      import scatter_max
-
 from training.model     import HeteroGNN
 from training.dataset   import load_data
 from training.utils     import (
@@ -60,16 +58,7 @@ def process_batch(data, model, loss_fn, device):
         
     target_task = data['task'].y.to(device)
     pred_task   = output['task']
-    batch       = data['task'].batch.to(device)
-
-    _, max_indices  = scatter_max(target_task[:, 1], batch)
-    weights         = torch.ones(target_task.shape[0], device=device)
-
-    weights[max_indices] = 10000.0
-    weights = weights.unsqueeze(1)
-
-    weighted_abs_diff   = weights * torch.abs(target_task - pred_task)
-    loss_task           = torch.mean(weighted_abs_diff)
+    loss_task   = loss_fn(target_task, pred_task)
 
     return loss_task
 
@@ -215,9 +204,8 @@ def main():
         model.load_state_dict(model_state_dict)
         print(f"\nPre-Trained Wieghts Loaded\n")
 
-    # loss_fn     = nn.MSELoss().to(DEVICE)
+    loss_fn     = nn.MSELoss().to(DEVICE)
     loss_fn     = nn.L1Loss().to(DEVICE)
-    # loss_fn     = nn.SmoothL1Loss().to(DEVICE)
 
     optimizer   = optim.Adam(
                     model.parameters(), 

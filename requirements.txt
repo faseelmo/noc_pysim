@@ -10,3 +10,5 @@ sympy==1.13.1
 torch==2.4.0
 torch_geometric==2.5.3
 tqdm==4.66.5
+torch-scatter @ https://data.pyg.org/whl/torch-2.4.0%2Bcu121.html
+PyQt6==6.7.1

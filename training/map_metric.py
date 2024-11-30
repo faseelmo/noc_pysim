@@ -6,7 +6,7 @@ import argparse
 import numpy as np
 import importlib.util 
 
-from scipy.stats import kendalltau, spearmanr, pearsonr
+from scipy.stats import kendalltau
 
 from data.utils import get_weights_from_directory, get_all_weights_from_directory, extract_epoch    
 from training.utils import print_parameter_count
