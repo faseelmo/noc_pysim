@@ -8,7 +8,8 @@ from torch_geometric.nn     import (
                                 Linear, 
                             )
 
-from torch_geometric.data import HeteroData
+from torch_geometric.data import HeteroData, Data
+
 
 class HeteroGNN(torch.nn.Module):
     def __init__(self, hidden_channels: int, num_mpn_layers: int): 
@@ -38,13 +39,13 @@ class HeteroGNN(torch.nn.Module):
         for aggr in aggr_list:
 
             conv = HeteroConv({
-                ("task", "depends_on", "task"):         GraphConv(in_channels, out_channels, aggr="max"),
-                ("task", "rev_depends_on", "task"):     GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
-                ("task", "mapped_to", "pe"):            GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("pe", "rev_mapped_to", "task"):        GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("router", "link", "router"):           GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("router", "interface", "pe"):          GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("pe", "rev_interface", "router"):      GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("task",    "depends_on",       "task")     : GraphConv(in_channels, out_channels, aggr="max"),
+                ("task",    "rev_depends_on",   "task")     : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("task",    "mapped_to",        "pe")       : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
+                ("pe",      "rev_mapped_to",    "task")     : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
+                ("router",  "link",             "router")   : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
+                ("router",  "interface",        "pe")       : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
+                ("pe",      "rev_interface",    "router")   : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
             }, aggr=aggr)
 
             conv_list.append(conv)

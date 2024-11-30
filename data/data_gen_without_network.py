@@ -52,18 +52,18 @@ if __name__ == "__main__":
     create_and_clear_dir(training_data_dir)
     create_and_clear_dir(test_data_dir)
 
-    training_data_count = 8000
-    test_split          = 400 
+    training_data_count = 12000
+    test_split          = 1000 
     training_graphs     = []
-    node_range          = (2, 5)
+    node_range          = (2, 6)
 
     DEBUG_MODE          = False
     sjf_scheduling      = True
 
     # Simulating
     for i in range( training_data_count ): 
-        nodes           = random.randint( *node_range ) 
-        graph           = simulate( nodes, debug_mode=DEBUG_MODE, sjf_scheduling=sjf_scheduling)
+        nodes = random.randint( *node_range ) 
+        graph = simulate( nodes, debug_mode=DEBUG_MODE, sjf_scheduling=sjf_scheduling)
         training_graphs.append(graph)  
         print( f"\rCreating graph {i}", end='', flush=True )
 
