@@ -27,5 +27,7 @@ echo "Activating virtual environment..."
 echo "Installing requirements..."
 pip install -r requirements.txt 
 
+snap install yq # Install yq for yaml parsing. Used in the training scripts for changing the config file.
+
 echo "Requirements installed!"
 echo "Setup complete!"

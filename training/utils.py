@@ -59,11 +59,13 @@ def get_metadata(dataset_path, **kwargs):
     else: 
         is_hetero       = kwargs.get( "is_hetero", False )
         has_scheduler   = kwargs.get( "has_scheduler", False )
+        has_task_depend = kwargs.get( "has_task_depend", False )
         print(f"Fetching metadata for dataset without_network")
         from training.dataset import CustomDataset
         dataset = CustomDataset( dataset_path, 
                                  is_hetero           = is_hetero, 
                                  has_scheduler_node  = has_scheduler, 
+                                 has_task_depend     = has_task_depend,
                                  return_graph        = False )
         metadata = dataset[0].metadata()
 
