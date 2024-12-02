@@ -175,7 +175,6 @@ def main():
     LOSS_FN             = TRAINING_PARAMS["LOSS_FN"].lower()
     DEVICE              = TRAINING_PARAMS["DEVICE"]
     CONV_TYPE           = TRAINING_PARAMS["CONV_TYPE"]
-    AGGR                = TRAINING_PARAMS["AGGR"]
 
     IS_HETERO           = TRAINING_PARAMS["IS_HETERO"]
     HAS_SCHEDULER       = TRAINING_PARAMS["HAS_SCHEDULER"]
@@ -247,9 +246,8 @@ def main():
         model       = MPN( hidden_channels  = HIDDEN_CHANNELS, 
                            output_channels  = 2, 
                            num_conv_layers  = NUM_MPN_LAYERS, 
-                           model_str        = CONV_TYPE, 
-                           aggr             = AGGR).to(DEVICE) 
-    print(f"\nModel {model_type} with {CONV_TYPE}(aggr: {AGGR}) , loaded with {NUM_MPN_LAYERS} MPN Layers and {HIDDEN_CHANNELS} Hidden Channels")
+                           model_str        = CONV_TYPE).to(DEVICE) 
+    print(f"\nModel {model_type} with {CONV_TYPE}, loaded with {NUM_MPN_LAYERS} MPN Layers and {HIDDEN_CHANNELS} Hidden Channels")
 
     initialize_model(model, test_loader, DEVICE)
     print_parameter_count(model)

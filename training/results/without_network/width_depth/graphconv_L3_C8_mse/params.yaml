@@ -1,13 +1,12 @@
 # Model Parameters
-NUM_MPN_LAYERS: 5 # Number of conv layers in MPN
-HIDDEN_CHANNELS: 64 # Number of output node embeddings 
+NUM_MPN_LAYERS: 3 # Number of conv layers in MPN
+HIDDEN_CHANNELS: 8 # Number of output node embeddings 
 IS_HETERO: False
 HAS_SCHEDULER: False
 HAS_TASK_DEPEND: False
 DEVICE: 'cpu' # 'cuda' or 'cpu'
 LOSS_FN: 'mse' # 'mse' or 'mae' or 'huber'
 CONV_TYPE: 'graphconv' # 'graphconv' or 'gcn' or 'gin' or 'sage' or 'gat'
-AGGR: 'add' # 'add' or 'mean' or 'max'
 # Normalization Constants
 # Generate and processing time should be the same during data generation 
 # and model training 

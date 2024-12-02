@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch_geometric.nn import to_hetero
 
 class MPN(torch.nn.Module):
-    def __init__(self, hidden_channels, output_channels, model_str, num_conv_layers=3, aggr="sum"):
+    def __init__(self, hidden_channels, output_channels, model_str, num_conv_layers=3):
         super().__init__()
         torch.manual_seed(0)
 
@@ -33,12 +33,12 @@ class MPN(torch.nn.Module):
             raise ValueError(f"Model {model_str} not found.")
 
         self.conv_list = nn.ModuleList()
-        self.conv_list.append(CONV(-1, hidden_channels, aggr=aggr))
+        self.conv_list.append(CONV(-1, hidden_channels))
 
         for _ in range(num_conv_layers - 2):
-            self.conv_list.append(CONV(hidden_channels, hidden_channels, aggr=aggr))
+            self.conv_list.append(CONV(hidden_channels, hidden_channels))
 
-        self.conv_list.append(CONV(hidden_channels, output_channels, aggr=aggr))
+        self.conv_list.append(CONV(hidden_channels, output_channels))
 
     def forward(self, data):
         x           = data.x
