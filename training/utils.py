@@ -60,13 +60,17 @@ def get_metadata(dataset_path, **kwargs):
         is_hetero       = kwargs.get( "is_hetero", False )
         has_scheduler   = kwargs.get( "has_scheduler", False )
         has_task_depend = kwargs.get( "has_task_depend", False )
-        print(f"Fetching metadata for dataset without_network")
+
+        # print(f"Has task depend: {has_task_depend}")
+
+        # print(f"Fetching metadata for dataset without_network")
         from training.dataset import CustomDataset
         dataset = CustomDataset( dataset_path, 
                                  is_hetero           = is_hetero, 
                                  has_scheduler_node  = has_scheduler, 
                                  has_task_depend     = has_task_depend,
                                  return_graph        = False )
+
         metadata = dataset[0].metadata()
 
     return metadata
@@ -74,12 +78,18 @@ def get_metadata(dataset_path, **kwargs):
 def initialize_model(model, dataloader, device):
     """Initialize the model by performing a dummy forward pass."""
     import torch
+    from torch_geometric.data import Data, HeteroData
     model.to(device)
     model.eval()
     with torch.no_grad():
         data = next(iter(dataloader))
         data = data.to(device)  # Ensure data is on the correct device
-        model(data)  # Trigger lazy initialization
+        
+        if isinstance(data, HeteroData):
+            model(data.x_dict, data.edge_index_dict)
+        else:
+            model(data.x, data.edge_index)  
+
         # print(f"Data passed through the model is {data}")
 
     # Verify all parameters are initialized
