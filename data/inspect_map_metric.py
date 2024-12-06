@@ -90,7 +90,7 @@ def plot_graphs_as_subplots(graphs, save_dir, save_name):
 
 if __name__ == "__main__"  : 
 
-    map_test_directory = "data/training_data/simulator/map_test"
+    map_test_directory = "data/training_data/with_network/map_test"
     num_dirs           = len(os.listdir(map_test_directory))
 
     execution_time_dict = {}
@@ -116,7 +116,7 @@ if __name__ == "__main__"  :
 
         execution_time_dict[i] = execution_time_list
 
-    plot_save_path = "data/training_data/simulator"
+    plot_save_path = "data/training_data/with_network"
     plot_execution_time_distributions(execution_time_dict, plot_save_path, "map_test_distribution.png")
     plot_graphs_as_subplots(graph_list, plot_save_path, "map_test_graphs.png")
 

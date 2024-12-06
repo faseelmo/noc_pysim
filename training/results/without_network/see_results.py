@@ -123,6 +123,12 @@ if __name__ == "__main__":
         df.drop(columns=["Tau"], inplace=True)
         max_tau_row = df.loc[df["Best Tau"].idxmax()]
         print("\nBest Kendall's Tau: \n", max_tau_row)
+        print("\n")
+
+        # Sort the DataFrame by the specified columns
+        df_sorted = df.sort_values(by=["conv", "Layer", "Width", "Aggr", "Loss"], ascending=[False, True, True, True, True])
+
+        print(df_sorted)
 
     if args.plot:
         plot_tau_for_all(

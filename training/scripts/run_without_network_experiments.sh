@@ -9,8 +9,8 @@ UPDATE_SCRIPT="./training/scripts/update_yaml.sh"  # Path to your update script
 CONV_TYPES=("graphconv") # "graphconv" "gcn" "gin" "sage" "gat"
 NUM_LAYERS=(5)
 HIDDEN_CHANNELS=(64)
-LOSS_FUNCTIONS=("mse") 
-AGGR=("add" "mean" "max")
+LOSS_FUNCTIONS=("mse" "mae" "huber") 
+AGGR=("add")
 MAX_EPOCHS=200
 
 # Set maximum epochs in the YAML file

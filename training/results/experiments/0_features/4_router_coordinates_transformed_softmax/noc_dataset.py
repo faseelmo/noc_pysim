@@ -6,7 +6,7 @@ import torch
 
 from natsort import natsorted
 
-from data.utils import load_graph_from_json, visualize_application
+from data.utils import load_graph_from_json, visualize_graph
 
 from torch.utils.data import Dataset    
 from torch_geometric.data import HeteroData
