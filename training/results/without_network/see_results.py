@@ -22,17 +22,30 @@ matplotlib.rcParams.update(
 
 def extract_param_from_dir(dir):
     match = re.search(
-        r"(?P<conv>\w+)_L(?P<layer>\d+)_C(?P<width>\d+)(?:_A(?P<aggr>\w+))?_(?P<loss>\w+)",
+        r"(?P<model>[a-z]+)_L(?P<layers>\d+)_C(?P<channels>\d+)(?:_A(?P<aggregation>[a-z]+))?_(?P<loss>[a-z]+)(?:_(?P<flags>[A-Z_]+))?",
         dir,
     )
     if match:
-        conv = match.group("conv")
-        layer = int(match.group("layer"))
-        width = int(match.group("width"))
-        aggr = match.group("aggr") if match.group("aggr") else None
-        loss = match.group("loss")
-        return conv, layer, width, aggr, loss
+        dict            = match.groupdict()
+        conv            = dict["model"]
+        layer           = int(dict["layers"])
+        width           = int(dict["channels"])
+        aggr            = dict["aggregation"]
+        loss            = dict["loss"]
+        is_hetero       = False
+        has_task_depend = False
 
+        if dict["flags"]:
+            flags = dict["flags"]
+            if "HETERO" in flags:
+                is_hetero = True
+            if "TASKDEPEND" in flags:
+                has_task_depend = True
+
+        return conv, layer, width, aggr, loss, is_hetero, has_task_depend
+
+    else: 
+        raise ValueError(f"Could not extract parameters from {dir}")
 
 def load_loss_file(dir_path):
     file_path = os.path.join(dir_path, "loss.pkl")
@@ -100,7 +113,7 @@ if __name__ == "__main__":
     data = []
 
     for dir in dirs:
-        conv, layer, width, aggr, loss = extract_param_from_dir(dir)
+        conv, layer, width, aggr, loss, is_hetero, has_task_depend = extract_param_from_dir(dir)
         loss_data = load_loss_file(f"{args.dir}/{dir}")
         tau = loss_data["kendalls_tau"]
         best_tau = max(tau)
@@ -112,6 +125,8 @@ if __name__ == "__main__":
                 "Aggr": aggr,
                 "Loss": loss,
                 "Tau": tau,
+                "Hetero": is_hetero,
+                "Task Depend": has_task_depend,
                 "Best Tau": best_tau,
             }
         )
