@@ -137,3 +137,43 @@ def plot_and_save_loss(train_loss, valid_loss, test_metric, save_path):
     ) as file:
         pickle.dump(loss_dict, file)
 
+
+from itertools import combinations 
+
+def adjusted_kendalls_tau(x: list, y: list, t_x: int=0, t_y: int=0) -> float:
+    """
+    Args:
+        x, y        : lists of values
+        t_x, t_y    : threshold values for x and y  
+    """
+
+    n = len(x)
+    if n != len(y):
+        raise ValueError("The two lists must have the same length.")
+
+    C, D = 0.0, 0.0 
+
+    for (i, j) in combinations(range(n), 2): 
+        dx = x[i] - x[j]
+        dy = y[i] - y[j]
+
+        if ( dx > t_x and dy > t_y ) or ( dx < -t_x and dy < -t_y ): # Concordant
+            C += 1
+
+        elif ( dx > t_x and dy < -t_y ) or ( dx < -t_x and dy > t_y ): # Discordant
+            D += 1
+        
+        else: # Tied
+            if abs(dx) <= t_x and abs(dy) <= t_y: # Both pairs are effectively equal
+                C += 2
+            else: 
+                D += 0.5
+
+
+    total_pairs = n * (n - 1) / 2
+    tau = (C - D) / total_pairs
+
+    return round(tau, 2)
+        
+
+
