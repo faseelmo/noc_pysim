@@ -17,7 +17,7 @@ from data.utils                 import load_graph_from_json
 
 
 class CustomDataset(Dataset):
-    def __init__(self, training_data_dir, is_hetero=False, has_scheduler_node=False, has_task_depend=False, return_graph=False):
+    def __init__(self, training_data_dir, is_hetero=False, has_scheduler=False, has_task_depend=False, has_dependency=False, return_graph=False):
         """
         Args 
         1. is_hetero            : If True, the dataset will return a HeteroData object, else a Data object  
@@ -29,10 +29,14 @@ class CustomDataset(Dataset):
         4. return_graph         : If True, the __get__item__ will return the graph along with the data object. 
                                   Useful for visualization.  
         """
-        self._is_hetero             = is_hetero
-        self._has_scheduler_node    = has_scheduler_node
-        self._has_task_depend       = has_task_depend   
-        self._return_graph          = return_graph
+        self._is_hetero         = is_hetero
+        self._has_scheduler     = has_scheduler
+        self._has_task_depend   = has_task_depend   
+        self._return_graph      = return_graph
+        self._has_dependency    = has_dependency
+
+        if has_task_depend:
+            assert has_dependency, "Task depend nodes require dependency nodes"
 
         self._file_dir              = training_data_dir
         self._training_files        = natsorted(os.listdir(training_data_dir))
@@ -63,7 +67,6 @@ class CustomDataset(Dataset):
 
         returns a tuple of Data and an empty dictionary (for compatibility with heterogenous data)
         """
-        
         data = Data()
 
         task_input_feature  = []
@@ -110,7 +113,6 @@ class CustomDataset(Dataset):
 
         The graph will have task and dependency nodes by default. 
         If has_wait_time is True, the graph will also have task_depend nodes.
-
         """
         hetero_data = HeteroData()
 
@@ -121,17 +123,27 @@ class CustomDataset(Dataset):
         task_target                 = [] # list of start and end cycle for each task
         task_depend_target          = [] # list of start and end cycle for each task_depend
 
-        global_to_local_indexing    = {"task": {}, "dependency": {}}
+        global_to_local_indexing    = {"task": {}}
+        
+        if self._has_dependency:
+            global_to_local_indexing["dependency"] = {}
+
+        else: 
+            # Convert "dependency" nodes to "task" nodes
+            for node_idx, node_data in graph.nodes(data=True):
+                if node_data["type"] == "dependency":
+                    node_data["type"] = "task"
         
         if self._has_task_depend:
             global_to_local_indexing["task_depend"] = {}    
 
         else: 
+            # Convert "task_depend" nodes to "task" nodes
             for node_idx, node_data in graph.nodes(data=True):
                 if node_data["type"] == "task_depend":
                     node_data["type"] = "task"
 
-        if self._has_scheduler_node:
+        if self._has_scheduler:
             # Create a scheduler node to connect all task nodes
             global_to_local_indexing["scheduler"] = {}
 
@@ -194,13 +206,14 @@ class CustomDataset(Dataset):
             hetero_data["task"].x = torch.empty( (0, num_features_task_node), dtype=torch.float )
             hetero_data["task"].y = torch.empty( (0, num_features_task_node), dtype=torch.float )
 
-        hetero_data["dependency"].x = torch.tensor( dependency_input_feature, dtype=torch.float )
+        if self._has_dependency:
+            hetero_data["dependency"].x = torch.tensor( dependency_input_feature, dtype=torch.float )
 
         if self._has_task_depend:
             hetero_data["task_depend"].x    = torch.tensor(task_depend_input_feature, dtype=torch.float)
             hetero_data["task_depend"].y    = torch.tensor(task_depend_target, dtype=torch.float)
 
-        if self._has_scheduler_node: 
+        if self._has_scheduler: 
             hetero_data["scheduler"].x = torch.ones( (1, 1), dtype=torch.float)
 
         # Creating edge indices
@@ -208,16 +221,16 @@ class CustomDataset(Dataset):
 
         hetero_data["task", require_edge_type, "task"].edge_index               = [[], []]
 
-        if self._has_task_depend:
-            hetero_data["dependency", require_edge_type, "task_depend"].edge_index  = [[], []]
-            hetero_data["task_depend", require_edge_type, "task_depend"].edge_index = [[], []]
-            hetero_data["task_depend", require_edge_type, "task"].edge_index    = [[], []]
-            hetero_data["task", require_edge_type, "task_depend"].edge_index    = [[], []]
-
-        else: 
+        if self._has_dependency:
             hetero_data["dependency", require_edge_type, "task"].edge_index = [[], []]
 
-        if self._has_scheduler_node:
+            if self._has_task_depend:
+                hetero_data["dependency", require_edge_type, "task_depend"].edge_index  = [[], []]
+                hetero_data["task_depend", require_edge_type, "task_depend"].edge_index = [[], []]
+                hetero_data["task_depend", require_edge_type, "task"].edge_index    = [[], []]
+                hetero_data["task", require_edge_type, "task_depend"].edge_index    = [[], []]
+
+        if self._has_scheduler:
             hetero_data["scheduler", scheduler_edge_type, "task"].edge_index = [[], []]
             if self._has_task_depend:
                 hetero_data["scheduler", scheduler_edge_type, "task_depend"].edge_index = [[], []]
@@ -286,15 +299,17 @@ def load_data( training_data_dir,
 
     else: 
         is_hetero           = kwargs.get( "is_hetero", False )
-        has_scheduler_node  = kwargs.get( "has_scheduler_node", False )
+        has_scheduler       = kwargs.get( "has_scheduler", False )
         has_task_depend     = kwargs.get( "has_task_depend", False )
+        has_dependency      = kwargs.get( "has_dependency", False ) 
 
-        print(f"[load_data] Is hetero graph: \t{is_hetero}, Has scheduler node: {has_scheduler_node}, Has task depend: {has_task_depend}")
-        dataset = CustomDataset( training_data_dir   = training_data_dir, 
-                                 is_hetero           = is_hetero, 
-                                 has_scheduler_node  = has_scheduler_node,
-                                 has_task_depend     = has_task_depend,
-                                 return_graph        = False )
+        # print(f"[load_data] Is hetero graph: \t{is_hetero}, Has scheduler node: {has_scheduler_node}, Has task depend: {has_task_depend}")
+        dataset = CustomDataset( training_data_dir  = training_data_dir, 
+                                 is_hetero          = is_hetero, 
+                                 has_scheduler      = has_scheduler,
+                                 has_task_depend    = has_task_depend,
+                                 has_dependency     = has_dependency,
+                                 return_graph       = False )
 
     validation_size = int( validation_split * len( dataset ) )
 
@@ -308,8 +323,8 @@ def load_data( training_data_dir,
 
     train_dataset, val_dataset = random_split( dataset, [train_size, validation_size] )
 
-    print( f"Training dataset size: \t\t{len(train_dataset)}" )
-    print( f"Validation dataset size: \t{len(val_dataset)}" )
+    # print( f"Training dataset size: \t\t{len(train_dataset)}" )
+    # print( f"Validation dataset size: \t{len(val_dataset)}" )
 
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, drop_last=True )
@@ -327,23 +342,26 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--idx", type=int, default=0, help="Index of the file in training_data/simualtor/test to visualize")
-    parser.add_argument("--is_hetero", action="store_true", help="Use the model with network")
-    parser.add_argument("--has_scheduler", action="store_true", help="Use the model with network")
-    parser.add_argument("--has_task_depend", action="store_true", help="Use the model with network")
-    parser.add_argument("--show_graph", action="store_true", help="Use the model with network")
+    parser.add_argument("--is_hetero", action="store_true")
+    parser.add_argument("--has_scheduler", action="store_true")
+    parser.add_argument("--has_task_depend", action="store_true")
+    parser.add_argument("--has_dependency", action="store_true")
+    parser.add_argument("--show_graph", action="store_true")
     args = parser.parse_args()
 
     DATA_INDEX      = args.idx
     IS_HETERO       = args.is_hetero
-    HAS_SCHEDULER   = args.has_scheduler
+    HAS_DEPENDENCY  = args.has_dependency   
     HAS_TASK_DEPEND = args.has_task_depend
+    HAS_SCHEDULER   = args.has_scheduler
     SHOW_GRAPH      = args.show_graph   
 
     print( f"\n------Dataset Test------"                )
     print( f"Data index is          : {DATA_INDEX}"     )
     print( f"Is heterogenous graph  : {IS_HETERO}"      )
-    print( f"Connecting task nodes  : {HAS_SCHEDULER}"  )
+    print( f"Has dependency nodes   : {HAS_DEPENDENCY}")
     print( f"Has Task Depend nodes  : {HAS_TASK_DEPEND}") 
+    print( f"Connecting task nodes  : {HAS_SCHEDULER}"  )
     print( f"Show graph             : {SHOW_GRAPH}"     )
 
     DATASET_DIR = "data/training_data/without_network/train"
@@ -352,6 +370,7 @@ if __name__ == "__main__":
                              is_hetero           = IS_HETERO, 
                              has_scheduler_node  = HAS_SCHEDULER,
                              has_task_depend     = HAS_TASK_DEPEND,
+                             has_dependency      = HAS_DEPENDENCY,
                              return_graph        = SHOW_GRAPH )   
 
     def check_all_files_in_dataset():
@@ -390,6 +409,7 @@ if __name__ == "__main__":
     train_loader, val_loader           = load_data( training_data_dir  = DATASET_DIR, 
                                                     is_hetero          = IS_HETERO, 
                                                     batch_size         = BATCH_SIZE,
+                                                    has_dependency     = HAS_DEPENDENCY,
                                                     has_task_depend    = HAS_TASK_DEPEND,
                                                     has_scheduler_node = HAS_SCHEDULER )
 

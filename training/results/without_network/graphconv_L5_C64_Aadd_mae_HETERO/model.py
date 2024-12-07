@@ -76,12 +76,17 @@ if __name__ == "__main__":
     is_hetero       = True
     dataset_path    = "data/training_data/without_network/test"
 
-    dataset         = CustomDataset(dataset_path, is_hetero=is_hetero)
+    dataset         = CustomDataset( dataset_path, 
+                                     is_hetero          = is_hetero, 
+                                     has_dependency     = False, 
+                                     has_task_depend    = False, 
+                                     has_scheduler_node = True ) 
     data            = dataset[0]
 
     if is_hetero: 
         metadata = get_metadata(dataset_path, is_hetero=True)
         model = MPNHetero(hidden_channels=64, num_mpn_layers=5, model_str="graphconv", metadata=metadata)
+        print(f"Data is {data}")
         model(data.x_dict, data.edge_index_dict)
 
     else: 

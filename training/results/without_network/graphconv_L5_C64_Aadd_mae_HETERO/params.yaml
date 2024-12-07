@@ -3,7 +3,8 @@ NUM_MPN_LAYERS: 5 # Number of conv layers in MPN
 HIDDEN_CHANNELS: 64 # Number of output node embeddings 
 IS_HETERO: "True"
 HAS_SCHEDULER: "False"
-HAS_TASK_DEPEND: "True"
+HAS_DEPENDENCY: "False"
+HAS_TASK_DEPEND: "False" # If set to True, make sure HAS_DEPENDENCY is also True
 DEVICE: 'cpu' # 'cuda' or 'cpu'
 LOSS_FN: 'mae' # 'mse' or 'mae' or 'huber'
 CONV_TYPE: 'graphconv' # 'graphconv' or 'gcn' or 'gin' or 'sage' or 'gat'

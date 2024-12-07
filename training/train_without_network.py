@@ -178,10 +178,6 @@ def main():
     CONV_TYPE           = TRAINING_PARAMS["CONV_TYPE"]
     AGGR                = TRAINING_PARAMS["AGGR"]
 
-    IS_HETERO           = TRAINING_PARAMS["IS_HETERO"].strip().lower()       == "true"
-    HAS_SCHEDULER       = TRAINING_PARAMS["HAS_SCHEDULER"].strip().lower()   == "true"
-    HAS_TASK_DEPEND     = TRAINING_PARAMS["HAS_TASK_DEPEND"].strip().lower() == "true"
-
     LEARNING_RATE       = TRAINING_PARAMS["LEARNING_RATE"]
     EPOCHS              = TRAINING_PARAMS["EPOCHS"]
     WEIGHT_DECAY        = TRAINING_PARAMS["WEIGHT_DECAY"]
@@ -193,7 +189,13 @@ def main():
     DATA_DIR            = TRAINING_PARAMS["DATA_DIR"]
     SAVE_THRESHOLD      = TRAINING_PARAMS["SAVE_THRESHOLD"]
 
-    print(f"HAS_SCHEDULER: {HAS_SCHEDULER}, HAS_TASK_DEPEND: {HAS_TASK_DEPEND}, IS_HETERO: {IS_HETERO}")
+    hetero_args = {
+        "is_hetero"         : TRAINING_PARAMS["IS_HETERO"].strip().lower()       == "true", 
+        "has_dependency"    : TRAINING_PARAMS["HAS_DEPENDENCY"].strip().lower()  == "true", 
+        "has_task_depend"   : TRAINING_PARAMS["HAS_TASK_DEPEND"].strip().lower() == "true", 
+        "has_scheduler"     : TRAINING_PARAMS["HAS_SCHEDULER"].strip().lower()   == "true"
+    }
+    print(f"Hetero parameters {hetero_args}")
 
     if DEVICE == "cuda":
         if torch.cuda.is_available():
@@ -216,31 +218,24 @@ def main():
     print(f"\nTraining on {DEVICE}")
 
     start_time = time.time()
-
     train_data_dir  = f"{DATA_DIR}/train"
     test_data_dir   = f"{DATA_DIR}/test"
 
-    print(f"\nLoading Training Data from {train_data_dir}")
     train_loader, valid_loader  = load_data( train_data_dir, 
                                              batch_size          = BATCH_SIZE, 
                                              validation_split    = 0.1,
                                              use_noc_dataset     = False,
-                                             is_hetero           = IS_HETERO,
-                                             has_task_depend     = HAS_TASK_DEPEND,
-                                             has_scheduler_node  = HAS_SCHEDULER )
+                                             **hetero_args )
 
-    print(f"\nLoading Test Data from {test_data_dir}")
     test_loader, _              = load_data( test_data_dir, 
                                              batch_size          = 1, 
                                              validation_split    = 0.0,
                                              use_noc_dataset     = False,
-                                             is_hetero           = IS_HETERO,
-                                             has_task_depend     = HAS_TASK_DEPEND,
-                                             has_scheduler_node  = HAS_SCHEDULER )
+                                             **hetero_args )
 
-    if IS_HETERO:
+    if hetero_args["is_hetero"]:
         model_type = "MPNHetero"
-        metadata   = get_metadata(train_data_dir, is_hetero=IS_HETERO, has_scheduler=HAS_SCHEDULER, has_task_depend=HAS_TASK_DEPEND)
+        metadata   = get_metadata( train_data_dir, **hetero_args )
         model      = MPNHetero( hidden_channels = HIDDEN_CHANNELS, 
                                 num_mpn_layers  = NUM_MPN_LAYERS,
                                 model_str       = CONV_TYPE,

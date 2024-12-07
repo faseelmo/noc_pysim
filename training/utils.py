@@ -34,7 +34,7 @@ def copy_file(src_path, dest_path):
     import shutil
 
     shutil.copy2(src_path, dest_path)
-    print(f"Copied {src_path} to {dest_path}")
+    # print(f"Copied {src_path} to {dest_path}")
 
 
 def print_parameter_count(model):
@@ -59,17 +59,20 @@ def get_metadata(dataset_path, **kwargs):
     else: 
         is_hetero       = kwargs.get( "is_hetero", False )
         has_scheduler   = kwargs.get( "has_scheduler", False )
+        has_dependency  = kwargs.get( "has_dependency", False ) 
         has_task_depend = kwargs.get( "has_task_depend", False )
+
 
         # print(f"Has task depend: {has_task_depend}")
 
         # print(f"Fetching metadata for dataset without_network")
         from training.dataset import CustomDataset
         dataset = CustomDataset( dataset_path, 
-                                 is_hetero           = is_hetero, 
-                                 has_scheduler_node  = has_scheduler, 
-                                 has_task_depend     = has_task_depend,
-                                 return_graph        = False )
+                                 is_hetero          = is_hetero, 
+                                 has_scheduler      = has_scheduler, 
+                                 has_task_depend    = has_task_depend,
+                                 has_dependency     = has_dependency,
+                                 return_graph       = False )
 
         metadata = dataset[0].metadata()
 
@@ -96,7 +99,7 @@ def initialize_model(model, dataloader, device):
     for name, param in model.named_parameters():
         if isinstance(param, torch.nn.parameter.UninitializedParameter):
             raise ValueError(f"Parameter {name} is still uninitialized.")
-    print(f"Model initialized")
+    # print(f"Model initialized")
 
 
 def plot_and_save_loss(train_loss, valid_loss, test_metric, save_path):
