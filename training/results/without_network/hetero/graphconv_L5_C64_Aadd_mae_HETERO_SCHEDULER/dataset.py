@@ -1,5 +1,6 @@
 import os
 import yaml
+import json
 import torch
 
 import networkx                 as nx
@@ -259,8 +260,16 @@ class CustomDataset(Dataset):
                                                     hetero_data[edge_type].edge_index, 
                                                     dtype=torch.long
                                                 ).contiguous()
+
+        hetero_data = ToUndirected()(hetero_data)  # To leverage message passing in both directions
         
         self._do_checks(hetero_data)
+
+        # [debugging] Uncomment to visualize the graph
+        # from data.utils import visualize_graph
+        # visualize_graph(graph=graph)    
+        # from training.utils import log_hetero_data
+        # log_hetero_data(hetero_data)
         
         if self._return_graph:
             return (hetero_data, (global_to_local_indexing, graph))
@@ -358,11 +367,11 @@ if __name__ == "__main__":
     DATASET_DIR = "data/training_data/without_network/train"
 
     dataset = CustomDataset( DATASET_DIR, 
-                             is_hetero          = IS_HETERO, 
-                             has_scheduler      = HAS_SCHEDULER,
-                             has_task_depend    = HAS_TASK_DEPEND,
-                             has_dependency     = HAS_DEPENDENCY,
-                             return_graph       = SHOW_GRAPH )   
+                             is_hetero           = IS_HETERO, 
+                             has_scheduler_node  = HAS_SCHEDULER,
+                             has_task_depend     = HAS_TASK_DEPEND,
+                             has_dependency      = HAS_DEPENDENCY,
+                             return_graph        = SHOW_GRAPH )   
 
     def check_all_files_in_dataset():
         # Inside a def for scoping
@@ -386,8 +395,7 @@ if __name__ == "__main__":
     if SHOW_GRAPH:
         data, ( index, graph ) = dataset[DATA_INDEX]
         if IS_HETERO:
-            print(f"X: {data.x_dict}")
-            print(f"Edge: {data.edge_index_dict}")
+            print(f"Data: {data.x_dict}")
         else:
             print(f"Data: {data}")
         # check_all_files_in_dataset()
@@ -403,7 +411,7 @@ if __name__ == "__main__":
                                                     batch_size         = BATCH_SIZE,
                                                     has_dependency     = HAS_DEPENDENCY,
                                                     has_task_depend    = HAS_TASK_DEPEND,
-                                                    has_scheduler       = HAS_SCHEDULER )
+                                                    has_scheduler_node = HAS_SCHEDULER )
 
     print( f"DataLoader is                   {train_loader}" )
     print( f"Number of training batches:     {len(train_loader)}" )  

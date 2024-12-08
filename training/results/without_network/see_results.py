@@ -32,17 +32,13 @@ def extract_param_from_dir(dir):
         width           = int(dict["channels"])
         aggr            = dict["aggregation"]
         loss            = dict["loss"]
-        is_hetero       = False
-        has_task_depend = False
+
+        dict_flag = {}
 
         if dict["flags"]:
-            flags = dict["flags"]
-            if "HETERO" in flags:
-                is_hetero = True
-            if "TASKDEPEND" in flags:
-                has_task_depend = True
+            dict_flag = dict["flags"]
 
-        return conv, layer, width, aggr, loss, is_hetero, has_task_depend
+        return conv, layer, width, aggr, loss, dict_flag
 
     else: 
         raise ValueError(f"Could not extract parameters from {dir}")
@@ -113,23 +109,26 @@ if __name__ == "__main__":
     data = []
 
     for dir in dirs:
-        conv, layer, width, aggr, loss, is_hetero, has_task_depend = extract_param_from_dir(dir)
+        conv, layer, width, aggr, loss, dict_flag = extract_param_from_dir(dir)
         loss_data = load_loss_file(f"{args.dir}/{dir}")
         tau = loss_data["kendalls_tau"]
-        best_tau = max(tau)
+        best_tau = round(max(tau),3)
         data.append(
             {
-                "conv": conv,
-                "Layer": layer,
-                "Width": width,
-                "Aggr": aggr,
-                "Loss": loss,
-                "Tau": tau,
-                "Hetero": is_hetero,
-                "Task Depend": has_task_depend,
-                "Best Tau": best_tau,
+                "conv"          : conv,
+                "Layer"         : layer,
+                "Width"         : width,
+                "Aggr"          : aggr,
+                "Loss"          : loss,
+                "Tau"           : tau,
+                "Hetero"        : "HETERO" in dict_flag,
+                "Task Depend"   : "TASKDEPEND" in dict_flag,
+                "Dependency"    : "DEPENDENCY" in dict_flag,    
+                "Scheduler"     : "SCHEDULER" in dict_flag, 
+                "Best Tau"      : best_tau,
             }
         )
+
 
     df = pd.DataFrame(data)
     df = df.sort_values(by="Layer")
