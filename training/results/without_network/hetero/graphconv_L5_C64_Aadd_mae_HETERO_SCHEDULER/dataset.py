@@ -1,6 +1,5 @@
 import os
 import yaml
-import json
 import torch
 
 import networkx                 as nx
@@ -125,6 +124,8 @@ class CustomDataset(Dataset):
 
         global_to_local_indexing    = {"task": {}}
         
+        # print(f"has_dependency: {self._has_dependency}, has_task_depend: {self._has_task_depend}, has_scheduler: {self._has_scheduler}")
+        
         if self._has_dependency:
             global_to_local_indexing["dependency"] = {}
 
@@ -217,23 +218,33 @@ class CustomDataset(Dataset):
             hetero_data["scheduler"].x = torch.ones( (1, 1), dtype=torch.float)
 
         # Creating edge indices
-        require_edge_type = "requires"
+        generate_edge_type = "generates"
+        rev_generate_edge_type = "requires"
 
-        hetero_data["task", require_edge_type, "task"].edge_index               = [[], []]
+        hetero_data["task", generate_edge_type, "task"].edge_index               = [[], []]
 
         if self._has_dependency:
-            hetero_data["dependency", require_edge_type, "task"].edge_index = [[], []]
 
             if self._has_task_depend:
-                hetero_data["dependency", require_edge_type, "task_depend"].edge_index  = [[], []]
-                hetero_data["task_depend", require_edge_type, "task_depend"].edge_index = [[], []]
-                hetero_data["task_depend", require_edge_type, "task"].edge_index    = [[], []]
-                hetero_data["task", require_edge_type, "task_depend"].edge_index    = [[], []]
+                hetero_data["task_depend", generate_edge_type, "task_depend"].edge_index = [[], []]
+                hetero_data["task_depend", generate_edge_type, "task"].edge_index    = [[], []]
+                hetero_data["task", generate_edge_type, "task_depend"].edge_index    = [[], []]
+
+                hetero_data["dependency", generate_edge_type, "task_depend"].edge_index  = [[], []]
+                hetero_data["task_depend", rev_generate_edge_type, "dependency"].edge_index = [[], []]
+
+            else: 
+                # There is no task_depend node in the graph
+                hetero_data["dependency", generate_edge_type, "task"].edge_index = [[], []]
+                hetero_data["task", rev_generate_edge_type, "dependency"].edge_index = [[], []]
 
         if self._has_scheduler:
+            rev_scheduler_edge_type = f"rev_{scheduler_edge_type}"
             hetero_data["scheduler", scheduler_edge_type, "task"].edge_index = [[], []]
+            hetero_data["task", rev_scheduler_edge_type, "scheduler"].edge_index = [[], []]
             if self._has_task_depend:
                 hetero_data["scheduler", scheduler_edge_type, "task_depend"].edge_index = [[], []]
+                hetero_data["task_depend", rev_scheduler_edge_type, "scheduler"].edge_index = [[], []]
 
 
         for edge in graph.edges(data=True):
@@ -241,17 +252,30 @@ class CustomDataset(Dataset):
 
             src_type    = graph.nodes[src]["type"]
             dst_type    = graph.nodes[dst]["type"]
+            do_rev      = False
             
             if src_type == "scheduler": 
-                edge_type = scheduler_edge_type
+                edge_type       = scheduler_edge_type
+                rev_edge_type   = rev_scheduler_edge_type
+                do_rev          = True
+
+            elif src_type == "dependency": 
+                edge_type       = generate_edge_type
+                rev_edge_type   = rev_generate_edge_type
+                do_rev          = True
+            
             else: 
-                edge_type = require_edge_type
+                edge_type = generate_edge_type
 
-            hetero_data[src_type, edge_type, dst_type].edge_index[0].append(
-                global_to_local_indexing[src_type][src])
+            src_local_index = global_to_local_indexing[src_type][src]
+            dst_local_index = global_to_local_indexing[dst_type][dst]
 
-            hetero_data[src_type, edge_type, dst_type].edge_index[1].append(
-                global_to_local_indexing[dst_type][dst])
+            hetero_data[src_type, edge_type, dst_type].edge_index[0].append(src_local_index)
+            hetero_data[src_type, edge_type, dst_type].edge_index[1].append(dst_local_index)
+
+            if do_rev:
+                hetero_data[dst_type, rev_edge_type, src_type].edge_index[0].append(dst_local_index)
+                hetero_data[dst_type, rev_edge_type, src_type].edge_index[1].append(src_local_index)
 
         # Converting edge indices [list] to tensors
         for edge_type in hetero_data.edge_types:
@@ -260,16 +284,8 @@ class CustomDataset(Dataset):
                                                     hetero_data[edge_type].edge_index, 
                                                     dtype=torch.long
                                                 ).contiguous()
-
-        hetero_data = ToUndirected()(hetero_data)  # To leverage message passing in both directions
         
         self._do_checks(hetero_data)
-
-        # [debugging] Uncomment to visualize the graph
-        # from data.utils import visualize_graph
-        # visualize_graph(graph=graph)    
-        # from training.utils import log_hetero_data
-        # log_hetero_data(hetero_data)
         
         if self._return_graph:
             return (hetero_data, (global_to_local_indexing, graph))
@@ -367,11 +383,11 @@ if __name__ == "__main__":
     DATASET_DIR = "data/training_data/without_network/train"
 
     dataset = CustomDataset( DATASET_DIR, 
-                             is_hetero           = IS_HETERO, 
-                             has_scheduler_node  = HAS_SCHEDULER,
-                             has_task_depend     = HAS_TASK_DEPEND,
-                             has_dependency      = HAS_DEPENDENCY,
-                             return_graph        = SHOW_GRAPH )   
+                             is_hetero          = IS_HETERO, 
+                             has_scheduler      = HAS_SCHEDULER,
+                             has_task_depend    = HAS_TASK_DEPEND,
+                             has_dependency     = HAS_DEPENDENCY,
+                             return_graph       = SHOW_GRAPH )   
 
     def check_all_files_in_dataset():
         # Inside a def for scoping
@@ -392,10 +408,14 @@ if __name__ == "__main__":
 
         print( f"[Passed] All files are valid\n" )
 
+
     if SHOW_GRAPH:
+        check_all_files_in_dataset()
+        exit()
         data, ( index, graph ) = dataset[DATA_INDEX]
         if IS_HETERO:
-            print(f"Data: {data.x_dict}")
+            print(f"X: {data.x_dict}")
+            print(f"Edge: {data.edge_index_dict}")
         else:
             print(f"Data: {data}")
         # check_all_files_in_dataset()
@@ -411,7 +431,7 @@ if __name__ == "__main__":
                                                     batch_size         = BATCH_SIZE,
                                                     has_dependency     = HAS_DEPENDENCY,
                                                     has_task_depend    = HAS_TASK_DEPEND,
-                                                    has_scheduler_node = HAS_SCHEDULER )
+                                                    has_scheduler       = HAS_SCHEDULER )
 
     print( f"DataLoader is                   {train_loader}" )
     print( f"Number of training batches:     {len(train_loader)}" )  

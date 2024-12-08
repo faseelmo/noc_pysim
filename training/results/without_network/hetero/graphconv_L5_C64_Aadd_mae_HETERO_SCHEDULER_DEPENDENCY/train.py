@@ -240,6 +240,7 @@ def main():
                                 num_mpn_layers  = NUM_MPN_LAYERS,
                                 model_str       = CONV_TYPE,
                                 metadata        = metadata ).to(DEVICE)
+
     else: 
         model_type  = "MPN"
         model       = MPN( hidden_channels  = HIDDEN_CHANNELS, 
