@@ -12,7 +12,7 @@ from data.utils import ( update_graph_with_computing_list,
                          modify_graph_to_task_graph, 
                          create_and_clear_dir )
 
-PARAMS = yaml.safe_load(open("training/params_without_network.yaml"))
+PARAMS = yaml.safe_load(open("training/config/params_without_network.yaml"))
 
 def simulate(num_nodes: int, debug_mode: bool, sjf_scheduling: bool ): 
 

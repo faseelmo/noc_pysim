@@ -286,6 +286,7 @@ def get_mesh_network(mesh_size: int, application_graph: nx.DiGraph, mapping_list
                 graph.add_node(
                     task_id, 
                     type            = "task", 
+                    task_type       = application_graph.nodes[task_id]["type"],  
                     generate        = map_.task.expected_generated_packets, 
                     processing_time = map_.task.processing_cycles, 
                     start_cycle     = map_.task.start_cycle, 

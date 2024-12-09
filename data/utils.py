@@ -61,27 +61,47 @@ def generate_graph(num_nodes: int):
     return random.choice(graph_generator)()
 
 
-def modify_graph_to_application_graph(graph: nx.DiGraph):
+def modify_graph_to_application_graph(graph: nx.DiGraph, generate_range: tuple, processing_time_range: tuple):
     """
     Adds weight attribute to the edges of the graph.
     Adds processing_time attribute to the nodes of the graph.
     Sum of the successor weights is assigned as generate attribute to the node.
+    Args: 
+        generate_range: tuple, range of generate values assigned to edges
+        processing_time_range: tuple, range of processing time values   
     """
     for node in graph.nodes:
-        processing_time = random.randint(5, 10)
-        graph.nodes[node]["processing_time"] = processing_time
-        successors = list(graph.successors(node))
+        processing_time                         = random.randint(*processing_time_range)
+        graph.nodes[node]["processing_time"]    = processing_time
         
+        successors = list(graph.successors(node))
         generate_count = 0
         for successor in successors:
-            edge_weight = random.randint(1, 5)
+            edge_weight = random.randint(*generate_range)
             graph[node][successor]["weight"] = edge_weight
             generate_count += edge_weight
         graph.nodes[node]["generate"] = generate_count
 
-        final_node_generate_count = random.randint(1, 5)
         if len(successors) == 0:
+            final_node_generate_count = random.randint(1, 5)
             graph.nodes[node]["generate"] = final_node_generate_count
+
+        predecessors = list(graph.predecessors(node))
+
+        if len(predecessors) == 0:
+            # Assigning the node's with no incoming edges as dependency nodes
+            graph.nodes[node]["type"] = "dependency"
+
+        else: 
+            graph.nodes[node]["type"] = "task"
+
+    for node in graph.nodes: 
+
+        predecessors = list(graph.predecessors(node))
+        for predecessor in predecessors: 
+            if graph.nodes[predecessor]["type"] == "dependency":
+                graph.nodes[node]["type"] = "task_depend"
+                break
 
     return graph
 
