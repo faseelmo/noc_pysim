@@ -6,7 +6,7 @@ import torch
 
 from natsort import natsorted
 
-from data.utils import load_graph_from_json, visualize_application
+from data.utils import load_graph_from_json
 
 from torch.utils.data import Dataset    
 from torch_geometric.data import HeteroData
@@ -19,7 +19,7 @@ class NocDataset(Dataset):
         self._file_dir              = training_data_dir  
         self._training_files        = natsorted(os.listdir(training_data_dir))
 
-        training_parameters         = yaml.safe_load(open("training/params.yaml"))
+        training_parameters         = yaml.safe_load(open("training/config/params_with_network.yaml"))
         self.max_generate           = training_parameters["MAX_GENERATE"]
         self.max_processing_time    = training_parameters["MAX_PROCESSING_TIME"]
 

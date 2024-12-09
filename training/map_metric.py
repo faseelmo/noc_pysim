@@ -9,11 +9,11 @@ import importlib.util
 from scipy.stats import kendalltau
 
 from data.utils import get_weights_from_directory, get_all_weights_from_directory, extract_epoch    
-from training.utils import print_parameter_count
+from training.utils import print_parameter_count, adjusted_kendalls_tau
 
 
 def get_mapping_tau(model, NocDataset, epoch, show): 
-    map_test_dir    = "data/training_data/simulator/map_test"
+    map_test_dir    = "data/training_data/with_network/map_test"
     num_dirs        = len(os.listdir(map_test_dir))
 
     tau_list        = []
@@ -38,7 +38,9 @@ def get_mapping_tau(model, NocDataset, epoch, show):
             truth_list.append(latency_truth.item())
             pred_list.append(latency_pred.item())
 
-        tau, p_val = kendalltau(truth_list, pred_list)
+        # tau, p_val = kendalltau(truth_list, pred_list)
+        p_val = 0
+        tau = adjusted_kendalls_tau(truth_list, pred_list, t_x=0, t_y=4)
         tau_list.append(tau)
         p_value_list.append(p_val)
 
@@ -88,7 +90,7 @@ if __name__ == "__main__" :
     HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
     NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
 
-    dataset = NocDataset("data/training_data/simulator/test")
+    dataset = NocDataset("data/training_data/with_network/test")
     data    = dataset[0]
 
     model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )

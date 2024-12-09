@@ -11,14 +11,10 @@ def log_hetero_data(data) -> None:
             print(f"\nEdge index: {edge_index} \n{data.edge_index_dict[edge_index]}")
 
 
-def does_path_exist(model_name):
+def does_path_exist(dir_path, training_params) -> None:
     import os
-    import yaml
 
-    training_params = yaml.safe_load(open("training/params.yaml"))
-    dir_path = os.path.join(training_params["RESULTS_DIR"], model_name)
-    model_path = os.path.join(dir_path, "models")   
-
+    model_path      = os.path.join(dir_path, "models")   
 
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
@@ -38,7 +34,7 @@ def copy_file(src_path, dest_path):
     import shutil
 
     shutil.copy2(src_path, dest_path)
-    print(f"Copied {src_path} to {dest_path}")
+    # print(f"Copied {src_path} to {dest_path}")
 
 
 def print_parameter_count(model):
@@ -51,19 +47,33 @@ def print_parameter_count(model):
     return num_params
 
 
-def get_metadata(dataset_path, has_wait_time, use_noc_dataset: False):
+def get_metadata(dataset_path, **kwargs): 
+    
+    use_noc_dataset = kwargs.get( "use_noc_dataset", False )
 
     if use_noc_dataset:
         from training.noc_dataset import NocDataset
-        dataset = NocDataset(dataset_path)
+        dataset  = NocDataset(dataset_path)
         metadata = dataset[0].metadata()
 
     else: 
+        is_hetero       = kwargs.get( "is_hetero", False )
+        has_scheduler   = kwargs.get( "has_scheduler", False )
+        has_dependency  = kwargs.get( "has_dependency", False ) 
+        has_task_depend = kwargs.get( "has_task_depend", False )
+
+
+        # print(f"Has task depend: {has_task_depend}")
+
+        # print(f"Fetching metadata for dataset without_network")
         from training.dataset import CustomDataset
-        dataset = CustomDataset(dataset_path, 
-                                is_hetero       = True, 
-                                has_wait_time   = has_wait_time, 
-                                return_graph    = False)
+        dataset = CustomDataset( dataset_path, 
+                                 is_hetero          = is_hetero, 
+                                 has_scheduler      = has_scheduler, 
+                                 has_task_depend    = has_task_depend,
+                                 has_dependency     = has_dependency,
+                                 return_graph       = False )
+
         metadata = dataset[0].metadata()
 
     return metadata
@@ -71,22 +81,28 @@ def get_metadata(dataset_path, has_wait_time, use_noc_dataset: False):
 def initialize_model(model, dataloader, device):
     """Initialize the model by performing a dummy forward pass."""
     import torch
+    from torch_geometric.data import Data, HeteroData
     model.to(device)
     model.eval()
     with torch.no_grad():
         data = next(iter(dataloader))
         data = data.to(device)  # Ensure data is on the correct device
-        model(data)  # Trigger lazy initialization
+        
+        if isinstance(data, HeteroData):
+            model(data.x_dict, data.edge_index_dict)
+        else:
+            model(data.x, data.edge_index)  
+
         # print(f"Data passed through the model is {data}")
 
     # Verify all parameters are initialized
     for name, param in model.named_parameters():
         if isinstance(param, torch.nn.parameter.UninitializedParameter):
             raise ValueError(f"Parameter {name} is still uninitialized.")
-    print(f"Model initialized")
+    # print(f"Model initialized")
 
 
-def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
+def plot_and_save_loss(train_loss, valid_loss, test_metric, save_path):
     import matplotlib.pyplot as plt
     import pickle
 
@@ -110,7 +126,7 @@ def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
     fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.9))
     plt.title("Training and Validation Loss (Log Scale) with Kendall's Tau")
     plt.savefig(
-        f"training/results/{model_name}/validation_plot_log_with_kendalls_tau.png"
+        f"{save_path}/plot.png"
     )
     plt.clf()
 
@@ -120,7 +136,47 @@ def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
         "kendalls_tau": test_metric,
     }
     with open(
-        f"training/results/{model_name}/loss_dict_with_kendalls_tau.pkl", "wb"
+        f"{save_path}/loss.pkl", "wb"
     ) as file:
         pickle.dump(loss_dict, file)
+
+
+from itertools import combinations 
+
+def adjusted_kendalls_tau(x: list, y: list, t_x: int=0, t_y: int=0) -> float:
+    """
+    Args:
+        x, y        : lists of values
+        t_x, t_y    : threshold values for x and y  
+    """
+
+    n = len(x)
+    if n != len(y):
+        raise ValueError("The two lists must have the same length.")
+
+    C, D = 0.0, 0.0 
+
+    for (i, j) in combinations(range(n), 2): 
+        dx = x[i] - x[j]
+        dy = y[i] - y[j]
+
+        if ( dx > t_x and dy > t_y ) or ( dx < -t_x and dy < -t_y ): # Concordant
+            C += 1
+
+        elif ( dx > t_x and dy < -t_y ) or ( dx < -t_x and dy > t_y ): # Discordant
+            D += 1
+        
+        else: # Tied
+            if abs(dx) <= t_x and abs(dy) <= t_y: # Both pairs are effectively equal
+                C += 2
+            else: 
+                D += 0.5
+
+
+    total_pairs = n * (n - 1) / 2
+    tau = (C - D) / total_pairs
+
+    return round(tau, 2)
+        
+
 

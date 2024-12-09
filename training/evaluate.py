@@ -72,7 +72,7 @@ def get_map_accuracy(map_result_dict):
 
 
 def get_map_latency(model, dataset_obj): 
-    map_test_dir = "data/training_data/simulator/map_test"
+    map_test_dir = "data/training_data/with_network/map_test"
     num_dirs = len(os.listdir(map_test_dir))
 
     map_result_dict = {}
@@ -184,7 +184,7 @@ if __name__ == "__main__" :
     HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
     NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
 
-    dataset = NocDataset("data/training_data/simulator/test")
+    dataset = NocDataset("data/training_data/with_network/test")
     data    = dataset[0]
 
     model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )

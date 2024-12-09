@@ -104,8 +104,8 @@ def modify_graph_to_task_graph(graph: nx.DiGraph, max_generate: int, max_process
     Wait time is used for ordered packet injection 
     packets are in ascending order of task_depend node's wait_time 
     """
-    max_generate            = max_generate
-    processing_time_range   = (1, max_processing_time)
+    max_generate = 10
+    processing_time_range = (1, max_processing_time)
 
     for node in graph.nodes:
         successors          = list(graph.successors(node))
@@ -168,7 +168,7 @@ def modify_graph_to_task_graph(graph: nx.DiGraph, max_generate: int, max_process
 
         for successor in successors:
             
-            # graph.nodes[successor]["type"] = "task_depend"
+            graph.nodes[successor]["type"] = "task_depend"
 
             # require_value   = graph[node][successor]["weight"]
             
@@ -176,11 +176,11 @@ def modify_graph_to_task_graph(graph: nx.DiGraph, max_generate: int, max_process
             require_value   = sum([graph[predecessor][successor]["weight"] for predecessor in predecessors])
 
             wait_time       = 4 * require_value # 4 is the packet size in flit
+
             current_node_wait_time = graph.nodes[successor]["wait_time"]
 
             if wait_time > current_node_wait_time:
                 graph.nodes[successor]["wait_time"] = wait_time
-
 
     return graph
 
