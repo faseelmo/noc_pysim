@@ -28,7 +28,8 @@ class HeteroGNN(torch.nn.Module):
             intermediate_convs = self._get_hetero_conv(-1, hidden_channels)
             self._convs.extend(intermediate_convs)
 
-        self._feedforward = Linear(hidden_channels, 2)  
+        self._feedforward_task          = Linear(hidden_channels, 2)  
+        self._feedforward_task_depend   = Linear(hidden_channels, 2)
 
 
     def _get_hetero_conv(self, in_channels, out_channels): 
@@ -39,13 +40,21 @@ class HeteroGNN(torch.nn.Module):
         for aggr in aggr_list:
 
             conv = HeteroConv({
-                ("task",    "depends_on",       "task")     : GraphConv(in_channels, out_channels, aggr="max"),
-                ("task",    "rev_depends_on",   "task")     : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
-                ("task",    "mapped_to",        "pe")       : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("pe",      "rev_mapped_to",    "task")     : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("router",  "link",             "router")   : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("router",  "interface",        "pe")       : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
-                ("pe",      "rev_interface",    "router")   : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("dependency",  "generates_for", "task_depend" )   : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("task_depend", "generates_for", "task" )          : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("task",        "generates_for", "task_depend")    : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+
+                ("task",        "mapped_to",     "pe")             : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("task_depend", "mapped_to",     "pe")             : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("dependency",  "mapped_to",     "pe")             : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+
+                ("pe",      "rev_mapped_to",        "task")        : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("pe",      "rev_mapped_to",        "task_depend") : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+                ("pe",      "rev_mapped_to",        "dependency")  : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
+
+                ("router",  "link",             "router")          : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
+                ("router",  "interface",        "pe")              : GraphConv(in_channels, out_channels, aggr=self._conv_aggr), 
+                ("pe",      "rev_interface",    "router")          : GraphConv(in_channels, out_channels, aggr=self._conv_aggr),
             }, aggr=aggr)
 
             conv_list.append(conv)
@@ -68,7 +77,8 @@ class HeteroGNN(torch.nn.Module):
             for key, x in x_dict.items():
                 x_dict[key] = x.relu()
 
-        x_dict['task'] = self._feedforward(x_dict['task'])
+        x_dict['task']          = self._feedforward_task(x_dict['task'])
+        x_dict['task_depend']   = self._feedforward_task_depend(x_dict['task_depend'])
 
         return x_dict
 
@@ -100,21 +110,20 @@ if __name__ == "__main__":
 
     IDX             = 10
     BATCH_SIZE      = 1
-    HIDDEN_CHANNELS = 50
+    HIDDEN_CHANNELS = 64
 
     torch.manual_seed(0)
 
     dataloader, _ = load_data(
-                        "data/training_data/simulator/test",
+                        "data/training_data/with_network/test",
                         batch_size          = BATCH_SIZE,
                         use_noc_dataset    = True 
                         )
 
     data        = next(iter(dataloader))
-    print(f"Data shape is {data.x_dict['task'].shape}, {data.x_dict['pe'].shape}, {data.x_dict['router'].shape}")
 
-    model       = HeteroGNN(HIDDEN_CHANNELS, num_mpn_layers=3)
-    output      = model(data)
+    model  = HeteroGNN(HIDDEN_CHANNELS, num_mpn_layers=5)
+    output = model(data)
 
-    print(f"Output shape is {output['task'].shape}, {output['pe'].shape}, {output['router'].shape}")
+    print(f"Output is Task: {output['task'].shape}, Task Depend: {output['task_depend'].shape}")
     print_parameter_count(model)

@@ -279,6 +279,21 @@ def visualize_noc_application(graph: nx.DiGraph, prediction: list = None):
         assert isinstance(prediction, list), "Prediction should be a list"
         has_prediction = True
 
+    task_color_map  = { "dependency": "skyblue", "task": "lightgreen", "task_depend": "gold", "scheduler": "tomato" }
+    noc_color_map   = { "router": "dodgerblue", "pe": "darkseagreen" }
+    node_colors     = []
+
+    for node in graph.nodes:
+        if graph.nodes[node].get("type") == "task":
+            node_type   = graph.nodes[node]["task_type"]
+            color       = task_color_map[node_type]
+            node_colors.append(color)
+
+        else: 
+            node_type   = graph.nodes[node]["type"]
+            color       = noc_color_map[node_type]
+            node_colors.append(color)   
+
     router_tilt                 = 0.4
     pe_offset                   = 0.2
     normalization_factor        = 3 
@@ -332,7 +347,7 @@ def visualize_noc_application(graph: nx.DiGraph, prediction: list = None):
     nx.draw(graph, 
             pos, 
             with_labels = True, 
-            node_color  = 'lightblue', 
+            node_color  = node_colors, 
             node_size   = 500, 
             labels      = custom_labels, 
             font_size   = 10, 
@@ -360,7 +375,7 @@ def visualize_application(
     """
     import matplotlib.pyplot as plt
 
-    node_color_map = {"dependency": "skyblue", "task": "lightgreen", "task_depend": "yellow", "scheduler": "tomato"}
+    node_color_map = { "dependency": "skyblue", "task": "lightgreen", "task_depend": "gold", "scheduler": "tomato" }
 
     print(f"Graphs is {graph}")
 

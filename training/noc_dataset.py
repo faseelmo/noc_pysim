@@ -38,77 +38,120 @@ class NocDataset(Dataset):
         file_path  = os.path.join(self._file_dir, self._training_files[index])
         graph      = load_graph_from_json(file_path)
 
+        # from data.utils import visualize_noc_application
+        # visualize_noc_application(graph)
+
         data = HeteroData()
 
-        task_input_feature      = []
+        dependency_feature      = []
+        task_depend_feature     = []
+        task_feature            = []
+
         task_target             = []
-        router_input_feature    = []
+        task_depend_target      = []
 
         # Each node type has its own indexing
-        global_to_local_indexing = { "task": {}, "router": {}, "pe": {} } 
+        global_to_local_indexing = { "router": {}, "pe": {}, "dependency": {}, "task": {}, "task_depend": {} } 
 
         for node_id, node_data in graph.nodes(data=True): 
             node_type = node_data["type"]
             if node_type == "task": 
-                generate        = node_data["generate"] / self.max_generate
-                processing_time = node_data["processing_time"] / self.max_processing_time
+                task_type       = node_data["task_type"]
+
+                generate        = node_data["generate"] / ( self.max_generate * 2 )
                 start_cycle     = node_data["start_cycle"] 
                 end_cycle       = node_data["end_cycle"]
 
-                task_input_feature.append([generate, processing_time])
-                task_target.append([start_cycle, end_cycle])    
+                processing_time = node_data["processing_time"] / self.max_processing_time
 
-            elif node_type == "router":
-                x_pos,y_pos     = self._extract_coordinates(node_id)
-                norm_x_pos      = x_pos / 3 
-                norm_y_pos      = y_pos / 3
-                router_input_feature.append([norm_x_pos, norm_y_pos])
+                if task_type == "dependency":
+                    dependency_feature.append([generate])
+
+                elif task_type == "task_depend":
+                    task_depend_feature.append([generate, processing_time])
+                    task_depend_target.append([start_cycle, end_cycle])
+
+                elif task_type == "task":
+                    task_feature.append([generate, processing_time])
+                    task_target.append([start_cycle, end_cycle])   
+
+                else: 
+                    raise ValueError(f"Invalid task type {task_type}")
+
+                node_type = task_type   
 
             global_to_local_indexing[node_type][node_id] = len(global_to_local_indexing[node_type])
 
+        # Task (depend, task_depend, task) features
         # Creating the input and target tensors
-        data["task"].x = torch.tensor( task_input_feature, dtype=torch.float )
-        data["task"].y = torch.tensor( task_target, dtype=torch.float )
+        has_task_node = len(task_feature) > 0
+        num_features_task_node = 2
+
+        if has_task_node:
+            data["task"].x = torch.tensor( task_feature, dtype=torch.float )
+            data["task"].y = torch.tensor( task_target, dtype=torch.float ) 
+
+        else: 
+            data["task"].x = torch.empty( (0, num_features_task_node), dtype=torch.float )
+            data["task"].y = torch.empty( (0, num_features_task_node), dtype=torch.float )
+
+        data["dependency"].x = torch.tensor( dependency_feature, dtype=torch.float )
+        data["task_depend"].x = torch.tensor( task_depend_feature, dtype=torch.float )
+        data["task_depend"].y = torch.tensor( task_depend_target, dtype=torch.float )
 
         # Creating fake/empty inputs for routers and pes
-        num_routers         = len(global_to_local_indexing["router"])
-        num_pes             = len(global_to_local_indexing["pe"])
+        # This doesnt matter anyways since this feature is getting replaced with node embeddings
+        num_elements = len(global_to_local_indexing["pe"])
 
-        # data["router"].x    = torch.ones( num_routers, 1, dtype=torch.float )
-        # data["router"].x    = torch.tensor( router_input_feature, dtype=torch.float )
-        data["router"].x    = torch.ones( num_pes, 1, dtype=torch.float )
-        data["pe"].x        = torch.ones( num_pes, 1, dtype=torch.float )
+        data["router"].x    = torch.ones( num_elements, 1, dtype=torch.float )
+        data["pe"].x        = torch.ones( num_elements, 1, dtype=torch.float )
 
         # Creating the edge index tensor
-        task_edge       = "depends_on"
-        rev_task_edge   = "rev_depends_on"
-        task_pe_edge    = "mapped_to"
-        router_edge     = "link"
-        router_pe_edge  = "interface"
+        task_edge       = "generates_for"
+        # rev_task_edge   = "rev_depends_on"
 
+        task_pe_edge    = "mapped_to"
         pe_task_edge    = "rev_mapped_to"
+
+        router_edge     = "link"
+
+        router_pe_edge  = "interface"
         pe_router_edge  = "rev_interface"
 
-        data["task",    task_edge,      "task"].edge_index     = [ [], [] ]
-        data["task",    rev_task_edge,  "task"].edge_index     = [ [], [] ]
-        data["task",    task_pe_edge,   "pe"].edge_index       = [ [], [] ]
-        data["pe",      pe_task_edge,   "task"].edge_index     = [ [], [] ]
+        # NoC edges
         data["router",  router_edge,    "router"].edge_index   = [ [], [] ]
         data["router",  router_pe_edge, "pe"].edge_index       = [ [], [] ]
         data["pe",      pe_router_edge, "router"].edge_index   = [ [], [] ]
 
+        # Task edge
+        data["task",        task_edge, "task"].edge_index           = [ [], [] ] 
+        data["task",        task_edge, "task_depend"].edge_index    = [ [], [] ]
+        data["task_depend", task_edge, "task"].edge_index           = [ [], [] ]
+        data["task_depend", task_edge, "task_depend"].edge_index    = [ [], [] ]
+        data["dependency",  task_edge, "task_depend"].edge_index    = [ [], [] ]
+
+        # Map edges
+        data["task",        task_pe_edge, "pe"].edge_index = [ [], [] ]
+        data["task_depend", task_pe_edge, "pe"].edge_index = [ [], [] ]
+        data["dependency",  task_pe_edge, "pe"].edge_index = [ [], [] ]
+
+        data["pe", pe_task_edge, "task"].edge_index         = [ [], [] ]
+        data["pe", pe_task_edge, "task_depend"].edge_index  = [ [], [] ]   
+        data["pe", pe_task_edge, "dependency"].edge_index   = [ [], [] ]
+
         for edge in graph.edges(data=True):
 
-            src_node, dst_node, edge_data = edge
-
+            src_node, dst_node, _ = edge
             src_type = graph.nodes[src_node]["type"]
             dst_type = graph.nodes[dst_node]["type"]
 
             if src_type == "task" and dst_type == "task": 
                 edge_type       = task_edge   
-                rev_edge_type   = rev_task_edge
+                src_type = graph.nodes[src_node]["task_type"]
+                dst_type = graph.nodes[dst_node]["task_type"]
 
             elif src_type == "task" and dst_type == "pe": 
+                src_type = graph.nodes[src_node]["task_type"]
                 edge_type       = task_pe_edge
                 rev_edge_type   = pe_task_edge
 
@@ -130,7 +173,8 @@ class NocDataset(Dataset):
             data[src_type, edge_type, dst_type].edge_index[0].append(src_local_index)
             data[src_type, edge_type, dst_type].edge_index[1].append(dst_local_index)
 
-            if ( edge_type == task_pe_edge ) or ( edge_type == task_edge ) : 
+            # if ( edge_type == task_pe_edge ) or ( edge_type == task_edge ) : 
+            if ( edge_type == task_pe_edge ) : 
                 # Reversee edge for task-pe and task-task edges
                 data[dst_type, rev_edge_type, src_type].edge_index[0].append(dst_local_index)
                 data[dst_type, rev_edge_type, src_type].edge_index[1].append(src_local_index)   
@@ -161,58 +205,25 @@ class NocDataset(Dataset):
 if __name__ == "__main__": 
 
     from training.dataset import load_data
-    from training.model import  HeteroGNN
+    from training.model_with_network import  HeteroGNN
+    from data.utils import visualize_noc_application
 
     import random 
     import torch
     random.seed(0)
     torch.manual_seed(0)
 
+    idx = 3 # 3 has all three task types 
+
     # Dataset testing 
-    dataset = NocDataset("data/training_data/simulator/test")
+    dataset = NocDataset("data/training_data/with_network/test")
     print(f"Length of dataset is {len(dataset)}")
-    data = dataset[0]
+    data = dataset[idx]  
 
-    # print(f"GNNHetero is ")
-    # model = GNNHetero(hidden_channels=3, num_mpn_layers=3, metadata=dataset[0].metadata())
-    # print(model)
-    # output = model(data)
-    # print(output['task'])
-
-    # print(f"HeteroConv is ")
-    # model = HeteroGNN(hidden_channels=3, num_mpn_layers=3)
-    # print(model)
-    # output = model(data)
-    # print(output['task'])
-
-
-    # print(f"X dict is \n{data.x_dict}")
-
-    # print("\nEdge index dict is:")
-    # for edge_type, edge_index in data.edge_index_dict.items():
-    #     print(f"{edge_type}:")
-    #     print(edge_index)
-
+    print(f"X is \n{data.x_dict}")
     
-    # DataLoader testing
-    # print(f"\n\nDataLoader testing")
-    # dataloader, _   = load_data( 
-    #                     training_data_dir   = "data/training_data/simulator/test", 
-    #                     batch_size          = 2, 
-    #                     use_noc_dataset     = True)
-
-    
-    # metadata    = dataset[0].metadata()
-    # print(f"Metadata is {metadata}")
-    # data        = next(iter(dataloader))
-    # model       = GNNHetero(hidden_channels=3, num_mpn_layers=3, metadata=metadata)
-    # print(model)
-    # initialize_model(model, dataloader)
-
-    # model = HeteroGNN(hidden_channels=3, num_mpn_layers=3)
-    # model(data)
-
-
+    for key, value in data.edge_index_dict.items(): 
+        print(f"{key} edge index is \n{value}")
 
 
 

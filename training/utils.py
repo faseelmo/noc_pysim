@@ -11,7 +11,7 @@ def log_hetero_data(data) -> None:
             print(f"\nEdge index: {edge_index} \n{data.edge_index_dict[edge_index]}")
 
 
-def does_path_exist(dir_path, training_params) -> None:
+def does_path_exist(dir_path) -> None:
     import os
 
     model_path      = os.path.join(dir_path, "models")   
@@ -89,7 +89,7 @@ def initialize_model(model, dataloader, device):
         data = data.to(device)  # Ensure data is on the correct device
         
         if isinstance(data, HeteroData):
-            model(data.x_dict, data.edge_index_dict)
+            model(data)
         else:
             model(data.x, data.edge_index)  
 
