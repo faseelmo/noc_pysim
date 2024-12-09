@@ -8,7 +8,6 @@ from typing                     import Union
 from natsort                    import natsorted
 
 from torch_geometric.loader     import DataLoader
-from torch_geometric.transforms import ToUndirected
 from torch_geometric.data       import HeteroData, Data
 from torch.utils.data           import Dataset, random_split
 
