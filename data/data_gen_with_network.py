@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    test_split          = 400       # 400
+    test_split          = 1000       # 400
     training_data_count = 12000     # 12000
     training_graphs     = []
     node_range          = (2, 6)
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                         std_threshold = 11
                         print(f"Changing std threshold to {std_threshold}")
                     elif len(map_node_range) == 1:
-                        std_threshold = 8
+                        std_threshold = 9
                         print(f"Changing std threshold to {std_threshold}")
 
             if not os.path.exists(dir): 

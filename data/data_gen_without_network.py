@@ -76,7 +76,3 @@ if __name__ == "__main__":
     print("Saving Test graphs...")
     for i, graph in enumerate(test_graphs):
         save_graph_to_json(graph, os.path.join(test_data_dir, f"{i}.json"))
-
-
-
-
