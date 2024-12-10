@@ -115,17 +115,17 @@ if __name__ == "__main__":
         best_tau = round(max(tau),3)
         data.append(
             {
-                "conv"          : conv,
-                "Layer"         : layer,
-                "Width"         : width,
-                "Aggr"          : aggr,
-                "Loss"          : loss,
-                "Tau"           : tau,
-                "Hetero"        : "HETERO" in dict_flag,
-                "Task Depend"   : "TASKDEPEND" in dict_flag,
-                "Dependency"    : "DEPENDENCY" in dict_flag,    
-                "Scheduler"     : "SCHEDULER" in dict_flag, 
-                "Best Tau"      : best_tau,
+                "conv"       : conv,
+                "Layer"      : layer,
+                "Width"      : width,
+                "Aggr"       : aggr,
+                "Loss"       : loss,
+                "Tau"        : tau,
+                "Hetero"     : "HETERO" in dict_flag,
+                "exit"       : "EXIT" in dict_flag,
+                "Dependency" : "DEPENDENCY" in dict_flag,    
+                "Scheduler"  : "SCHEDULER" in dict_flag, 
+                "Best Tau"   : best_tau,
             }
         )
 

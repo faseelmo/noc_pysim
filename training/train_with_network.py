@@ -236,9 +236,7 @@ def main():
         model.load_state_dict(model_state_dict)
         print(f"\nPre-Trained Wieghts Loaded\n")
 
-    # loss_fn     = nn.MSELoss().to(DEVICE)
     loss_fn     = nn.L1Loss().to(DEVICE)
-    # loss_fn     = nn.SmoothL1Loss().to(DEVICE)
 
     optimizer   = optim.Adam(
                     model.parameters(), 

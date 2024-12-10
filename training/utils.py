@@ -60,7 +60,7 @@ def get_metadata(dataset_path, **kwargs):
         is_hetero       = kwargs.get( "is_hetero", False )
         has_scheduler   = kwargs.get( "has_scheduler", False )
         has_dependency  = kwargs.get( "has_dependency", False ) 
-        has_task_depend = kwargs.get( "has_task_depend", False )
+        has_exit        = kwargs.get( "has_exit", False )
 
 
         # print(f"Has task depend: {has_task_depend}")
@@ -70,7 +70,7 @@ def get_metadata(dataset_path, **kwargs):
         dataset = CustomDataset( dataset_path, 
                                  is_hetero          = is_hetero, 
                                  has_scheduler      = has_scheduler, 
-                                 has_task_depend    = has_task_depend,
+                                 has_exit           = has_exit,
                                  has_dependency     = has_dependency,
                                  return_graph       = False )
 
@@ -78,7 +78,7 @@ def get_metadata(dataset_path, **kwargs):
 
     return metadata
 
-def initialize_model(model, dataloader, device):
+def initialize_model(model, dataloader, device, use_noc_dataset=False):
     """Initialize the model by performing a dummy forward pass."""
     import torch
     from torch_geometric.data import Data, HeteroData
@@ -89,17 +89,19 @@ def initialize_model(model, dataloader, device):
         data = data.to(device)  # Ensure data is on the correct device
         
         if isinstance(data, HeteroData):
-            model(data)
+            if use_noc_dataset:
+                model(data)
+            else: 
+                model(data.x_dict, data.edge_index_dict)
         else:
             model(data.x, data.edge_index)  
-
-        # print(f"Data passed through the model is {data}")
 
     # Verify all parameters are initialized
     for name, param in model.named_parameters():
         if isinstance(param, torch.nn.parameter.UninitializedParameter):
             raise ValueError(f"Parameter {name} is still uninitialized.")
     # print(f"Model initialized")
+
 
 
 def plot_and_save_loss(train_loss, valid_loss, test_metric, save_path):

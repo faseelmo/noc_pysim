@@ -29,6 +29,44 @@ def compute_list_to_node_dict(compute_list):
         }
     return node_dict
 
+def convert_model_output_to_compute_dict(output, indexing, max_cycle) -> dict:
+
+    compute_dict = {}
+
+    for key, value in output.items():
+
+        index_key = indexing[key]
+        reversed_index_key = {v: k for k, v in index_key.items()}
+
+        for id, node in enumerate(value): 
+            
+            index = reversed_index_key[id]
+
+            start_cycle = node[0].item() * max_cycle
+            end_cycle   = node[1].item() * max_cycle
+
+            compute_dict[index] = {
+                "start_cycle": int(start_cycle),
+                "end_cycle": int(end_cycle)
+            }
+
+    return compute_dict 
+
+def convert_data_to_compute_dict(data, indexing, max_cycle) -> list:
+
+    output = {}
+
+    if data['task']: 
+        output['task'] = data['task'].y
+
+    if data['task_depend']: 
+        output['task_depend'] = data['task_depend'].y
+
+    compute_dict = convert_model_output_to_compute_dict(output, indexing, max_cycle)
+
+    return compute_dict
+
+
 def update_graph_with_computing_list(compute_list, graph: nx.DiGraph) -> nx.DiGraph: 
     """
     Updates the graph with node's start and end time 
@@ -375,9 +413,7 @@ def visualize_application(
     """
     import matplotlib.pyplot as plt
 
-    node_color_map = { "dependency": "skyblue", "task": "lightgreen", "task_depend": "gold", "scheduler": "tomato" }
-
-    print(f"Graphs is {graph}")
+    node_color_map = { "dependency": "skyblue", "task": "lightgreen", "task_depend": "gold", "scheduler": "tomato", "exit": "orange" }
 
     node_colors = [
         node_color_map.get(graph.nodes[node].get("type", "task"), "lightgreen")
@@ -411,10 +447,10 @@ def visualize_application(
             label_parts.append(f"P: {graph.nodes[node]['processing_time']}")
         if "generate" in graph.nodes[node]:
             label_parts.append(f"G: {graph.nodes[node]['generate']}")
-        if "wait_time" in graph.nodes[node]:
-            wait_time = graph.nodes[node]["wait_time"]
-            if wait_time != 0:
-                label_parts.append(f"W: {wait_time}")
+        # if "wait_time" in graph.nodes[node]:
+        #     wait_time = graph.nodes[node]["wait_time"]
+        #     if wait_time != 0:
+        #         label_parts.append(f"W: {wait_time}")
             
         if "start_cycle" in graph.nodes[node] and "end_cycle" in graph.nodes[node]: 
             start_time = graph.nodes[node]["start_cycle"]

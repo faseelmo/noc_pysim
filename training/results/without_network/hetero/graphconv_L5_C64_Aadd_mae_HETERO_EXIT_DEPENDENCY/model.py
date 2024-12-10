@@ -60,7 +60,8 @@ class MPNHetero(torch.nn.Module):
 
         self.mpn_hetero         = to_hetero( module=mpn, 
                                              metadata=metadata, 
-                                             aggr="sum" )
+                                             aggr="sum", 
+                                             debug=False)
 
     def forward(self, x_dict, edge_index_dict):
         out_dict        = self.mpn_hetero(x_dict, edge_index_dict)
@@ -73,21 +74,32 @@ if __name__ == "__main__":
     from training.utils import get_metadata
     from training.dataset import CustomDataset
 
-    is_hetero       = True
-    dataset_path    = "data/training_data/without_network/test"
-    num_layers      = 5
+    dataset_path = "data/training_data/without_network/test"
+    num_layers   = 5
 
-    dataset         = CustomDataset( dataset_path, 
-                                     is_hetero          = is_hetero, 
-                                     has_dependency     = True, 
-                                     has_task_depend    = True, 
-                                     has_scheduler      = True ) 
-    data            = dataset[1]
+    hetero_dict = {
+        "is_hetero"         : True, 
+        "has_dependency"    : True,
+        "has_exit"          : True,
+        "has_scheduler"     : True   
+    }
 
-    if is_hetero: 
-        metadata = get_metadata(dataset_path, is_hetero=True)
-        model = MPNHetero(hidden_channels=64, num_mpn_layers=num_layers, model_str="graphconv", metadata=metadata)
-        model(data.x_dict, data.edge_index_dict)
+    dataset         = CustomDataset( dataset_path, **hetero_dict )
+    data            = dataset[0]
+
+    if hetero_dict["is_hetero"]: 
+        print( f"Data is \n{data}" )
+        metadata    = get_metadata( dataset_path, **hetero_dict )
+        print(f"Metadata is \n{metadata}")
+        model       = MPNHetero( hidden_channels=64, num_mpn_layers=num_layers, model_str="graphconv", metadata=metadata )
+        output = model( data.x_dict, data.edge_index_dict )
+
+        is_task_empty = data['task'].y.numel() == 0
+        is_exit_empty = data['exit'].y.numel() == 0    
+
+        print(f"Task is empty {is_task_empty}")
+        print(f"Exit is empty {is_exit_empty}")
+
 
     else: 
         model = MPN(hidden_channels=64, output_channels=2, model_str="graphconv", num_conv_layers=num_layers)

@@ -9,8 +9,8 @@ combinations=(
     "--is_hetero True --has_scheduler True"
     "--is_hetero True --has_dependency True"
     "--is_hetero True --has_dependency True --has_scheduler True"
-    "--is_hetero True --has_dependency True --has_task_depend True"
-    "--is_hetero True --has_dependency True --has_task_depend True --has_scheduler True"
+    "--is_hetero True --has_dependency True --has_exit True"
+    "--is_hetero True --has_dependency True --has_exit True --has_scheduler True"
 )
 
 # Iterate over the combinations and call the main script

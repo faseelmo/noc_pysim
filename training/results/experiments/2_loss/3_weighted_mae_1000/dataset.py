@@ -44,7 +44,8 @@ class NocDataset(Dataset):
             if node_type == "task": 
                 generate        = node_data["generate"] / self.max_generate
                 processing_time = node_data["processing_time"] / self.max_processing_time
-                start_cycle     = node_data["start_cycle"] 
+
+                start_cycle     = node_data["start_cycle"]  
                 end_cycle       = node_data["end_cycle"]
 
                 task_input_feature.append([generate, processing_time])

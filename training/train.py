@@ -1,16 +1,16 @@
 import os 
 import time
 import yaml
-import numpy as np
 import random   
 import argparse
+import numpy as np
 
-from tqdm               import tqdm
-from scipy.stats        import kendalltau
+from tqdm        import tqdm
+from scipy.stats import kendalltau
 
 import torch
-import torch.nn     as nn
-import torch.optim  as optim
+import torch.nn    as nn
+import torch.optim as optim
 
 from torch_geometric.data           import Data
 from training.model_without_network import MPN, MPNHetero
@@ -22,33 +22,55 @@ from training.utils                 import ( does_path_exist,
                                              initialize_model, 
                                              get_metadata )
 
+def get_true_pred_hetero(data, output):
+    """
+    Given a HeteroData object and the model output,
+    returns the true and predicted of each node type.  
+    """
+    true_task, pred_task, true_exit, pred_exit = None, None, None, None
 
-parser  = argparse.ArgumentParser(description="Train the GCN model")
+    if 'task' in output and data['task'].y.numel() > 0:
+        true_task = data['task'].y
+        pred_task = output['task']
+    
+    if 'exit' in output and data['exit'].y.numel() > 0:
+        true_exit = data['exit'].y
+        pred_exit = output['exit']
 
-parser.add_argument( "name", type=str, help="Results will be saved in training/results/<name>")
+    return true_task, pred_task, true_exit, pred_exit
 
-args    = parser.parse_args()
 
-model_path      = f"training/model_without_network.py"
-train_path      = f"training/train_without_network.py"
-params_path     = f"training/config/params_without_network.yaml"
-dataset_path    = f"training/dataset.py"
+def get_max_latency_hetero(data, output):
+    """
+    Given a HeteroData object and the model output, 
+    returns the maximum latency of the true and predicted values 
+    """
+    true_task, pred_task, true_exit, pred_exit = get_true_pred_hetero(data, output)
 
-TRAINING_PARAMS = yaml.safe_load(open(params_path))
-results_path    = TRAINING_PARAMS["RESULTS_DIR"]
-SAVE_PATH       = f"{results_path}/{args.name}"
+    true_max_task = np.nan
+    pred_max_task = np.nan
+    true_max_exit = np.nan
+    pred_max_exit = np.nan
 
-print(f"\nSaving Results to {SAVE_PATH}")
+    if true_task is not None and pred_task is not None:
+        argmax_task = torch.argmax(true_task[:, 1])  # Assuming latency is in column 1
+        true_max_task = true_task[argmax_task, 1].item()
+        pred_max_task = pred_task[argmax_task, 1].item()
 
-does_path_exist(SAVE_PATH, TRAINING_PARAMS)
+    if true_exit is not None and pred_exit is not None:
+        argmax_exit = torch.argmax(true_exit[:, 1])  # Assuming latency is in column 1
+        true_max_exit = true_exit[argmax_exit, 1].item()
+        pred_max_exit = pred_exit[argmax_exit, 1].item()
 
-copy_file(model_path,   f"{SAVE_PATH}/model.py")
-copy_file(train_path,   f"{SAVE_PATH}/train.py")
-copy_file(params_path,  f"{SAVE_PATH}/params.yaml")
-copy_file(dataset_path, f"{SAVE_PATH}/dataset.py")
+    true_max_latency = np.nanmax([true_max_task, true_max_exit])
+    pred_max_latency = np.nanmax([pred_max_task, pred_max_exit])
+
+    return true_max_latency, pred_max_latency
 
 def process_batch(data, model, loss_fn, device):
-        
+    """
+    Computes the loss for a batch of data
+    """
     data    = data.to(device)
     if isinstance(data, Data):
         output  = model(data.x, data.edge_index)
@@ -59,24 +81,12 @@ def process_batch(data, model, loss_fn, device):
     
     output = model(data.x_dict, data.edge_index_dict)
 
-    is_task_empty = data['task'].y.numel() == 0
+    true_task, pred_task, true_exit, pred_exit = get_true_pred_hetero(data, output)
 
-    if not is_task_empty:
-        target_task = data['task'].y.to(device)
-        pred_task   = output['task']
-        loss_task   = loss_fn(pred_task, target_task)
+    loss_task = loss_fn(pred_task, true_task) if true_task is not None else 0
+    loss_exit = loss_fn(pred_exit, true_exit) if true_exit is not None else 0
 
-    if 'task_depend' in data: 
-        target_task_depend = data['task_depend'].y.to(device)
-        pred_task_depend   = output['task_depend']
-        loss_task_depend   = loss_fn(pred_task_depend, target_task_depend)
-
-        if is_task_empty:
-            return loss_task_depend
-        else:
-            return loss_task + loss_task_depend
-
-    return loss_task
+    return loss_task + loss_exit
 
 
 def train_fn(train_loader, model, optimizer, loss_fn, device):
@@ -113,6 +123,7 @@ def validation_fn(valid_loader, model, loss_fn, device):
 
     return validation_set_loss
 
+
 def test_fn(test_loader, model):
     ground_truth_latency_list   = []
     predicted_latency_list      = []
@@ -125,28 +136,10 @@ def test_fn(test_loader, model):
 
             if isinstance(data, Data):
                 output  = model(data.x, data.edge_index)
-                task_latency_truth = torch.max(data.y).detach().cpu().numpy()
-                task_latency_pred = torch.max(output).detach().cpu().numpy()
-
             else: 
-                output = model(data.x_dict, data.edge_index_dict)
-                if data['task'].y.numel() > 0:
-                    task_latency_truth = torch.max(data['task'].y).detach().cpu().numpy()
-                    task_latency_pred = torch.max(output['task']).detach().cpu().numpy()
-
-                else: 
-                    task_latency_truth  = 0
-                    task_latency_pred   = 0
-
-            task_depend_latency_truth = 0
-            task_depend_latency_pred = 0
-
-            if 'task_depend' in data:
-                task_depend_latency_truth = torch.max(data['task_depend'].y).detach().cpu().numpy()
-                task_depend_latency_pred = torch.max(output['task_depend']).detach().cpu().numpy()
-        
-            latency_truth = max(task_latency_truth, task_depend_latency_truth)
-            latency_pred  = max(task_latency_pred, task_depend_latency_pred)
+                output  = model(data.x_dict, data.edge_index_dict)
+                
+            latency_truth, latency_pred = get_max_latency_hetero(data, output)
 
             ground_truth_latency_list.append(latency_truth)
             predicted_latency_list.append(latency_pred)
@@ -163,6 +156,30 @@ def save_model(model, epoch, results_dir, test_metric, suffix=""):
 
 
 def main():
+
+
+    parser = argparse.ArgumentParser(description="Train the GCN model")
+    parser.add_argument( "name", type=str, help="Results will be saved in training/results/<name>")
+
+    args = parser.parse_args()
+
+    model_path      = f"training/model_without_network.py"
+    train_path      = f"training/train_without_network.py"
+    params_path     = f"training/config/params_without_network.yaml"
+    dataset_path    = f"training/dataset.py"
+
+    TRAINING_PARAMS = yaml.safe_load(open(params_path))
+    results_path    = TRAINING_PARAMS["RESULTS_DIR"]
+    SAVE_PATH       = f"{results_path}/{args.name}"
+
+    print(f"\nSaving Results to {SAVE_PATH}")
+
+    does_path_exist(SAVE_PATH)
+
+    copy_file(model_path,   f"{SAVE_PATH}/model.py")
+    copy_file(train_path,   f"{SAVE_PATH}/train.py")
+    copy_file(params_path,  f"{SAVE_PATH}/params.yaml")
+    copy_file(dataset_path, f"{SAVE_PATH}/dataset.py")
 
     # Seeds for Reproducibility
     random.seed(0)
@@ -192,7 +209,7 @@ def main():
     hetero_args = {
         "is_hetero"         : TRAINING_PARAMS["IS_HETERO"].strip().lower()       == "true", 
         "has_dependency"    : TRAINING_PARAMS["HAS_DEPENDENCY"].strip().lower()  == "true", 
-        "has_task_depend"   : TRAINING_PARAMS["HAS_TASK_DEPEND"].strip().lower() == "true", 
+        "has_exit"          : TRAINING_PARAMS["HAS_EXIT"].strip().lower()        == "true", 
         "has_scheduler"     : TRAINING_PARAMS["HAS_SCHEDULER"].strip().lower()   == "true"
     }
     print(f"Hetero parameters {hetero_args}")

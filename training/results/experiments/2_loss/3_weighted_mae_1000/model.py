@@ -51,9 +51,9 @@ class HeteroGNN(torch.nn.Module):
 
         return conv_list
 
-    def forward(self, data: HeteroData) -> HeteroData:
-        x_dict              = data.x_dict
-        edge_index_dict     = data.edge_index_dict
+    def forward(self, x_dict, edge_index_dict) -> HeteroData:
+        # x_dict              = data.x_dict
+        # edge_index_dict     = data.edge_index_dict
 
         batch_size = x_dict['pe'].size(0) // 9
 

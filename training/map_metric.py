@@ -1,76 +1,42 @@
 import os 
-import re 
 import yaml 
 import torch
 import argparse 
 import numpy as np
 import importlib.util 
 
-from scipy.stats import kendalltau
+from scipy.stats    import kendalltau
+from training.utils import print_parameter_count
+from data.utils     import ( get_weights_from_directory, 
+                             get_all_weights_from_directory, 
+                             extract_epoch )
 
-from data.utils import get_weights_from_directory, get_all_weights_from_directory, extract_epoch    
-from training.utils import print_parameter_count, adjusted_kendalls_tau
-
+from training.train_without_network import get_max_latency_hetero
 
 def get_mapping_tau(model, NocDataset, epoch, show): 
     map_test_dir    = "data/training_data/with_network/map_test"
     num_dirs        = len(os.listdir(map_test_dir))
 
-    tau_list        = []
-    p_value_list    = []
-    std_list        = []
-    count = 0
+    tau_list      = []
+    p_value_list  = []
+    std_list      = []
+    count         = 0
 
     for i in range(num_dirs): 
         dir = os.path.join(map_test_dir, f"{i}")
-        map_dataset = NocDataset(dir, True)
+        map_dataset = NocDataset(dir)
 
         truth_list = []
         pred_list  = []
 
         for j in range(len(map_dataset)): 
             data = map_dataset[j]
-            output = model(data)
+            output = model(data.x_dict, data.edge_index_dict)
 
-            task_pred = output['task']
-            task_depend_pred = output['task_depend']
-
-            task_true = data['task'].y
-            task_depend_true = data['task_depend'].y
-
-
-            print(f"Task pred is \n{task_pred}, \nTask true is \n{task_true}")
-            print(f"Task depend pred is \n{task_depend_pred}, \nTask depend true is \n{task_depend_true}")
-
-
-            exit()
-
-            if data['task'].y.numel() > 0:
-                task_latency_truth = torch.max(data['task'].y).detach().cpu().numpy()
-                task_latency_pred = torch.max(output['task']).detach().cpu().numpy()
-
-            else: 
-                task_latency_truth  = 0
-                task_latency_pred   = 0
-
-            task_depend_latency_truth = 0
-            task_depend_latency_pred = 0
-
-            if 'task_depend' in data:   
-                task_depend_latency_truth   = torch.max(data['task_depend'].y).detach().cpu().numpy()
-                task_depend_latency_pred    = torch.max(output['task_depend']).detach().cpu().numpy()
+            true_max_latency, pred_max_latency = get_max_latency_hetero(data, output)
+            truth_list.append(true_max_latency)
+            pred_list.append(pred_max_latency)
         
-            latency_truth = max(task_depend_latency_truth, task_latency_truth)
-            latency_pred  = max(task_depend_latency_pred, task_latency_pred)
-
-            truth_list.append(latency_truth)
-            pred_list.append(latency_pred)
-
-        print(f"Truth list is {truth_list}")
-        print(f"Pred list is {pred_list}")
-
-        exit()
-
         tau, p_val = kendalltau(truth_list, pred_list)
         # p_val = 0
         # tau = adjusted_kendalls_tau(truth_list, pred_list, t_x=0, t_y=4)
@@ -123,12 +89,11 @@ if __name__ == "__main__" :
     HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
     NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
 
-    dataset = NocDataset("data/training_data/with_network/test", True)
-    data    = dataset[0]
-    # print(f"Data is {data}")
+    dataset = NocDataset("data/training_data/with_network/test")
+    data = dataset[0]
 
-    model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS, True )
-    model(data)
+    model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )
+    model(data.x_dict, data.edge_index_dict)
     print(f"Model initialized")
 
     print(f"Using HeteroGNN")

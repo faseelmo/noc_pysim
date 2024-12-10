@@ -74,13 +74,13 @@ if __name__ == "__main__":
     from training.utils import get_metadata
     from training.dataset import CustomDataset
 
-    dataset_path    = "data/training_data/without_network/test"
-    num_layers      = 5
+    dataset_path = "data/training_data/without_network/test"
+    num_layers   = 5
 
     hetero_dict = {
         "is_hetero"         : True, 
         "has_dependency"    : True,
-        "has_task_depend"   : True,
+        "has_exit"          : True,
         "has_scheduler"     : True   
     }
 
@@ -92,11 +92,18 @@ if __name__ == "__main__":
         metadata    = get_metadata( dataset_path, **hetero_dict )
         print(f"Metadata is \n{metadata}")
         model       = MPNHetero( hidden_channels=64, num_mpn_layers=num_layers, model_str="graphconv", metadata=metadata )
-        model( data.x_dict, data.edge_index_dict )
+        output = model( data.x_dict, data.edge_index_dict )
+
+        is_task_empty = data['task'].y.numel() == 0
+        is_exit_empty = data['exit'].y.numel() == 0    
+
+        print(f"Task is empty {is_task_empty}")
+        print(f"Exit is empty {is_exit_empty}")
+
 
     else: 
         model = MPN(hidden_channels=64, output_channels=2, model_str="graphconv", num_conv_layers=num_layers)
         model(data.x, data.edge_index)
 
-    print(f"Model is \n{model}") 
+    # print(f"Model is \n{model}") 
 

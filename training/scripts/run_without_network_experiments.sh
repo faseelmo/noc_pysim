@@ -23,7 +23,7 @@ while [[ "$#" -gt 0 ]]; do
         --is_hetero) IS_HETERO="$2"; shift ;;
         --has_scheduler) HAS_SCHEDULER="$2"; shift ;;
         --has_dependency) HAS_DEPENDENCY="$2"; shift ;;
-        --has_task_depend) HAS_TASK_DEPEND="$2"; shift ;;
+        --has_exit) HAS_EXIT="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
@@ -31,7 +31,7 @@ done
 
 $UPDATE_SCRIPT "$YAML_FILE" EPOCHS "$MAX_EPOCHS"
 $UPDATE_SCRIPT "$YAML_FILE" IS_HETERO "$IS_HETERO"
-$UPDATE_SCRIPT "$YAML_FILE" HAS_TASK_DEPEND "$HAS_TASK_DEPEND"
+$UPDATE_SCRIPT "$YAML_FILE" HAS_EXIT "$HAS_EXIT"
 $UPDATE_SCRIPT "$YAML_FILE" HAS_DEPENDENCY "$HAS_DEPENDENCY"
 $UPDATE_SCRIPT "$YAML_FILE" HAS_SCHEDULER "$HAS_SCHEDULER"
 
@@ -56,8 +56,8 @@ for CONV in "${CONV_TYPES[@]}"; do
                         RUN_DIR="${RUN_DIR}_HETERO"
                     fi
 
-                    if [ "$HAS_TASK_DEPEND" = True ]; then
-                        RUN_DIR="${RUN_DIR}_TASKDEPEND"
+                    if [ "$HAS_EXIT" = True ]; then
+                        RUN_DIR="${RUN_DIR}_EXIT"
                     fi
 
                     if [ "$HAS_SCHEDULER" = True ]; then
@@ -69,14 +69,14 @@ for CONV in "${CONV_TYPES[@]}"; do
                     fi
 
                     # Run training
-                    echo "Running training for CONV=$CONV, LAYERS=$LAYER, CHANNELS=$CHANNEL, AGGR=$AGGR, LOSS=$LOSS, HETERO=$IS_HETERO, DEPENDENCY=$HAS_DEPENDENCY, TASK_DEPEND=$HAS_TASK_DEPEND, SCHEDULER=$HAS_SCHEDULER"
+                    echo "Running training for CONV=$CONV, LAYERS=$LAYER, CHANNELS=$CHANNEL, AGGR=$AGGR, LOSS=$LOSS, HETERO=$IS_HETERO, DEPENDENCY=$HAS_DEPENDENCY, EXIT=$HAS_EXIT, SCHEDULER=$HAS_SCHEDULER"
                     $TRAIN_SCRIPT "$RUN_DIR"
 
                     # Check if training succeeded
                     if [ $? -ne 0 ]; then
-                        echo "Training failed for CONV=$CONV, LAYERS=$LAYER, CHANNELS=$CHANNEL, AGGR=$AGGR, LOSS=$LOSS, HETERO=$IS_HETERO, DEPENDENCY=$HAS_DEPENDENCY, TASK_DEPEND=$HAS_TASK_DEPEND, SCHEDULER=$HAS_SCHEDULER"
+                        echo "Training failed for CONV=$CONV, LAYERS=$LAYER, CHANNELS=$CHANNEL, AGGR=$AGGR, LOSS=$LOSS, HETERO=$IS_HETERO, DEPENDENCY=$HAS_DEPENDENCY, EXIT=$HAS_EXIT, SCHEDULER=$HAS_SCHEDULER"
                     else
-                        echo "Training succeeded for CONV=$CONV, LAYERS=$LAYER, CHANNELS=$CHANNEL, AGGR=$AGGR, LOSS=$LOSS, HETERO=$IS_HETERO, DEPENDENCY=$HAS_DEPENDENCY, TASK_DEPEND=$HAS_TASK_DEPEND, SCHEDULER=$HAS_SCHEDULER"
+                        echo "Training succeeded for CONV=$CONV, LAYERS=$LAYER, CHANNELS=$CHANNEL, AGGR=$AGGR, LOSS=$LOSS, HETERO=$IS_HETERO, DEPENDENCY=$HAS_DEPENDENCY, EXIT=$HAS_EXIT, SCHEDULER=$HAS_SCHEDULER"
                     fi
 
                 done

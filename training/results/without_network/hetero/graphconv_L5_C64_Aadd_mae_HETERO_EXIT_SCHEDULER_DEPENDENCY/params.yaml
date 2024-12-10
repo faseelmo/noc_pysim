@@ -28,3 +28,4 @@ DATA_DIR: 'data/training_data/without_network'
 # Results directory 
 RESULTS_DIR: 'training/results/without_network'
 SAVE_THRESHOLD: 0.8
+HAS_EXIT: "True"
