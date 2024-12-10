@@ -115,7 +115,7 @@ if __name__ == "__main__":
     BATCH_SIZE      = 1
     HIDDEN_CHANNELS = 64
 
-    classifiy_task_nodes = True    
+    classifiy_task_nodes = False    
 
     torch.manual_seed(0)
 
@@ -126,7 +126,6 @@ if __name__ == "__main__":
                         classify_task_nodes = classifiy_task_nodes )
 
     data        = next(iter(dataloader))
-    print(f"Data is {data}")    
 
     model  = HeteroGNN( HIDDEN_CHANNELS, num_mpn_layers=5, classfiy_task_nodes=classifiy_task_nodes )
     output = model(data)

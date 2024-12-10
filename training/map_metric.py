@@ -23,24 +23,57 @@ def get_mapping_tau(model, NocDataset, epoch, show):
 
     for i in range(num_dirs): 
         dir = os.path.join(map_test_dir, f"{i}")
-        map_dataset = NocDataset(dir)
+        map_dataset = NocDataset(dir, True)
 
         truth_list = []
         pred_list  = []
 
         for j in range(len(map_dataset)): 
             data = map_dataset[j]
-            output = model(data)['task']
+            output = model(data)
 
-            latency_truth   = torch.max(data['task'].y).detach().cpu().numpy()
-            latency_pred    = torch.max(output).detach().cpu().numpy() 
+            task_pred = output['task']
+            task_depend_pred = output['task_depend']
 
-            truth_list.append(latency_truth.item())
-            pred_list.append(latency_pred.item())
+            task_true = data['task'].y
+            task_depend_true = data['task_depend'].y
 
-        # tau, p_val = kendalltau(truth_list, pred_list)
-        p_val = 0
-        tau = adjusted_kendalls_tau(truth_list, pred_list, t_x=0, t_y=4)
+
+            print(f"Task pred is \n{task_pred}, \nTask true is \n{task_true}")
+            print(f"Task depend pred is \n{task_depend_pred}, \nTask depend true is \n{task_depend_true}")
+
+
+            exit()
+
+            if data['task'].y.numel() > 0:
+                task_latency_truth = torch.max(data['task'].y).detach().cpu().numpy()
+                task_latency_pred = torch.max(output['task']).detach().cpu().numpy()
+
+            else: 
+                task_latency_truth  = 0
+                task_latency_pred   = 0
+
+            task_depend_latency_truth = 0
+            task_depend_latency_pred = 0
+
+            if 'task_depend' in data:   
+                task_depend_latency_truth   = torch.max(data['task_depend'].y).detach().cpu().numpy()
+                task_depend_latency_pred    = torch.max(output['task_depend']).detach().cpu().numpy()
+        
+            latency_truth = max(task_depend_latency_truth, task_latency_truth)
+            latency_pred  = max(task_depend_latency_pred, task_latency_pred)
+
+            truth_list.append(latency_truth)
+            pred_list.append(latency_pred)
+
+        print(f"Truth list is {truth_list}")
+        print(f"Pred list is {pred_list}")
+
+        exit()
+
+        tau, p_val = kendalltau(truth_list, pred_list)
+        # p_val = 0
+        # tau = adjusted_kendalls_tau(truth_list, pred_list, t_x=0, t_y=4)
         tau_list.append(tau)
         p_value_list.append(p_val)
 
@@ -74,7 +107,7 @@ if __name__ == "__main__" :
     model_module = importlib.util.module_from_spec(model_spec)
     model_spec.loader.exec_module(model_module)
 
-    dataset_spec = importlib.util.spec_from_file_location("noc_dataset", os.path.join(args.model_path, "noc_dataset.py"))
+    dataset_spec = importlib.util.spec_from_file_location("dataset", os.path.join(args.model_path, "dataset.py"))
     dataset_module = importlib.util.module_from_spec(dataset_spec)
     dataset_spec.loader.exec_module(dataset_module)
 
@@ -90,11 +123,13 @@ if __name__ == "__main__" :
     HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
     NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
 
-    dataset = NocDataset("data/training_data/with_network/test")
+    dataset = NocDataset("data/training_data/with_network/test", True)
     data    = dataset[0]
+    # print(f"Data is {data}")
 
-    model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )
+    model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS, True )
     model(data)
+    print(f"Model initialized")
 
     print(f"Using HeteroGNN")
     parameter_count = print_parameter_count(model)

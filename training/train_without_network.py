@@ -5,8 +5,8 @@ import numpy as np
 import random   
 import argparse
 
-from tqdm               import tqdm
-from scipy.stats        import kendalltau
+from tqdm        import tqdm
+from scipy.stats import kendalltau
 
 import torch
 import torch.nn     as nn

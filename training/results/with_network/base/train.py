@@ -212,8 +212,6 @@ def main():
                                     batch_size          = BATCH_SIZE, 
                                     validation_split    = 0.1,
                                     use_noc_dataset     = True,
-                                    classify_task_nodes = True, 
-
                                 )
 
     test_loader, _              = load_data(
@@ -221,10 +219,9 @@ def main():
                                     batch_size          = 1, 
                                     validation_split    = 0.0,
                                     use_noc_dataset     = True,
-                                    classify_task_nodes = True, 
                                 )
 
-    model = HeteroGNN(HIDDEN_CHANNELS, NUM_MPN_LAYERS, classfiy_task_nodes=True).to(DEVICE)
+    model = HeteroGNN(HIDDEN_CHANNELS, NUM_MPN_LAYERS).to(DEVICE)
     print(f"\nHeteroGNN Model Loaded with {NUM_MPN_LAYERS} MPN Layers and {HIDDEN_CHANNELS} Hidden Channels")
 
     initialize_model(model, test_loader, DEVICE)

@@ -1,1 +1,1 @@
-Best epoch is 27 with map tau = 0.8 and p_val = 0.0. Parameter count: 184490. Path: training/results/experiments/2_loss/3_weighted_mae_1000/models/LatNet_91_27_best.pth
+Best epoch is 21 with map tau = 0.55 and p_val = 0.0. Parameter count: 184490. Path: training/results/experiments/2_loss/3_weighted_mae_1000/models/LatNet_90_21_interval.pth

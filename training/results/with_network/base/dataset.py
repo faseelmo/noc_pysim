@@ -52,11 +52,7 @@ class NocDataset(Dataset):
         task_depend_target      = []
 
         # Each node type has its own indexing
-        global_to_local_indexing = { "router": {}, "pe": {}, "task": {} } 
-
-        if self._classify_task_nodes:
-            global_to_local_indexing["task_depend"] = {}
-            global_to_local_indexing["dependency"]  = {}
+        global_to_local_indexing = { "router": {}, "pe": {}, "dependency": {}, "task": {}, "task_depend": {} } 
 
         for node_id, node_data in graph.nodes(data=True): 
             node_type = node_data["type"]
@@ -165,14 +161,13 @@ class NocDataset(Dataset):
             if src_type == "task" and dst_type == "task": 
                 edge_type       = task_edge   
                 rev_edge_type   = rev_task_edge 
-                if self._classify_task_nodes:
-                    do_rev          = False
-                else: 
-                    do_rev          = True
+                do_rev          = True
                 
                 if self._classify_task_nodes:
                     src_type = graph.nodes[src_node]["task_type"]
                     dst_type = graph.nodes[dst_node]["task_type"]
+
+                
 
             elif src_type == "task" and dst_type == "pe": 
                 edge_type       = task_pe_edge
@@ -202,7 +197,6 @@ class NocDataset(Dataset):
 
             if do_rev : 
                 # Reversee edge for task-pe and task-task edges
-                # print(f"Reversing edge from {src_type} to {dst_type}")
                 data[dst_type, rev_edge_type, src_type].edge_index[0].append(dst_local_index)
                 data[dst_type, rev_edge_type, src_type].edge_index[1].append(src_local_index)   
 

@@ -226,10 +226,10 @@ class CustomDataset(Dataset):
 
             if self._has_task_depend:
                 hetero_data["task_depend", generate_edge_type, "task_depend"].edge_index = [[], []]
-                hetero_data["task_depend", generate_edge_type, "task"].edge_index    = [[], []]
-                hetero_data["task", generate_edge_type, "task_depend"].edge_index    = [[], []]
+                hetero_data["task_depend", generate_edge_type, "task"].edge_index = [[], []]
+                hetero_data["task", generate_edge_type, "task_depend"].edge_index = [[], []]
 
-                hetero_data["dependency", generate_edge_type, "task_depend"].edge_index  = [[], []]
+                hetero_data["dependency", generate_edge_type, "task_depend"].edge_index = [[], []]
                 hetero_data["task_depend", rev_generate_edge_type, "dependency"].edge_index = [[], []]
 
             else: 
@@ -303,20 +303,21 @@ class CustomDataset(Dataset):
 def load_data( training_data_dir, 
                batch_size          : int =32, 
                validation_split    : float =0.1,
-               **kwargs ) -> tuple[DataLoader, DataLoader]:
+               **kwargs ) -> tuple[DataLoader, DataLoader] :
 
-    use_noc_dataset     = kwargs.get( "use_noc_dataset", False )
+    use_noc_dataset = kwargs.get( "use_noc_dataset", False )
 
     if use_noc_dataset:    
         from training.noc_dataset import NocDataset
-        dataset = NocDataset( training_data_dir )
+        classify_task_nodes = kwargs.get( "classify_task_nodes", False )
+        dataset            = NocDataset( training_data_dir, classfiy_task_nodes=classify_task_nodes )
         print(f"[load_data] Is NOC dataset: \t{use_noc_dataset}")
 
     else: 
-        is_hetero           = kwargs.get( "is_hetero", False )
-        has_scheduler       = kwargs.get( "has_scheduler", False )
-        has_task_depend     = kwargs.get( "has_task_depend", False )
-        has_dependency      = kwargs.get( "has_dependency", False ) 
+        is_hetero       = kwargs.get( "is_hetero", False )
+        has_scheduler   = kwargs.get( "has_scheduler", False )
+        has_task_depend = kwargs.get( "has_task_depend", False )
+        has_dependency  = kwargs.get( "has_dependency", False ) 
 
         # print(f"[load_data] Is hetero graph: \t{is_hetero}, Has scheduler node: {has_scheduler_node}, Has task depend: {has_task_depend}")
         dataset = CustomDataset( training_data_dir  = training_data_dir, 
