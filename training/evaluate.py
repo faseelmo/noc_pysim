@@ -6,7 +6,7 @@ import importlib.util
 import matplotlib.pyplot as plt
 
 from data.utils import get_weights_from_directory, extract_epoch    
-from training.train_without_network import get_true_pred_hetero, get_max_latency_hetero
+from training.train import get_true_pred_hetero, get_max_latency_hetero
 
 def append_if_not_none(true_values, pred_values, true_list, pred_list):
     if true_values is not None and pred_values is not None:
@@ -240,12 +240,4 @@ if __name__ == "__main__" :
         map_results = get_map_latency(model, dataset_obj)
         plot_all_map_pred(map_results, plot_path, f"map_latency.png")
 
-    # application_execution_resutls = get_execution_times(application_results)
-    # plot_application_pred(application_execution_resutls, plot_path, f"application_latency.png")
-
-    # # Map Latency Plot 
-    # map_results = get_map_latency(model, NocDataset)
-    # plot_all_map_pred(map_results, plot_path, f"map_latency.png")
-
-    
 

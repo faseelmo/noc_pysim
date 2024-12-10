@@ -11,7 +11,7 @@ from data.utils     import ( get_weights_from_directory,
                              get_all_weights_from_directory, 
                              extract_epoch )
 
-from training.train_without_network import get_max_latency_hetero
+from training.train import get_max_latency_hetero
 
 def get_mapping_tau(model, NocDataset, epoch, show): 
     map_test_dir    = "data/training_data/with_network/map_test"
