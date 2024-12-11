@@ -118,11 +118,14 @@ def modify_graph_to_application_graph(graph: nx.DiGraph, generate_range: tuple, 
             edge_weight = random.randint(*generate_range)
             graph[node][successor]["weight"] = edge_weight
             generate_count += edge_weight
+
         graph.nodes[node]["generate"] = generate_count
 
         if len(successors) == 0:
             final_node_generate_count = random.randint(1, 5)
             graph.nodes[node]["generate"] = final_node_generate_count
+            graph.nodes[node]["type"] = "exit"
+            continue
 
         predecessors = list(graph.predecessors(node))
 
@@ -133,13 +136,6 @@ def modify_graph_to_application_graph(graph: nx.DiGraph, generate_range: tuple, 
         else: 
             graph.nodes[node]["type"] = "task"
 
-    for node in graph.nodes: 
-
-        predecessors = list(graph.predecessors(node))
-        for predecessor in predecessors: 
-            if graph.nodes[predecessor]["type"] == "dependency":
-                graph.nodes[node]["type"] = "task_depend"
-                break
 
     return graph
 
@@ -317,8 +313,8 @@ def visualize_noc_application(graph: nx.DiGraph, prediction: list = None):
         assert isinstance(prediction, list), "Prediction should be a list"
         has_prediction = True
 
-    task_color_map  = { "dependency": "skyblue", "task": "lightgreen", "task_depend": "gold", "scheduler": "tomato" }
-    noc_color_map   = { "router": "dodgerblue", "pe": "darkseagreen" }
+    task_color_map  = { "dependency": "mediumpurple", "task": "gold", "exit": "tomato"}
+    noc_color_map   = { "router": "royalblue", "pe": "mediumseagreen" }
     node_colors     = []
 
     for node in graph.nodes:
@@ -413,7 +409,7 @@ def visualize_application(
     """
     import matplotlib.pyplot as plt
 
-    node_color_map = { "dependency": "skyblue", "task": "lightgreen", "task_depend": "gold", "scheduler": "tomato", "exit": "orange" }
+    node_color_map = {  "dependency": "mediumpurple", "task": "gold", "exit": "tomato", "scheduler": "mediumseagreen"}
 
     node_colors = [
         node_color_map.get(graph.nodes[node].get("type", "task"), "lightgreen")
@@ -437,8 +433,6 @@ def visualize_application(
         node_cycle_dict = compute_list
     else: 
         node_cycle_dict = compute_list_to_node_dict(compute_list) if compute_list else {}
-
-    
 
     custom_labels = {}
     for node in graph.nodes:

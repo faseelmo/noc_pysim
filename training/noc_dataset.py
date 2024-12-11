@@ -10,8 +10,6 @@ from data.utils import load_graph_from_json
 
 from torch.utils.data import Dataset    
 from torch_geometric.data import HeteroData
-from torch_geometric.transforms import ToUndirected
-
 
 class NocDataset(Dataset): 
     def __init__(self, training_data_dir, classfiy_task_nodes: bool = False): 
@@ -39,56 +37,51 @@ class NocDataset(Dataset):
         file_path  = os.path.join(self._file_dir, self._training_files[index])
         graph      = load_graph_from_json(file_path)
 
-        # from data.utils import visualize_noc_application
-        # visualize_noc_application(graph)
+        from data.utils import visualize_noc_application
+        visualize_noc_application(graph)
 
         data = HeteroData()
 
-        dependency_feature      = []
-        task_depend_feature     = []
-        task_feature            = []
+        task_feature        = []
+        exit_feature        = []
+        dependency_feature  = []
 
-        task_target             = []
-        task_depend_target      = []
+        task_target = []
+        exit_target = []
 
         # Each node type has its own indexing
-        global_to_local_indexing = { "router": {}, "pe": {}, "task": {} } 
-
-        if self._classify_task_nodes:
-            global_to_local_indexing["task_depend"] = {}
-            global_to_local_indexing["dependency"]  = {}
+        global_to_local_indexing = { "router": {}, "pe": {}, "task": {}, "dependency": {}, "exit": {} }
 
         for node_id, node_data in graph.nodes(data=True): 
             node_type = node_data["type"]
+
             if node_type == "task": 
                 task_type       = node_data["task_type"]
-
                 generate        = node_data["generate"] / self.max_generate 
                 start_cycle     = node_data["start_cycle"] 
                 end_cycle       = node_data["end_cycle"]
-
                 processing_time = node_data["processing_time"] / self.max_processing_time
 
-                if not self._classify_task_nodes:
-                    task_feature.append([generate, processing_time])
-                    task_target.append([start_cycle, end_cycle])
-
-                else: 
+                if self._classify_task_nodes:
                     if task_type == "dependency":
                         dependency_feature.append([generate])
-
-                    elif task_type == "task_depend":
-                        task_depend_feature.append([generate, processing_time])
-                        task_depend_target.append([start_cycle, end_cycle])
 
                     elif task_type == "task":
                         task_feature.append([generate, processing_time])
                         task_target.append([start_cycle, end_cycle])   
 
+                    elif task_type == "exit":
+                        exit_feature.append([generate, processing_time])
+                        exit_target.append([start_cycle, end_cycle])
+
                     else: 
                         raise ValueError(f"Invalid task type {task_type}")
 
-                    node_type = task_type   
+                else: 
+                    task_feature.append([generate, processing_time])
+                    task_target.append([start_cycle, end_cycle])
+                
+                node_type = task_type   
 
             global_to_local_indexing[node_type][node_id] = len(global_to_local_indexing[node_type])
 
@@ -107,8 +100,8 @@ class NocDataset(Dataset):
 
         if self._classify_task_nodes:
             data["dependency"].x = torch.tensor( dependency_feature, dtype=torch.float )
-            data["task_depend"].x = torch.tensor( task_depend_feature, dtype=torch.float )
-            data["task_depend"].y = torch.tensor( task_depend_target, dtype=torch.float )
+            data["exit"].x = torch.tensor( exit_feature, dtype=torch.float )
+            data["exit"].y = torch.tensor( exit_target, dtype=torch.float )
 
         # Creating fake/empty inputs for routers and pes
         # This doesnt matter anyways since this feature is getting replaced with node embeddings
@@ -130,28 +123,29 @@ class NocDataset(Dataset):
         pe_router_edge  = "rev_interface"
 
         # NoC edges
-        data["router",  router_edge,    "router"].edge_index   = [ [], [] ]
-        data["router",  router_pe_edge, "pe"].edge_index       = [ [], [] ]
-        data["pe",      pe_router_edge, "router"].edge_index   = [ [], [] ]
+        data["router",  router_edge,    "router"].edge_index = [ [], [] ]
+        data["router",  router_pe_edge, "pe"].edge_index     = [ [], [] ]
+        data["pe",      pe_router_edge, "router"].edge_index = [ [], [] ]
 
-        # Task edge
-        data["task", task_edge, "task"].edge_index     = [ [], [] ] 
+        # Task edges
+        data["task", task_edge,     "task"].edge_index = [ [], [] ] 
         data["task", rev_task_edge, "task"].edge_index = [ [], [] ] 
+
         if self._classify_task_nodes:
-            data["task",        task_edge, "task_depend"].edge_index    = [ [], [] ]
-            data["task_depend", task_edge, "task"].edge_index           = [ [], [] ]
-            data["task_depend", task_edge, "task_depend"].edge_index    = [ [], [] ]
-            data["dependency",  task_edge, "task_depend"].edge_index    = [ [], [] ]
+            data["dependency",  task_edge,      "task"].edge_index       = [ [], [] ]
+            data["task",        rev_task_edge,  "dependency"].edge_index = [ [], [] ]
+            data["task",        task_edge,      "exit"].edge_index       = [ [], [] ]
+            data["exit",        rev_task_edge,  "task"].edge_index       = [ [], [] ]
 
         # Map edges
         data["task", task_pe_edge, "pe"].edge_index   = [ [], [] ]
         data["pe",   pe_task_edge, "task"].edge_index = [ [], [] ]
         
         if self._classify_task_nodes:
-            data["task_depend", task_pe_edge, "pe"].edge_index = [ [], [] ]
+            data["exit", task_pe_edge, "pe"].edge_index = [ [], [] ]
             data["dependency",  task_pe_edge, "pe"].edge_index = [ [], [] ]
 
-            data["pe", pe_task_edge, "task_depend"].edge_index  = [ [], [] ]   
+            data["pe", pe_task_edge, "exit"].edge_index  = [ [], [] ]   
             data["pe", pe_task_edge, "dependency"].edge_index   = [ [], [] ]
 
         for edge in graph.edges(data=True):
@@ -209,7 +203,6 @@ class NocDataset(Dataset):
         for edge_type in data.edge_types: 
             data[edge_type].edge_index = torch.tensor(data[edge_type].edge_index, dtype=torch.long).contiguous()
 
-        # data = ToUndirected()(data) 
         self._do_checks(data)
 
         if self.return_graph:

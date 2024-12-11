@@ -151,7 +151,6 @@ def adjusted_kendalls_tau(x: list, y: list, t_x: int=0, t_y: int=0) -> float:
         x, y        : lists of values
         t_x, t_y    : threshold values for x and y  
     """
-
     n = len(x)
     if n != len(y):
         raise ValueError("The two lists must have the same length.")
@@ -170,10 +169,9 @@ def adjusted_kendalls_tau(x: list, y: list, t_x: int=0, t_y: int=0) -> float:
         
         else: # Tied
             if abs(dx) <= t_x and abs(dy) <= t_y: # Both pairs are effectively equal
-                C += 2
+                C += 1
             else: 
-                D += 0.5
-
+                D += 0.25
 
     total_pairs = n * (n - 1) / 2
     tau = (C - D) / total_pairs

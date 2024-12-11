@@ -6,7 +6,7 @@ import numpy as np
 import importlib.util 
 
 from scipy.stats    import kendalltau
-from training.utils import print_parameter_count
+from training.utils import print_parameter_count, adjusted_kendalls_tau 
 from data.utils     import ( get_weights_from_directory, 
                              get_all_weights_from_directory, 
                              extract_epoch )

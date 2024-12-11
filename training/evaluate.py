@@ -134,7 +134,6 @@ def plot_all_map_pred(map_result_dict, plot_path, plot_name):
     print(f"Saved plot to {save_path}")
 
 
-
 def plot_application_pred(result_dict, plot_path, plot_name):
     
     save_path = os.path.join(plot_path, plot_name)

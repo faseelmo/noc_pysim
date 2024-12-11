@@ -121,9 +121,9 @@ if __name__ == "__main__":
                 "Aggr"       : aggr,
                 "Loss"       : loss,
                 "Tau"        : tau,
-                "Hetero"     : "HETERO" in dict_flag,
-                "exit"       : "EXIT" in dict_flag,
-                "Dependency" : "DEPENDENCY" in dict_flag,    
+                "Task"       : "HETERO" in dict_flag,
+                "Sink"       : "EXIT" in dict_flag,
+                "Source"     : "DEPENDENCY" in dict_flag,    
                 "Scheduler"  : "SCHEDULER" in dict_flag, 
                 "Best Tau"   : best_tau,
             }

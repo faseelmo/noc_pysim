@@ -228,7 +228,7 @@ def test_sim_graph(debug_mode: bool = False):
 if __name__ == "__main__":
 
     # DEBUG_MODE = False
-    DEBUG_MODE = True   
+    # DEBUG_MODE = True   
 
     # test_sim_simple(DEBUG_MODE)
     # test_sim_1(DEBUG_MODE)

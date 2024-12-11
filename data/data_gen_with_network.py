@@ -48,8 +48,8 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    test_split          = 1000       # 400
-    training_data_count = 12000     # 12000
+    test_split          = 10      # 400
+    training_data_count = 20     # 12000
     training_graphs     = []
     node_range          = (2, 6)
 
@@ -88,6 +88,8 @@ if __name__ == "__main__":
         shutil.rmtree(map_test_dir)
 
     os.makedirs(map_test_dir)
+
+    exit()
 
     num_metric_graph        = 10
     metric_maps_per_graph   = 50
