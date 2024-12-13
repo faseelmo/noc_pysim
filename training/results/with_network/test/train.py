@@ -1,18 +1,25 @@
 import os 
 import yaml
-import torch
+import numpy as np
 import random   
 import argparse
-import numpy as np
+import torch
 
-from training.model_with_network import HeteroGNN
+from training.model_with_network     import HeteroGNN
 from training.dataset   import load_data
-from training.utils     import ( does_path_exist, 
-                                 copy_file, 
-                                 print_parameter_count, 
-                                 initialize_model )
+from training.utils     import (
+                            does_path_exist, 
+                            copy_file, 
+                            print_parameter_count, 
+                            initialize_model
+                        )
 
-from training.train import train_and_validate
+from training.train import ( train_fn, 
+                            #  train_fn, 
+                             train_and_validate, 
+                             test_fn,
+                             validation_fn ) 
+
 
 def main():
 
