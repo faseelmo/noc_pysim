@@ -52,17 +52,17 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    test_split          = 1000      # 400
-    training_data_count = 4000     # 12000
+    test_split          = 400      # 400
+    training_data_count = 12000     # 12000
     training_graphs     = []
-    node_range          = (2, 6)
-    map_count           = 6  
+    node_range          = (2, 5)
+    map_count           = 1  
 
     # Simulating
     max_latency = 0 
     for i in range(training_data_count): 
         nodes               = random.randint(*node_range)
-        graph_list, latency = simulate(nodes, map_count=6)
+        graph_list, latency = simulate(nodes, map_count=map_count)
         training_graphs.extend(graph_list)  
         if latency > max_latency: 
             max_latency = latency
@@ -101,10 +101,10 @@ if __name__ == "__main__":
     # exit()
 
     num_metric_graph        = 10
-    metric_maps_per_graph   = 50
+    metric_maps_per_graph   = 100
     count                   = 0
-    std_threshold           = 12    
-    map_node_range          = [2, 3, 4, 5, 6]
+    std_threshold           = 10    
+    map_node_range          = [2, 3, 4]
 
     print(f"Creating Mapping Test graphs with std threshold {std_threshold}")
     map_count_dict = {}
@@ -124,13 +124,16 @@ if __name__ == "__main__":
                     end_cycle = node_data["end_cycle"] 
                     end_cycle_list.append(end_cycle)    
 
-            latency_list.append(max(end_cycle_list))
+            max_latency = max(end_cycle_list)
+            latency_list.append(max_latency)
 
         num_nodes = len(map_graph_list[0].nodes) - 18
 
         std = np.std(latency_list)
         latency_range = max(latency_list) - min(latency_list)   
+
         print( f"\rStd: \t{std}, num_nodes \t{num_nodes}", end='', flush=False ) 
+
         if std > std_threshold:
             dir     = os.path.join(map_test_dir, f"{count}")
 
@@ -139,15 +142,15 @@ if __name__ == "__main__":
 
             else: 
                 map_count_dict[nodes] += 1
-                if map_count_dict[nodes] >= 1: 
+                if map_count_dict[nodes] >= 3: 
                     map_node_range.remove(nodes)
-                    print(f"\nRemoving {nodes} from map_node_range")
-                    if len(map_node_range) == 2:
-                        std_threshold = 11
-                        print(f"Changing std threshold to {std_threshold}")
-                    elif len(map_node_range) == 1:
-                        std_threshold = 9
-                        print(f"Changing std threshold to {std_threshold}")
+                    # print(f"\nRemoving {nodes} from map_node_range")
+                    if len(map_node_range) == 1:
+                        std_threshold = 8.5
+                    #     print(f"Changing std threshold to {std_threshold}")
+                    # elif len(map_node_range) == 1:
+                    #     std_threshold = 9
+                    #     print(f"Changing std threshold to {std_threshold}")
 
             if not os.path.exists(dir): 
                 os.makedirs(dir)

@@ -4,6 +4,7 @@ import torch
 import networkx as nx
 
 from training.noc_dataset import NocDataset
+import yaml
 
 import matplotlib.pyplot as plt
 
@@ -96,6 +97,9 @@ if __name__ == "__main__"  :
     execution_time_dict = {}
     graph_list          = []
 
+    params = yaml.safe_load(open("training/config/params_with_network.yaml"))
+    max_cycle = params["MAX_CYCLE"]
+
     for i in range(num_dirs): 
         dir_path = os.path.join(map_test_directory, f"{i}")
         dataset  = NocDataset(dir_path)
@@ -110,7 +114,7 @@ if __name__ == "__main__"  :
             data = data
 
             max_index       = torch.argmax(data["task"].y[:, 1])
-            execution_time  = data["task"].y[max_index, 1]
+            execution_time  = data["task"].y[max_index, 1]  * max_cycle
 
             execution_time_list.append(execution_time)
 
