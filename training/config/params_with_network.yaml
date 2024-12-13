@@ -8,8 +8,8 @@ DEVICE              : 'cpu'   # 'cuda' or 'cpu'
 MIN_GENERATE        : 1 
 MAX_GENERATE        : 10
 MIN_PROCESSING_TIME : 3
-MAX_PROCESSING_TIME : 14
-MAX_CYCLE           : 1200
+MAX_PROCESSING_TIME : 10
+MAX_CYCLE           : 1000
 
 # Hyperparameters 
 LEARNING_RATE       : 0.01
