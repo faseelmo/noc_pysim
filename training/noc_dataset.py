@@ -12,11 +12,11 @@ from torch.utils.data import Dataset
 from torch_geometric.data import HeteroData
 
 class NocDataset(Dataset): 
-    def __init__(self, training_data_dir, classfiy_task_nodes: bool = False): 
+    def __init__(self, training_data_dir, classify_task_nodes: bool = False): 
 
         self._file_dir              = training_data_dir  
         self._training_files        = natsorted(os.listdir(training_data_dir))
-        self._classify_task_nodes   = classfiy_task_nodes   
+        self._classify_task_nodes   = classify_task_nodes   
 
         training_parameters         = yaml.safe_load(open("training/config/params_with_network.yaml"))
         self.max_generate           = training_parameters["MAX_GENERATE"]
@@ -59,10 +59,11 @@ class NocDataset(Dataset):
             node_type = node_data["type"]
 
             if node_type == "task": 
-                task_type       = node_data["task_type"]
+                # task_type       = node_data["task_type"]
+                task_type = "task"
                 generate        = node_data["generate"] / self.max_generate 
-                start_cycle     = node_data["start_cycle"] / self.max_cycle
-                end_cycle       = node_data["end_cycle"] / self.max_cycle
+                start_cycle     = node_data["start_cycle"] # / self.max_cycle
+                end_cycle       = node_data["end_cycle"]   # / self.max_cycle
                 processing_time = node_data["processing_time"] / self.max_processing_time
 
                 if task_type == "exit": 
@@ -243,7 +244,7 @@ if __name__ == "__main__":
     torch.manual_seed(0)
 
     idx = 0 # 3 has all three task types 
-    classify_task_nodes = True  
+    classify_task_nodes = False  
 
     # Dataset testing 
     dataset = NocDataset( "data/training_data/with_network/test", 

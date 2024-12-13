@@ -55,7 +55,6 @@ def get_max_latency_hetero(data, output):
         argmax_task = torch.argmax(true_task[:, 1])  # Assuming latency is in column 1
         true_max_task = true_task[argmax_task, 1].item()
         pred_max_task = pred_task[argmax_task, 1].item()
-        print(f"They are not None mom")
 
     if true_exit is not None and pred_exit is not None:
         argmax_exit = torch.argmax(true_exit[:, 1])  # Assuming latency is in column 1

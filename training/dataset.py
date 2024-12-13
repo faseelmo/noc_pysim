@@ -294,7 +294,7 @@ def load_data( training_data_dir,
     if use_noc_dataset:    
         from training.noc_dataset import NocDataset
         classify_task_nodes = kwargs.get( "classify_task_nodes", False )
-        dataset            = NocDataset( training_data_dir, classfiy_task_nodes=classify_task_nodes )
+        dataset            = NocDataset( training_data_dir, classify_task_nodes=classify_task_nodes )
         print(f"[load_data] Is NOC dataset: \t{use_noc_dataset}")
 
     else: 

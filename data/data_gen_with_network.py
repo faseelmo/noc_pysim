@@ -50,7 +50,7 @@ if __name__ == "__main__":
     import random 
     import os
 
-    random.seed(0)
+    random.seed(1)
 
     test_split          = 400      # 400
     training_data_count = 12000     # 12000
