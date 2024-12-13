@@ -16,6 +16,23 @@ def load_graph_from_json(filename: str) -> nx.DiGraph:
         data = json.load(file)
     return nx.node_link_graph(data)
 
+
+def import_model_dataset_param(model_path: str):
+    import importlib.util
+    import yaml 
+    model_spec = importlib.util.spec_from_file_location("model", os.path.join(model_path, "model.py"))
+    model_module = importlib.util.module_from_spec(model_spec)  
+    model_spec.loader.exec_module(model_module)
+
+    dataset_spec = importlib.util.spec_from_file_location("dataset", os.path.join(model_path, "dataset.py"))
+    dataset_module = importlib.util.module_from_spec(dataset_spec)  
+    dataset_spec.loader.exec_module(dataset_module)
+
+    params = yaml.safe_load(open(os.path.join(model_path, "params.yaml")))
+
+    return model_module, dataset_module, params 
+
+
 def compute_list_to_node_dict(compute_list):
     """
     Converts compute list to a dictionary with task_id as key
@@ -122,7 +139,7 @@ def modify_graph_to_application_graph(graph: nx.DiGraph, generate_range: tuple, 
         graph.nodes[node]["generate"] = generate_count
 
         if len(successors) == 0:
-            final_node_generate_count = random.randint(1, 5)
+            final_node_generate_count = random.randint(*generate_range)
             graph.nodes[node]["generate"] = final_node_generate_count
             graph.nodes[node]["type"] = "exit"
             continue
@@ -279,7 +296,7 @@ def get_compute_list_from_json(filename: str) -> dict:
 
 def get_weights_from_directory(directory: str, epoch: str):
     files = os.listdir(directory)
-
+    epoch = str(epoch)
     for file in files:
         extracted_epoch = extract_epoch(file)
         if extracted_epoch == epoch:

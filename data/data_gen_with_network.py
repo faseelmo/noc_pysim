@@ -23,22 +23,26 @@ def simulate(num_nodes: int, map_count : int = 1) -> list:
     if debug_mode: visualize_application(graph)
 
     graph_list = []
+    max_latency = 0
     for i in range(map_count): 
 
         sim = Simulator( num_rows=3, 
                          num_cols=3, 
+                         max_cycles= PARAMS['MAX_CYCLE'],
                          debug_mode=debug_mode )
 
         task_list    = sim.graph_to_task(graph)
         mapping_list = sim.get_random_mapping(task_list)
 
         sim.map(mapping_list)
-        sim.run()
+        latency = sim.run()
+        if latency > max_latency: 
+            max_latency = latency
 
         output_graph = get_mesh_network(3, graph, mapping_list)
         graph_list.append(output_graph)
 
-    return graph_list
+    return graph_list, max_latency
 
 
 if __name__ == "__main__": 
@@ -48,17 +52,23 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    test_split          = 10      # 400
-    training_data_count = 20     # 12000
+    test_split          = 1000      # 400
+    training_data_count = 4000     # 12000
     training_graphs     = []
     node_range          = (2, 6)
+    map_count           = 6  
 
     # Simulating
+    max_latency = 0 
     for i in range(training_data_count): 
-        nodes           = random.randint(*node_range)
-        graph_list      = simulate(nodes, map_count=1)
+        nodes               = random.randint(*node_range)
+        graph_list, latency = simulate(nodes, map_count=6)
         training_graphs.extend(graph_list)  
-        print( f"\rCreating Graph {i*len(graph_list)}", end='', flush=True )
+        if latency > max_latency: 
+            max_latency = latency
+            print(f"\nMax Latency: {max_latency}")
+        print( f"\rCreating Graph {i*len(graph_list)}", end='', flush=False )
+
 
     test_graphs     = random.sample(training_graphs, test_split)
     training_graphs = [graph for graph in training_graphs if graph not in test_graphs]
@@ -82,19 +92,18 @@ if __name__ == "__main__":
     for i, graph in enumerate(training_graphs): 
         save_graph_to_json(graph, os.path.join(traing_data_dir, f"{i}.json"))
 
-    # # Creating data for mapping test metric 
+    # # # Creating data for mapping test metric 
     map_test_dir    = os.path.join("data", "training_data", "with_network", "map_test")
     if os.path.exists(map_test_dir): 
         shutil.rmtree(map_test_dir)
 
     os.makedirs(map_test_dir)
-
-    exit()
+    # exit()
 
     num_metric_graph        = 10
     metric_maps_per_graph   = 50
     count                   = 0
-    std_threshold           = 15    
+    std_threshold           = 12    
     map_node_range          = [2, 3, 4, 5, 6]
 
     print(f"Creating Mapping Test graphs with std threshold {std_threshold}")
@@ -102,13 +111,14 @@ if __name__ == "__main__":
 
     while count < num_metric_graph:
         
-        nodes           = random.choice(map_node_range)
-        map_graph_list  = simulate(nodes, map_count=metric_maps_per_graph)
+        nodes                   = random.choice(map_node_range)
+        map_graph_list, latency = simulate(nodes, map_count=metric_maps_per_graph)
 
         latency_list = []
         for _, graph in enumerate(map_graph_list): 
             # Checking the distribution of the latency
             end_cycle_list = []
+
             for node_id, node_data in graph.nodes(data=True): 
                 if node_data["type"] == "task": 
                     end_cycle = node_data["end_cycle"] 
@@ -116,7 +126,6 @@ if __name__ == "__main__":
 
             latency_list.append(max(end_cycle_list))
 
-        
         num_nodes = len(map_graph_list[0].nodes) - 18
 
         std = np.std(latency_list)
@@ -127,6 +136,7 @@ if __name__ == "__main__":
 
             if nodes not in map_count_dict: 
                 map_count_dict[nodes] = 0
+
             else: 
                 map_count_dict[nodes] += 1
                 if map_count_dict[nodes] >= 1: 

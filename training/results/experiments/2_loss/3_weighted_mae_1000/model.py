@@ -93,9 +93,9 @@ if __name__ == "__main__":
     """
 
 
-    from training.dataset   import load_data
-    from training.noc_dataset import NocDataset
-    from training.utils     import print_parameter_count, initialize_model
+    from training.dataset       import load_data
+    from training.noc_dataset   import NocDataset
+    from training.utils         import print_parameter_count, initialize_model
 
     IDX             = 10
     BATCH_SIZE      = 1

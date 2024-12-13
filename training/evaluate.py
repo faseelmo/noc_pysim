@@ -230,7 +230,7 @@ if __name__ == "__main__" :
     weight_path = get_weights_from_directory( model_path, args.epoch )
     epoch       = extract_epoch(weight_path)
     print(f"Weight path is {weight_path}, epoch is {epoch}")
-    model.load_state_dict(torch.load(weight_path, weights_only=True))
+    model.load_state_dict(torch.load(weight_path, weights_only=False))
 
     results = infer(model, dataset)
     plot_application_pred(results, plot_path, f"application_latency_all_nodes.png")

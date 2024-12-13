@@ -1,5 +1,4 @@
 import os 
-import time
 import yaml
 import random   
 import argparse
@@ -56,6 +55,7 @@ def get_max_latency_hetero(data, output):
         argmax_task = torch.argmax(true_task[:, 1])  # Assuming latency is in column 1
         true_max_task = true_task[argmax_task, 1].item()
         pred_max_task = pred_task[argmax_task, 1].item()
+        print(f"They are not None mom")
 
     if true_exit is not None and pred_exit is not None:
         argmax_exit = torch.argmax(true_exit[:, 1])  # Assuming latency is in column 1
@@ -94,6 +94,7 @@ def train_fn(train_loader, model, optimizer, loss_fn, device):
     mean_loss   = []
 
     model.to(device)
+
     for batch_idx, data in enumerate(loop):
 
         loss = process_batch(data, model, loss_fn, device)
@@ -154,17 +155,46 @@ def save_model(model, epoch, results_dir, test_metric, suffix=""):
     model_filename = f"{results_dir}/models/LatNet_{test_metric_int}_{epoch+1}_{suffix}.pth"
     torch.save(model.state_dict(), model_filename)
 
+def train_and_validate(epochs, train_loader, valid_loader, test_loader, model, optimizer, loss_fn, device, save_path, save_threshold):
+
+    train_loss_list, valid_loss_list, test_metric_list, saved_test_metric = [], [], [], []
+    best_metric = 0
+
+    for epoch in range(epochs):
+        train_loss = train_fn(train_loader, model, optimizer, loss_fn, device=device)
+        valid_loss = validation_fn(valid_loader, model, loss_fn, device=device)
+        test_metric, pvalue = test_fn(test_loader, model)
+
+        print(f"Epoch {epoch+1}/{epochs}, Validation Loss: {valid_loss}, Kendall's Tau: {test_metric}, P-Value: {round(pvalue, 5)}")
+        
+        train_loss_list.append(train_loss)
+        valid_loss_list.append(valid_loss)
+        test_metric_list.append(test_metric)
+        plot_and_save_loss(train_loss_list, valid_loss_list, test_metric_list, save_path)
+
+        rounded_metric = round(test_metric, 3)
+        if test_metric > save_threshold:
+            if test_metric > best_metric and rounded_metric not in saved_test_metric:
+                best_metric = test_metric
+                saved_test_metric.append(rounded_metric)
+                save_model(model, epoch, save_path, test_metric, suffix="best")
+        if epoch % 10 == 0:
+            save_model(model, epoch, save_path, test_metric, suffix="interval")
+
+    save_model(model, epochs, save_path, test_metric_list[-1], suffix="last")
+
 
 def main():
-
 
     parser = argparse.ArgumentParser(description="Train the GCN model")
     parser.add_argument( "name", type=str, help="Results will be saved in training/results/<name>")
 
     args = parser.parse_args()
 
+    print(f"\nTraining Model without Network")
+
     model_path      = f"training/model_without_network.py"
-    train_path      = f"training/train_without_network.py"
+    train_path      = f"training/train.py"
     params_path     = f"training/config/params_without_network.yaml"
     dataset_path    = f"training/dataset.py"
 
@@ -234,7 +264,6 @@ def main():
 
     print(f"\nTraining on {DEVICE}")
 
-    start_time = time.time()
     train_data_dir  = f"{DATA_DIR}/train"
     test_data_dir   = f"{DATA_DIR}/test"
 
@@ -290,52 +319,16 @@ def main():
                               lr=LEARNING_RATE, 
                               weight_decay=WEIGHT_DECAY )
 
-    valid_loss_list     = []
-    train_loss_list     = []
-    test_metric_list    = []
-    saved_test_metric   = []
-    best_metric         = 0
-
-    for epoch in range(EPOCHS):
-
-        train_loss          = train_fn(train_loader, model, optimizer, loss_fn, device=DEVICE)
-        valid_loss          = validation_fn(valid_loader, model, loss_fn, device=DEVICE)
-        test_metric, pvalue = test_fn(test_loader, model)
-
-        print(f"Epoch {epoch+1}/{EPOCHS}, Validation Loss: {valid_loss}, Kendall's Tau: {test_metric}, P-Value: {round(pvalue,5)}")
-
-        train_loss_list.append(train_loss)
-        valid_loss_list.append(valid_loss)
-        test_metric_list.append(test_metric)
-
-        plot_and_save_loss( train_loss_list, 
-                            valid_loss_list, 
-                            test_metric_list, 
-                            SAVE_PATH )
-
-        rounded_metric = round(test_metric, 3)
-        saved_flag = False
-
-        if test_metric > SAVE_THRESHOLD:
-
-            if test_metric > best_metric and rounded_metric not in saved_test_metric:
-                best_metric = test_metric
-                saved_test_metric.append(rounded_metric)
-                save_model(model, epoch, SAVE_PATH, test_metric, suffix="best") 
-                saved_flag = True
-
-        if epoch % 10 == 0 :
-
-            end_time        = time.time()
-            time_elapsed    = (end_time - start_time) / 60
-
-            if epoch != 0:
-                print(f"Training Time: {time_elapsed:.2f} minutes")
-
-            if not saved_flag:
-                save_model(model, epoch, SAVE_PATH, test_metric, suffix="interval")
-
-    save_model(model, epoch, SAVE_PATH, test_metric, suffix="last")
+    train_and_validate( epochs         = EPOCHS, 
+                        train_loader   = train_loader, 
+                        valid_loader   = valid_loader, 
+                        test_loader    = test_loader, 
+                        model          = model, 
+                        optimizer      = optimizer, 
+                        loss_fn        = loss_fn, 
+                        device         = DEVICE, 
+                        save_path      = SAVE_PATH, 
+                        save_threshold = SAVE_THRESHOLD )
 
 if __name__ == "__main__":
     main()

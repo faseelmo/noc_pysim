@@ -97,7 +97,7 @@ if __name__ == "__main__" :
     print(f"Model initialized")
 
     print(f"Using HeteroGNN")
-    parameter_count = print_parameter_count(model)
+    # parameter_count = print_parameter_count(model)
 
     weight_paths = []
     model_path = os.path.join(args.model_path, "models")
@@ -117,7 +117,7 @@ if __name__ == "__main__" :
 
     for weight_path in weight_paths:
         print(f"\nLoading model from {weight_path}")
-        model.load_state_dict(torch.load(weight_path, weights_only=True))
+        model.load_state_dict(torch.load(weight_path, weights_only=False))
         epoch = extract_epoch(weight_path)
 
         tau, p = get_mapping_tau(model, NocDataset, epoch, show=show_tau)
@@ -131,7 +131,7 @@ if __name__ == "__main__" :
     result_str = (
         f"Best epoch is {best_epoch} with map tau = {max_map_tau} "
         f"and p_val = {its_p_val}. "
-        f"Parameter count: {parameter_count}. "
+        # f"Parameter count: {parameter_count}. "
         f"Path: {path_of_best_model}"
     )
     print(f"{result_str}")

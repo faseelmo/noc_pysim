@@ -1,1 +1,0 @@
-Best epoch is 29 with map tau = 0.39 and p_val = 0.05. Parameter count: 240994. Path: training/results/with_network/base/models/LatNet_88_29_best.pth

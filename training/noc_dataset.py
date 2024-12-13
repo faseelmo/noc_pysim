@@ -21,6 +21,7 @@ class NocDataset(Dataset):
         training_parameters         = yaml.safe_load(open("training/config/params_with_network.yaml"))
         self.max_generate           = training_parameters["MAX_GENERATE"]
         self.max_processing_time    = training_parameters["MAX_PROCESSING_TIME"]
+        self.max_cycle              = training_parameters["MAX_CYCLE"]
 
         self.return_graph           = False    
 
@@ -37,8 +38,8 @@ class NocDataset(Dataset):
         file_path  = os.path.join(self._file_dir, self._training_files[index])
         graph      = load_graph_from_json(file_path)
 
-        from data.utils import visualize_noc_application
-        visualize_noc_application(graph)
+        # from data.utils import visualize_noc_application
+        # visualize_noc_application(graph)
 
         data = HeteroData()
 
@@ -49,6 +50,8 @@ class NocDataset(Dataset):
         task_target = []
         exit_target = []
 
+        final_latency = 0
+
         # Each node type has its own indexing
         global_to_local_indexing = { "router": {}, "pe": {}, "task": {}, "dependency": {}, "exit": {} }
 
@@ -58,9 +61,13 @@ class NocDataset(Dataset):
             if node_type == "task": 
                 task_type       = node_data["task_type"]
                 generate        = node_data["generate"] / self.max_generate 
-                start_cycle     = node_data["start_cycle"] 
-                end_cycle       = node_data["end_cycle"]
+                start_cycle     = node_data["start_cycle"] / self.max_cycle
+                end_cycle       = node_data["end_cycle"] / self.max_cycle
                 processing_time = node_data["processing_time"] / self.max_processing_time
+
+                if task_type == "exit": 
+                    if end_cycle > final_latency:
+                        final_latency = end_cycle
 
                 if self._classify_task_nodes:
                     if task_type == "dependency":
@@ -76,12 +83,12 @@ class NocDataset(Dataset):
 
                     else: 
                         raise ValueError(f"Invalid task type {task_type}")
+                    
+                    node_type = task_type   
 
                 else: 
                     task_feature.append([generate, processing_time])
                     task_target.append([start_cycle, end_cycle])
-                
-                node_type = task_type   
 
             global_to_local_indexing[node_type][node_id] = len(global_to_local_indexing[node_type])
 
@@ -133,6 +140,7 @@ class NocDataset(Dataset):
 
         if self._classify_task_nodes:
             data["dependency",  task_edge,      "task"].edge_index       = [ [], [] ]
+            data["dependency",  task_edge,      "exit"].edge_index             = [ [], [] ] 
             data["task",        rev_task_edge,  "dependency"].edge_index = [ [], [] ]
             data["task",        task_edge,      "exit"].edge_index       = [ [], [] ]
             data["exit",        rev_task_edge,  "task"].edge_index       = [ [], [] ]
@@ -142,7 +150,7 @@ class NocDataset(Dataset):
         data["pe",   pe_task_edge, "task"].edge_index = [ [], [] ]
         
         if self._classify_task_nodes:
-            data["exit", task_pe_edge, "pe"].edge_index = [ [], [] ]
+            data["exit",        task_pe_edge, "pe"].edge_index = [ [], [] ]
             data["dependency",  task_pe_edge, "pe"].edge_index = [ [], [] ]
 
             data["pe", pe_task_edge, "exit"].edge_index  = [ [], [] ]   
@@ -203,6 +211,8 @@ class NocDataset(Dataset):
         for edge_type in data.edge_types: 
             data[edge_type].edge_index = torch.tensor(data[edge_type].edge_index, dtype=torch.long).contiguous()
 
+        data.y = torch.tensor([final_latency], dtype=torch.float)
+        
         self._do_checks(data)
 
         if self.return_graph:
@@ -232,13 +242,16 @@ if __name__ == "__main__":
     random.seed(0)
     torch.manual_seed(0)
 
-    idx = 3 # 3 has all three task types 
+    idx = 0 # 3 has all three task types 
+    classify_task_nodes = True  
 
     # Dataset testing 
-    dataset = NocDataset("data/training_data/with_network/test")
+    dataset = NocDataset( "data/training_data/with_network/test", 
+                          classfiy_task_nodes=classify_task_nodes )
     print(f"Length of dataset is {len(dataset)}")
     data = dataset[idx]  
 
+    print(f"Final latency is {data.y}") 
     print(f"X is \n{data.x_dict}")
     
     for key, value in data.edge_index_dict.items(): 

@@ -1,161 +1,46 @@
-import os 
-import time
-import math
+
+import os
 import yaml
-import numpy as np
-import random   
-import argparse
-import subprocess
-
-from tqdm               import tqdm
-from scipy.stats        import kendalltau
-
 import torch
-import torch.nn         as nn
-import torch.optim      as optim
+import random
+import argparse
+import numpy as np
 
-from torch_scatter      import scatter_max
+from training.dataset import load_data
+from training.train import ( does_path_exist, 
+                             copy_file, 
+                             train_and_validate, 
+                             initialize_model, 
+                             print_parameter_count )
 
 from training.model_with_network import HeteroGNN
-from training.dataset            import load_data
-from training.utils     import (
-                            does_path_exist, 
-                            copy_file, 
-                            plot_and_save_loss, 
-                            print_parameter_count, 
-                            initialize_model
-                        )
 
+def main(): 
 
-parser  = argparse.ArgumentParser(description="Train the GCN model")
+    parser = argparse.ArgumentParser(description="Train the GCN model")
+    parser.add_argument( "name", type=str, help="Results will be saved in training/results/<name>")
 
-parser.add_argument( "name", type=str, help="Results will be saved in training/results/<name>")
+    args = parser.parse_args()
 
-args    = parser.parse_args()
+    print(f"\nTraining Model without Network")
 
-model_path      = f"training/model_with_network.py"
-train_path      = f"training/train_with_network.py"
-params_path     = f"training/config/params_with_network.yaml"
-dataset_path    = f"training/noc_dataset.py"
+    model_path      = f"training/model_with_network.py"
+    train_path      = f"training/train_with_network.py"
+    params_path     = f"training/config/params_with_network.yaml"
+    dataset_path    = f"training/noc_dataset.py"
 
-TRAINING_PARAMS = yaml.safe_load(open(params_path))
-results_path    = TRAINING_PARAMS["RESULTS_DIR"]
-SAVE_PATH       = f"{results_path}/{args.name}"
+    TRAINING_PARAMS = yaml.safe_load(open(params_path))
+    results_path    = TRAINING_PARAMS["RESULTS_DIR"]
+    SAVE_PATH       = f"{results_path}/{args.name}"
 
-print(f"\nSaving Results to {SAVE_PATH}")
+    print(f"\nSaving Results to {SAVE_PATH}")
 
-does_path_exist(SAVE_PATH)
+    does_path_exist(SAVE_PATH)
 
-copy_file(model_path,   f"{SAVE_PATH}/model.py")
-copy_file(train_path,   f"{SAVE_PATH}/train.py")
-copy_file(params_path,  f"{SAVE_PATH}/params.yaml")
-copy_file(dataset_path, f"{SAVE_PATH}/dataset.py")
-
-def process_batch(data, model, loss_fn, device):
-        
-    data    = data.to(device)
-    output  = model(data)
-
-    is_task_empty = data['task'].y.numel == 0
-
-    if not is_task_empty:
-        target_task = data['task'].y.to(device)
-        pred_task   = output['task']
-        loss_task   = loss_fn(pred_task, target_task)   
-
-    if 'task_depend' in data:
-        target_task_depend = data['task_depend'].y.to(device)
-        pred_task_depend   = output['task_depend']
-        loss_task_depend   = loss_fn(pred_task_depend, target_task_depend)
-
-        if is_task_empty:
-            return loss_task_depend
-
-        else: 
-            return loss_task + loss_task_depend
-
-    else: 
-        return loss_task
-
-
-def train_fn(train_loader, model, optimizer, loss_fn, device):
-    loop        = tqdm(train_loader, leave=True)
-    mean_loss   = []
-
-    model.to(device)
-    for batch_idx, data in enumerate(loop):
-
-        loss = process_batch(data, model, loss_fn, device)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        loop.set_postfix(loss=loss.item())
-        mean_loss.append(loss.item())
-
-        train_loss = sum(mean_loss) / len(mean_loss)
-
-    return train_loss
-
-
-def validation_fn(valid_loader, model, loss_fn, device):
-    mean_loss = []
-
-    model.eval()
-    with torch.no_grad():
-        for data in valid_loader:
-            loss = process_batch(data, model, loss_fn, device)
-            mean_loss.append(loss.item())
-
-    validation_set_loss = sum(mean_loss) / len(mean_loss)
-
-    return validation_set_loss
-
-def test_fn(test_loader, model):
-    ground_truth_latency_list   = []
-    predicted_latency_list      = []
-
-    model.to('cpu')
-    model.eval()
-    with torch.no_grad():
-        for data in test_loader:
-            data    = data.to('cpu')
-            output  = model(data)
-
-            if data['task'].y.numel() > 0:
-                task_latency_truth = torch.max(data['task'].y).detach().cpu().numpy()
-                task_latency_pred = torch.max(output['task']).detach().cpu().numpy()
-
-            else: 
-                task_latency_truth  = 0
-                task_latency_pred   = 0
-
-            task_depend_latency_truth = 0
-            task_depend_latency_pred = 0
-
-            if 'task_depend' in data:   
-                task_depend_latency_truth   = torch.max(data['task_depend'].y).detach().cpu().numpy()
-                task_depend_latency_pred    = torch.max(output['task_depend']).detach().cpu().numpy()
-        
-            latency_truth = max(task_depend_latency_truth, task_latency_truth)
-            latency_pred  = max(task_depend_latency_pred, task_latency_pred)
-
-            ground_truth_latency_list.append(latency_truth)
-            predicted_latency_list.append(latency_pred)
-
-    tau, p_value = kendalltau(ground_truth_latency_list, predicted_latency_list)
-
-    return tau, p_value
-
-def save_model(model, epoch, results_dir, test_metric, suffix=""):
-    test_metric_int = int( round(test_metric, 3) * 100 )
-
-    model_filename = f"{results_dir}/models/LatNet_{test_metric_int}_{epoch+1}_{suffix}.pth"
-    torch.save(model.state_dict(), model_filename)
-
-
-def main():
+    copy_file(model_path,   f"{SAVE_PATH}/model.py")
+    copy_file(train_path,   f"{SAVE_PATH}/train.py")
+    copy_file(params_path,  f"{SAVE_PATH}/params.yaml")
+    copy_file(dataset_path, f"{SAVE_PATH}/dataset.py")
 
     # Seeds for Reproducibility
     random.seed(0)
@@ -163,22 +48,19 @@ def main():
     np.random.seed(0)
     os.environ["PYTHONHASHSEED"] = str(0)
 
-    # Training Parameters  
-    NUM_MPN_LAYERS      = TRAINING_PARAMS["NUM_MPN_LAYERS"]
-    HIDDEN_CHANNELS     = TRAINING_PARAMS["HIDDEN_CHANNELS"]
-    DEVICE              = TRAINING_PARAMS["DEVICE"]
+    # Training Parameters 
+    DEVICE = TRAINING_PARAMS["DEVICE"]
+    DATA_DIR = TRAINING_PARAMS["DATA_DIR"]
+    BATCH_SIZE = TRAINING_PARAMS["BATCH_SIZE"]
 
-    LEARNING_RATE       = TRAINING_PARAMS["LEARNING_RATE"]
-    EPOCHS              = TRAINING_PARAMS["EPOCHS"]
-    WEIGHT_DECAY        = TRAINING_PARAMS["WEIGHT_DECAY"]
-    BATCH_SIZE          = TRAINING_PARAMS["BATCH_SIZE"]
+    HIDDEN_CHANNELS = TRAINING_PARAMS["HIDDEN_CHANNELS"]
+    NUM_MPN_LAYERS = TRAINING_PARAMS["NUM_MPN_LAYERS"]
 
-    LOAD_MODEL          = TRAINING_PARAMS["LOAD_MODEL"]
-    MODEL_PATH          = TRAINING_PARAMS["MODEL_PATH"]
+    LEARNING_RATE = TRAINING_PARAMS["LEARNING_RATE"]
+    WEIGHT_DECAY = TRAINING_PARAMS["WEIGHT_DECAY"]  
 
-    DATA_DIR            = TRAINING_PARAMS["DATA_DIR"]
-    SAVE_THRESHOLD      = TRAINING_PARAMS["SAVE_THRESHOLD"]
-
+    EPOCHS = TRAINING_PARAMS["EPOCHS"]
+    SAVE_THRESHOLD = TRAINING_PARAMS["SAVE_THRESHOLD"]
 
     if DEVICE == "cuda":
         if torch.cuda.is_available():
@@ -198,99 +80,49 @@ def main():
     else: 
         raise ValueError("DEVICE must be either 'cuda' or 'cpu'")
 
-    print(f"\nTraining on {DEVICE}")
+    print(f"Training on {DEVICE}")
+
+    train_data_dir = f"{DATA_DIR}/train"
+    test_data_dir = f"{DATA_DIR}/test"
+
+    train_loader, valid_loader  = load_data( train_data_dir, 
+                                            batch_size  = BATCH_SIZE,
+                                            validation_split = 0.1, 
+                                            use_noc_dataset = True, 
+                                            classify_task_nodes = False )
+
+    print(f"Train Size: {len(train_loader.dataset)}")
+
+    test_loader, _              = load_data( test_data_dir, 
+                                             batch_size  = BATCH_SIZE,
+                                             validation_split = 0.0, 
+                                             use_noc_dataset = True, 
+                                             classify_task_nodes = False )
+
+    model = HeteroGNN( hidden_channels=HIDDEN_CHANNELS, 
+                       num_mpn_layers=NUM_MPN_LAYERS ).to(DEVICE) 
 
 
-    start_time = time.time()
+    initialize_model( model, train_loader, DEVICE )
+    print_parameter_count( model )
 
-    train_data_dir  = f"{DATA_DIR}/with_network/train"
-    test_data_dir   = f"{DATA_DIR}/with_network/test"
+    loss_fn     = torch.nn.L1Loss().to(DEVICE)
+    optimizer   = torch.optim.Adam( model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY )
 
-
-    train_loader, valid_loader  = load_data(
-                                    train_data_dir, 
-                                    batch_size          = BATCH_SIZE, 
-                                    validation_split    = 0.1,
-                                    use_noc_dataset     = True,
-                                    classify_task_nodes = True, 
-
-                                )
-
-    test_loader, _              = load_data(
-                                    test_data_dir, 
-                                    batch_size          = 1, 
-                                    validation_split    = 0.0,
-                                    use_noc_dataset     = True,
-                                    classify_task_nodes = True, 
-                                )
-
-    model = HeteroGNN(HIDDEN_CHANNELS, NUM_MPN_LAYERS, classfiy_task_nodes=True).to(DEVICE)
-    print(f"\nHeteroGNN Model Loaded with {NUM_MPN_LAYERS} MPN Layers and {HIDDEN_CHANNELS} Hidden Channels")
-
-    initialize_model(model, test_loader, DEVICE)
-    print_parameter_count(model)
-
-    if LOAD_MODEL:
-
-        model_state_dict = torch.load(MODEL_PATH, weights_only=True)
-        model.load_state_dict(model_state_dict)
-        print(f"\nPre-Trained Wieghts Loaded\n")
-
-    loss_fn     = nn.L1Loss().to(DEVICE)
-
-    optimizer   = optim.Adam(
-                    model.parameters(), 
-                    lr=LEARNING_RATE, 
-                    weight_decay=WEIGHT_DECAY)
-
-    valid_loss_list     = []
-    train_loss_list     = []
-    test_metric_list    = []
-    saved_test_metric = []
-
-    best_metric = 0
-
-    for epoch in range(EPOCHS):
-
-        train_loss          = train_fn(train_loader, model, optimizer, loss_fn, device=DEVICE)
-        valid_loss          = validation_fn(valid_loader, model, loss_fn, device=DEVICE)
-        test_metric, pvalue = test_fn(test_loader, model)
-
-        print(f"Epoch {epoch+1}/{EPOCHS}, Validation Loss: {valid_loss}, Kendall's Tau: {test_metric}, P-Value: {round(pvalue,5)}")
-
-        train_loss_list.append(train_loss)
-        valid_loss_list.append(valid_loss)
-        test_metric_list.append(test_metric)
-
-        plot_and_save_loss(
-            train_loss_list, 
-            valid_loss_list, 
-            test_metric_list, 
-            SAVE_PATH )
-
-        rounded_metric = round(test_metric, 3)
-        saved_flag = False
-
-        if test_metric > SAVE_THRESHOLD:
-
-            if test_metric > best_metric and rounded_metric not in saved_test_metric:
-                best_metric = test_metric
-                saved_test_metric.append(rounded_metric)
-                save_model(model, epoch, SAVE_PATH, test_metric, suffix="best") 
-                saved_flag = True
-
-        if epoch % 10 == 0 :
-
-            end_time        = time.time()
-            time_elapsed    = (end_time - start_time) / 60
-
-            if epoch != 0:
-                print(f"Training Time: {time_elapsed:.2f} minutes")
-
-            if not saved_flag:
-                save_model(model, epoch, SAVE_PATH, test_metric, suffix="interval")
-
-    save_model(model, epoch, SAVE_PATH, test_metric, suffix="last")
+    train_and_validate( epochs         = EPOCHS, 
+                        train_loader   = train_loader, 
+                        valid_loader   = valid_loader, 
+                        test_loader    = test_loader, 
+                        model          = model, 
+                        optimizer      = optimizer, 
+                        loss_fn        = loss_fn, 
+                        device         = DEVICE, 
+                        save_path      = SAVE_PATH, 
+                        save_threshold = SAVE_THRESHOLD )
 
 if __name__ == "__main__":
     main()
+
+
+
+
