@@ -7,6 +7,7 @@ from src.simulator import Simulator
 from src.utils     import get_mesh_network
 from data.utils    import ( save_graph_to_json, 
                             visualize_application, 
+                            visualize_noc_application, 
                             generate_graph, 
                             modify_graph_to_application_graph )
 
@@ -22,12 +23,14 @@ def simulate(num_nodes: int, map_count : int = 1) -> list:
     debug_mode  = False 
     if debug_mode: visualize_application(graph)
 
+    mesh_size = PARAMS['MESH_SIZE']
+
     graph_list = []
     max_latency = 0
     for i in range(map_count): 
 
-        sim = Simulator( num_rows=3, 
-                         num_cols=3, 
+        sim = Simulator( num_rows=mesh_size, 
+                         num_cols=mesh_size, 
                          max_cycles= PARAMS['MAX_CYCLE'],
                          debug_mode=debug_mode )
 
@@ -39,8 +42,10 @@ def simulate(num_nodes: int, map_count : int = 1) -> list:
         if latency > max_latency: 
             max_latency = latency
 
-        output_graph = get_mesh_network(3, graph, mapping_list)
+        output_graph = get_mesh_network(mesh_size, graph, mapping_list)
         graph_list.append(output_graph)
+
+        # visualize_noc_application(output_graph)
 
     return graph_list, max_latency
 
@@ -50,13 +55,17 @@ if __name__ == "__main__":
     import random 
     import os
 
-    random.seed(1)
+    random.seed(0)
 
-    test_split          = 400      # 400
-    training_data_count = 12000     # 12000
+    test_split          = 1000      # 400
+    training_data_count = 10000     # 12000
     training_graphs     = []
-    node_range          = (2, 5)
-    map_count           = 1  
+    node_range          = (2, 6)
+    map_count           = 4  
+
+    print(f"NoC Size: {PARAMS['MESH_SIZE']}")
+    print(f"Saving data to {PARAMS['DATA_DIR']}")
+
 
     # Simulating
     max_latency = 0 
@@ -69,14 +78,13 @@ if __name__ == "__main__":
             print(f"\nMax Latency: {max_latency}")
         print( f"\rCreating Graph {i*len(graph_list)}", end='', flush=False )
 
-
     test_graphs     = random.sample(training_graphs, test_split)
     training_graphs = [graph for graph in training_graphs if graph not in test_graphs]
 
     print(f"\nNumber of training graphs: {len(training_graphs)}, Number of test graphs: {len(test_graphs)}")
 
-    test_data_dir   = os.path.join("data", "training_data", "with_network", "test")
-    traing_data_dir = os.path.join("data", "training_data", "with_network", "train")
+    test_data_dir   = os.path.join( PARAMS['DATA_DIR'], "test" )
+    traing_data_dir = os.path.join( PARAMS['DATA_DIR'], "train" )
 
     # Creating test data dir 
     if not os.path.exists(test_data_dir): 
@@ -93,7 +101,7 @@ if __name__ == "__main__":
         save_graph_to_json(graph, os.path.join(traing_data_dir, f"{i}.json"))
 
     # # # Creating data for mapping test metric 
-    map_test_dir    = os.path.join("data", "training_data", "with_network", "map_test")
+    map_test_dir    = os.path.join( PARAMS['DATA_DIR'], "map_test" )
     if os.path.exists(map_test_dir): 
         shutil.rmtree(map_test_dir)
 
@@ -103,15 +111,17 @@ if __name__ == "__main__":
     num_metric_graph        = 10
     metric_maps_per_graph   = 100
     count                   = 0
-    std_threshold           = 10    
-    map_node_range          = [2, 3, 4]
+    std_threshold           = 5    
+    node_range              = (2, 5)
+    # map_node_range          = [2, 3, 4]
 
     print(f"Creating Mapping Test graphs with std threshold {std_threshold}")
     map_count_dict = {}
 
     while count < num_metric_graph:
         
-        nodes                   = random.choice(map_node_range)
+        # nodes                   = random.choice(map_node_range)
+        nodes = random.randint(*node_range)
         map_graph_list, latency = simulate(nodes, map_count=metric_maps_per_graph)
 
         latency_list = []
@@ -127,30 +137,23 @@ if __name__ == "__main__":
             max_latency = max(end_cycle_list)
             latency_list.append(max_latency)
 
-        num_nodes = len(map_graph_list[0].nodes) - 18
+        num_nodes = len(map_graph_list[0].nodes) - ((PARAMS['MESH_SIZE']**2) * 2) 
 
         std = np.std(latency_list)
-        latency_range = max(latency_list) - min(latency_list)   
-
         print( f"\rStd: \t{std}, num_nodes \t{num_nodes}", end='', flush=False ) 
 
         if std > std_threshold:
             dir     = os.path.join(map_test_dir, f"{count}")
+            
+            if map_count_dict.get(num_nodes) is None: 
+                map_count_dict[num_nodes] = 0
 
-            if nodes not in map_count_dict: 
-                map_count_dict[nodes] = 0
+            map_count_dict[num_nodes] += 1
 
-            else: 
-                map_count_dict[nodes] += 1
-                if map_count_dict[nodes] >= 3: 
-                    map_node_range.remove(nodes)
-                    # print(f"\nRemoving {nodes} from map_node_range")
-                    if len(map_node_range) == 1:
-                        std_threshold = 8.5
-                    #     print(f"Changing std threshold to {std_threshold}")
-                    # elif len(map_node_range) == 1:
-                    #     std_threshold = 9
-                    #     print(f"Changing std threshold to {std_threshold}")
+            if num_nodes == 5:
+                if map_count_dict[num_nodes] >= 1: 
+                    node_range = (2, 4)
+
 
             if not os.path.exists(dir): 
                 os.makedirs(dir)

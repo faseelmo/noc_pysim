@@ -91,7 +91,12 @@ def plot_graphs_as_subplots(graphs, save_dir, save_name):
 
 if __name__ == "__main__"  : 
 
-    map_test_directory = "data/training_data/with_network/map_test"
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_path", type=str, default="" ,help="Path to the results folder")
+    args = parser.parse_args()
+
+    map_test_directory = f"data/training_data/{args.data_path}/map_test"
     num_dirs           = len(os.listdir(map_test_directory))
 
     execution_time_dict = {}
@@ -104,7 +109,8 @@ if __name__ == "__main__"  :
         dir_path = os.path.join(map_test_directory, f"{i}")
         dataset  = NocDataset(dir_path)
 
-        graph_list.append(dataset.get_graph(0))
+        graph = dataset.get_graph(0)
+        graph_list.append(graph)
 
         execution_time_list    = []
         execution_time_dict[i] = {}
@@ -114,13 +120,13 @@ if __name__ == "__main__"  :
             data = data
 
             max_index       = torch.argmax(data["task"].y[:, 1])
-            execution_time  = data["task"].y[max_index, 1]  * max_cycle
+            execution_time  = data["task"].y[max_index, 1]  #* max_cycle
 
             execution_time_list.append(execution_time)
 
         execution_time_dict[i] = execution_time_list
 
-    plot_save_path = "data/training_data/with_network"
+    plot_save_path = f"data/training_data/{args.data_path}"
     plot_execution_time_distributions(execution_time_dict, plot_save_path, "map_test_distribution.png")
     plot_graphs_as_subplots(graph_list, plot_save_path, "map_test_graphs.png")
 

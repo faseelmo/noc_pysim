@@ -21,12 +21,9 @@ BATCH_SIZE          : 128
 LOAD_MODEL          : False
 MODEL_PATH          : training/results/gpu/1_GATv2/iter_2/LatNet_83_131.pth
 
-#NOC 
-MESH_SIZE           : 4
-
 # Data Path
-DATA_DIR            : 'data/training_data/with_network_4x4'
+DATA_DIR            : 'data/training_data/with_network'
 
 # Results directory 
-RESULTS_DIR         : 'training/results/with_network_4x4' 
+RESULTS_DIR         : 'training/results/with_network' 
 SAVE_THRESHOLD      : 0.8

@@ -2,6 +2,7 @@ import os
 import yaml 
 import torch
 import argparse 
+import subprocess
 import numpy as np
 import importlib.util 
 
@@ -13,8 +14,7 @@ from data.utils     import ( get_weights_from_directory,
 
 from training.train import get_max_latency_hetero
 
-def get_mapping_tau(model, NocDataset, epoch, show): 
-    map_test_dir    = "data/training_data/with_network/map_test"
+def get_mapping_tau(model, NocDataset, map_test_dir, epoch, show): 
     num_dirs        = len(os.listdir(map_test_dir))
 
     tau_list      = []
@@ -88,8 +88,12 @@ if __name__ == "__main__" :
 
     HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
     NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
+    DATA_DIR            = params["DATA_DIR"]
 
-    dataset = NocDataset("data/training_data/with_network/test")
+    test_dir        = f"{DATA_DIR}/test"
+    map_test_dir    = f"{DATA_DIR}/map_test"
+
+    dataset = NocDataset(test_dir)
     data = dataset[0]
 
     model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )
@@ -120,7 +124,7 @@ if __name__ == "__main__" :
         model.load_state_dict(torch.load(weight_path, weights_only=False))
         epoch = extract_epoch(weight_path)
 
-        tau, p = get_mapping_tau(model, NocDataset, epoch, show=show_tau)
+        tau, p = get_mapping_tau(model, NocDataset, map_test_dir, epoch, show=show_tau)
 
         if tau > max_map_tau: 
             max_map_tau = tau
@@ -141,4 +145,11 @@ if __name__ == "__main__" :
     with open(file_path, 'w') as file:
         file.write(result_str)
 
+    command = [
+        "python3", "-m", "training.evaluate", 
+        "--model_path", args.model_path,
+        "--epoch", str(best_epoch), 
+        "--with_network"
+    ]
 
+    subprocess.run(command)

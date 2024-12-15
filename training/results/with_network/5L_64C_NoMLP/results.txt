@@ -1,0 +1,1 @@
+Best epoch is 19 with map tau = 0.78 and p_val = 0.0. Path: training/results/with_network/5L_64C_NoMLP/models/LatNet_90_19_best.pth

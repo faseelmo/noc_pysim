@@ -23,12 +23,11 @@ class HeteroGNN(torch.nn.Module):
         self._convs     = nn.ModuleList()
         self._conv_aggr = ["sum"] # ["sum", "mean", "max", "min"]
 
-        for _ in range(num_mpn_layers-1):
+        for _ in range(num_mpn_layers):
             intermediate_convs = self._get_hetero_conv(-1, hidden_channels)
             self._convs.extend(intermediate_convs)
 
-        self._final_conv = self._get_hetero_conv(-1, 2)[0]
-        # self._feedforward = Linear(hidden_channels, 2)  
+        self._feedforward = Linear(hidden_channels, 2)  
 
 
     def _get_hetero_conv(self, in_channels, out_channels): 
@@ -65,8 +64,7 @@ class HeteroGNN(torch.nn.Module):
             for key, x in x_dict.items():
                 x_dict[key] = x.relu()
 
-        x_dict = self._final_conv(x_dict, edge_index_dict)
-        # x_dict['task'] = self._feedforward(x_dict['task'])
+        x_dict['task'] = self._feedforward(x_dict['task'])
 
         return x_dict
 
@@ -92,15 +90,14 @@ if __name__ == "__main__":
     """
 
     from training.dataset   import load_data
-    from torch_scatter      import scatter_max
 
     IDX             = 10
-    BATCH_SIZE      = 2
+    BATCH_SIZE      = 1
     HIDDEN_CHANNELS = 50
 
     torch.manual_seed(0)
 
-    dataloader, _ = load_data( "data/training_data/with_network_old/test",
+    dataloader, _ = load_data( "data/training_data/with_network/test",
                                 batch_size      = BATCH_SIZE,
                                 use_noc_dataset = True )
 
@@ -109,19 +106,3 @@ if __name__ == "__main__":
 
     model       = HeteroGNN(HIDDEN_CHANNELS, num_mpn_layers=3)
     output      = model(data.x_dict, data.edge_index_dict)
-
-    target_task = data['task'].y
-    batch = data['task'].batch  
-    _, max_indices = scatter_max(target_task[:, 1], batch)
-
-    print(f"indicees is {max_indices}")
-    
-    print(f"Target is {data['task'].y}")
-    print(f"Target max is {data['task'].y[max_indices, 1]}")
-
-    print(f"Output is {output['task']}")
-    print(f"Output max is {output['task'][max_indices, 1]}")
-
-    abs_error = torch.abs(output['task'][max_indices, 1] - data['task'].y[max_indices, 1])
-
-

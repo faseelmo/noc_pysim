@@ -10,6 +10,7 @@ from scipy.stats import kendalltau
 import torch
 import torch.nn    as nn
 import torch.optim as optim
+from torch_scatter import scatter_max
 
 from torch_geometric.data           import Data
 from training.model_without_network import MPN, MPNHetero
@@ -41,6 +42,8 @@ def get_true_pred_hetero(data, output):
 
 def get_max_latency_hetero(data, output):
     """
+    Note: NOT BATCHED
+          Use torch_scatter.scatter_max for batched data
     Given a HeteroData object and the model output, 
     returns the maximum latency of the true and predicted values 
     """
@@ -82,10 +85,15 @@ def process_batch(data, model, loss_fn, device):
 
     true_task, pred_task, true_exit, pred_exit = get_true_pred_hetero(data, output)
 
-    loss_task = loss_fn(pred_task, true_task) if true_task is not None else 0
-    loss_exit = loss_fn(pred_exit, true_exit) if true_exit is not None else 0
+    # loss_task = loss_fn(pred_task, true_task) if true_task is not None else 0
+    # loss_exit = loss_fn(pred_exit, true_exit) if true_exit is not None else 0
+    # total_loss = loss_task + loss_exit
 
-    return loss_task + loss_exit
+    batch = data['task'].batch
+    _, max_indices = scatter_max(true_task[:, 1], batch)
+    total_loss = loss_fn(output['task'][max_indices, 1], true_task[max_indices, 1])
+
+    return total_loss
 
 
 def train_fn(train_loader, model, optimizer, loss_fn, device):

@@ -1,25 +1,18 @@
 import os 
 import yaml
-import numpy as np
+import torch
 import random   
 import argparse
-import torch
+import numpy as np
 
-from training.model_with_network     import HeteroGNN
+from training.model_with_network import HeteroGNN
 from training.dataset   import load_data
-from training.utils     import (
-                            does_path_exist, 
-                            copy_file, 
-                            print_parameter_count, 
-                            initialize_model
-                        )
+from training.utils     import ( does_path_exist, 
+                                 copy_file, 
+                                 print_parameter_count, 
+                                 initialize_model )
 
-from training.train import ( train_fn, 
-                            #  train_fn, 
-                             train_and_validate, 
-                             test_fn,
-                             validation_fn ) 
-
+from training.train import train_and_validate
 
 def main():
 
@@ -91,21 +84,17 @@ def main():
     train_data_dir  = f"{DATA_DIR}/train"
     test_data_dir   = f"{DATA_DIR}/test"
 
-    train_loader, valid_loader  = load_data(
-                                    train_data_dir, 
-                                    batch_size          = BATCH_SIZE, 
-                                    validation_split    = 0.1,
-                                    use_noc_dataset     = True,
-                                    clasify_task_nodes  = False,
-                                )
+    train_loader, valid_loader  = load_data( train_data_dir, 
+                                             batch_size          = BATCH_SIZE, 
+                                             validation_split    = 0.1,
+                                             use_noc_dataset     = True,
+                                             clasify_task_nodes  = False)
 
-    test_loader, _              = load_data(
-                                    test_data_dir, 
-                                    batch_size          = 1, 
-                                    validation_split    = 0.0,
-                                    use_noc_dataset     = True,
-                                    clasify_task_nodes  = False,
-                                )
+    test_loader, _              = load_data( test_data_dir, 
+                                             batch_size          = 1, 
+                                             validation_split    = 0.0,
+                                             use_noc_dataset     = True,
+                                             clasify_task_nodes  = False )
 
     model = HeteroGNN( hidden_channels=HIDDEN_CHANNELS, 
                        num_mpn_layers=NUM_MPN_LAYERS ).to(DEVICE) 

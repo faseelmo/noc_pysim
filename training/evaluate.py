@@ -80,8 +80,7 @@ def get_map_accuracy(map_result_dict):
     return least_truth_index, least_pred_index, least_truth_value, least_pred_truth_value
 
 
-def get_map_latency(model, dataset_obj): 
-    map_test_dir = "data/training_data/with_network/map_test"
+def get_map_latency(model, dataset_obj, map_test_dir): 
     num_dirs = len(os.listdir(map_test_dir))
 
     map_result_dict = {}
@@ -202,9 +201,13 @@ if __name__ == "__main__" :
     channels    = params["HIDDEN_CHANNELS"]
     num_layers  = params["NUM_MPN_LAYERS"]
 
+    DATA_DIR     = params["DATA_DIR"]
+    test_dir     = f"{DATA_DIR}/test"
+    map_test_dir = f"{DATA_DIR}/map_test"
+
     if args.with_network:
         dataset_obj = dataset_module.NocDataset
-        dataset     = dataset_obj("data/training_data/with_network/test")
+        dataset     = dataset_obj(test_dir)
         model       = model_module.HeteroGNN( channels, num_layers )
 
     else: 
@@ -236,7 +239,7 @@ if __name__ == "__main__" :
     plot_application_pred(results, plot_path, f"application_latency_all_nodes.png")
 
     if args.with_network:
-        map_results = get_map_latency(model, dataset_obj)
+        map_results = get_map_latency(model, dataset_obj, map_test_dir)
         plot_all_map_pred(map_results, plot_path, f"map_latency.png")
 
 
