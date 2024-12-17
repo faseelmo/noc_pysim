@@ -1,107 +1,110 @@
-import time
-import math
+import os 
 import yaml
+import random   
 import argparse
-import subprocess
+import numpy as np
 
-from tqdm               import tqdm
-from scipy.stats        import kendalltau
+from tqdm        import tqdm
+from scipy.stats import kendalltau
 
 import torch
-import torch.nn         as nn
-import torch.optim      as optim
+import torch.nn    as nn
+import torch.optim as optim
+from torch_scatter import scatter_max
 
-from training.model     import GNN, GNNHetero, GNNHeteroPooling, HeteroGNN
-from training.dataset   import load_data
-from training.utils     import (
-                            does_path_exist, 
-                            copy_file, 
-                            plot_and_save_loss, 
-                            print_parameter_count, 
-                            get_metadata, 
-                            initialize_model
-                        )
+from torch_geometric.data           import Data
+from training.model_without_network import MPN, MPNHetero
+from training.dataset               import load_data
+from training.utils                 import ( does_path_exist, 
+                                             copy_file, 
+                                             plot_and_save_loss, 
+                                             print_parameter_count, 
+                                             initialize_model, 
+                                             get_metadata )
 
-torch.manual_seed(1)
+def get_true_pred_hetero(data, output):
+    """
+    Given a HeteroData object and the model output,
+    returns the true and predicted of each node type.  
+    """
+    true_task, pred_task, true_exit, pred_exit = None, None, None, None
 
-parser  = argparse.ArgumentParser(description="Train the GCN model")
-
-parser.add_argument(
-    "name",
-    type=str,
-    help="Name of the experiment/Training." 
-    "Results will be saved in training/results/<name>")
-
-args    = parser.parse_args()
-
-does_path_exist(args.name)
-
-results     = f"training/results/{args.name}"
-model_path  = f"training/model.py"
-train_path  = f"training/train.py"
-params_path = f"training/params.yaml"
-
-copy_file(model_path, f"{results}/model.py")
-copy_file(train_path, f"{results}/train.py")
-copy_file(params_path, f"{results}/params.yaml")
-
-DEVICE          = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-TRAINING_PARAMS = yaml.safe_load(open(params_path))
-
-if TRAINING_PARAMS["USE_NOC_DATASET"]:
-    copy_file("training/noc_dataset.py", f"{results}/noc_dataset.py")
-else: 
-    copy_file("training/dataset.py", f"{results}/dataset.py")
-
-print(f"\nTraining on {DEVICE}")
-
-def process_batch(data, model, loss_fn, is_pooling_model, has_wait_time):
-        
-    data    = data.to(DEVICE)
-    output  = model(data)
+    if 'task' in output and data['task'].y.numel() > 0:
+        true_task = data['task'].y
+        pred_task = output['task']
     
-    if is_pooling_model:
-        loss = loss_fn(output, data.y)
+    if 'exit' in output and data['exit'].y.numel() > 0:
+        true_exit = data['exit'].y
+        pred_exit = output['exit']
 
-    elif has_wait_time and not is_pooling_model: 
-        
-        is_task_empty = data['task'].y.numel() == 0
-        
-        if not is_task_empty:
-            # Some pe graphs have no tasks 
-            target_task         = data['task'].y
-            pred_task           = output['task']
-            loss_task           = loss_fn(target_task, pred_task)
-
-        if 'task_depend' in data:
-            target_task_depend  = data['task_depend'].y
-            pred_task_depend    = output['task_depend']
-            loss_task_depend    = loss_fn(target_task_depend, pred_task_depend)
-
-            if not is_task_empty:
-                loss = loss_task + loss_task_depend
-        
-            else: 
-                loss = loss_task_depend
-
-        else: 
-            loss = loss_task
+    return true_task, pred_task, true_exit, pred_exit
 
 
-    if loss.isnan():
-        print("Loss is NaN")
-        exit()
+def get_max_latency_hetero(data, output):
+    """
+    Note: NOT BATCHED
+          Use torch_scatter.scatter_max for batched data
+    Given a HeteroData object and the model output, 
+    returns the maximum latency of the true and predicted values 
+    """
+    true_task, pred_task, true_exit, pred_exit = get_true_pred_hetero(data, output)
 
-    return loss
+    true_max_task = np.nan
+    pred_max_task = np.nan
+    true_max_exit = np.nan
+    pred_max_exit = np.nan
+
+    if true_task is not None and pred_task is not None:
+        argmax_task = torch.argmax(true_task[:, 1])  # Assuming latency is in column 1
+        true_max_task = true_task[argmax_task, 1].item()
+        pred_max_task = pred_task[argmax_task, 1].item()
+
+    if true_exit is not None and pred_exit is not None:
+        argmax_exit = torch.argmax(true_exit[:, 1])  # Assuming latency is in column 1
+        true_max_exit = true_exit[argmax_exit, 1].item()
+        pred_max_exit = pred_exit[argmax_exit, 1].item()
+
+    true_max_latency = np.nanmax([true_max_task, true_max_exit])
+    pred_max_latency = np.nanmax([pred_max_task, pred_max_exit])
+
+    return true_max_latency, pred_max_latency
+
+def process_batch(data, model, loss_fn, device):
+    """
+    Computes the loss for a batch of data
+    """
+    data    = data.to(device)
+    if isinstance(data, Data):
+        output  = model(data.x, data.edge_index)
+        target_task = data.y.to(device)
+        pred_task   = output
+        loss        = loss_fn(pred_task, target_task)
+        return loss
+    
+    output = model(data.x_dict, data.edge_index_dict)
+
+    true_task, pred_task, true_exit, pred_exit = get_true_pred_hetero(data, output)
+
+    loss_task = loss_fn(pred_task, true_task) if true_task is not None else 0
+    loss_exit = loss_fn(pred_exit, true_exit) if true_exit is not None else 0
+    total_loss = loss_task + loss_exit
+
+    # batch = data['task'].batch
+    # _, max_indices = scatter_max(true_task[:, 1], batch)
+    # total_loss = loss_fn(output['task'][max_indices, 1], true_task[max_indices, 1])
+
+    return total_loss
 
 
-def train_fn(train_loader, model, optimizer, loss_fn, is_pooling_model, has_wait_time):
+def train_fn(train_loader, model, optimizer, loss_fn, device):
     loop        = tqdm(train_loader, leave=True)
     mean_loss   = []
 
+    model.to(device)
+
     for batch_idx, data in enumerate(loop):
 
-        loss = process_batch(data, model, loss_fn, is_pooling_model, has_wait_time)
+        loss = process_batch(data, model, loss_fn, device)
 
         optimizer.zero_grad()
         loss.backward()
@@ -110,89 +113,124 @@ def train_fn(train_loader, model, optimizer, loss_fn, is_pooling_model, has_wait
         loop.set_postfix(loss=loss.item())
         mean_loss.append(loss.item())
 
-    if is_pooling_model:
-        train_loss = math.sqrt(sum(mean_loss) / len(mean_loss))
-    else: 
         train_loss = sum(mean_loss) / len(mean_loss)
 
     return train_loss
 
 
-def validation_fn(valid_loader, model, loss_fn, is_pooling_model, has_wait_time):
+def validation_fn(valid_loader, model, loss_fn, device):
     mean_loss = []
 
-    for data in valid_loader:
+    model.eval()
+    with torch.no_grad():
+        for data in valid_loader:
+            loss = process_batch(data, model, loss_fn, device)
+            mean_loss.append(loss.item())
 
-        loss = process_batch(data, model, loss_fn, is_pooling_model, has_wait_time)
-        mean_loss.append(loss.item())
-
-    if is_pooling_model:
-        validation_set_loss = math.sqrt(sum(mean_loss) / len(mean_loss))
-    else: 
-        validation_set_loss = sum(mean_loss) / len(mean_loss)
+    validation_set_loss = sum(mean_loss) / len(mean_loss)
 
     return validation_set_loss
 
-def test_fn(test_loader, model, is_pooling_model, has_wait_time):
+
+def test_fn(test_loader, model):
     ground_truth_latency_list   = []
     predicted_latency_list      = []
 
-    for data in test_loader:
-        data    = data.to(DEVICE)
-        output  = model(data)
+    model.to('cpu')
+    model.eval()
+    with torch.no_grad():
+        for data in test_loader:
+            data    = data.to('cpu')
 
-        if is_pooling_model:
-            latency_truth   = data.y.item()
-            latency_pred    = output.item()
+            if isinstance(data, Data):
+                output  = model(data.x, data.edge_index)
+            else: 
+                output  = model(data.x_dict, data.edge_index_dict)
+                
+            latency_truth, latency_pred = get_max_latency_hetero(data, output)
 
-        elif not has_wait_time and not is_pooling_model: 
-            latency_truth   = torch.max(data['task'].y).detach().cpu().numpy()
-            latency_pred    = torch.max(output).detach().cpu().numpy() 
-
-        elif has_wait_time and not is_pooling_model:
-
-            if data['task'].y.numel() > 0:
-                task_latency_truth = torch.max(data['task'].y).detach().cpu().numpy()
-                task_latency_pred = torch.max(output['task']).detach().cpu().numpy()
-            else:
-                task_latency_truth = 0
-                task_latency_pred = 0
-        
-            task_depend_latency_truth = 0
-            task_depend_latency_pred = 0
-
-            if 'task_depend' in data:
-                if data['task_depend'].y.numel() > 0:
-                    task_depend_latency_truth = torch.max(data['task_depend'].y).detach().cpu().numpy()
-                    task_depend_latency_pred = torch.max(output['task_depend']).detach().cpu().numpy()
-        
-            latency_truth = max(task_latency_truth, task_depend_latency_truth)
-            latency_pred = max(task_latency_pred, task_depend_latency_pred)
-
-        ground_truth_latency_list.append(latency_truth)
-        predicted_latency_list.append(latency_pred)
+            ground_truth_latency_list.append(latency_truth)
+            predicted_latency_list.append(latency_pred)
 
     tau, p_value = kendalltau(ground_truth_latency_list, predicted_latency_list)
 
     return tau, p_value
 
+def save_model(model, epoch, results_dir, test_metric, suffix=""):
+    test_metric_int = int( round(test_metric, 3) * 100 )
+
+    model_filename = f"{results_dir}/models/LatNet_{test_metric_int}_{epoch+1}_{suffix}.pth"
+    torch.save(model.state_dict(), model_filename)
+
+def train_and_validate(epochs, train_loader, valid_loader, test_loader, model, optimizer, loss_fn, device, save_path, save_threshold):
+
+    train_loss_list, valid_loss_list, test_metric_list, saved_test_metric = [], [], [], []
+    best_metric = 0
+
+    for epoch in range(epochs):
+        train_loss = train_fn(train_loader, model, optimizer, loss_fn, device=device)
+        valid_loss = validation_fn(valid_loader, model, loss_fn, device=device)
+        test_metric, pvalue = test_fn(test_loader, model)
+
+        print(f"Epoch {epoch+1}/{epochs}, Validation Loss: {valid_loss}, Kendall's Tau: {test_metric}, P-Value: {round(pvalue, 5)}")
+        
+        train_loss_list.append(train_loss)
+        valid_loss_list.append(valid_loss)
+        test_metric_list.append(test_metric)
+        plot_and_save_loss(train_loss_list, valid_loss_list, test_metric_list, save_path)
+
+        rounded_metric = round(test_metric, 3)
+        if test_metric > save_threshold:
+            if test_metric > best_metric and rounded_metric not in saved_test_metric:
+                best_metric = test_metric
+                saved_test_metric.append(rounded_metric)
+                save_model(model, epoch, save_path, test_metric, suffix="best")
+        if epoch % 10 == 0:
+            save_model(model, epoch, save_path, test_metric, suffix="interval")
+
+    save_model(model, epochs, save_path, test_metric_list[-1], suffix="last")
+
 
 def main():
 
-    torch.manual_seed(0)
+    parser = argparse.ArgumentParser(description="Train the GCN model")
+    parser.add_argument( "name", type=str, help="Results will be saved in training/results/<name>")
 
+    args = parser.parse_args()
+
+    print(f"\nTraining Model without Network")
+
+    model_path      = f"training/model_without_network.py"
+    train_path      = f"training/train.py"
+    params_path     = f"training/config/params_without_network.yaml"
+    dataset_path    = f"training/dataset.py"
+
+    TRAINING_PARAMS = yaml.safe_load(open(params_path))
+    results_path    = TRAINING_PARAMS["RESULTS_DIR"]
+    SAVE_PATH       = f"{results_path}/{args.name}"
+
+    print(f"\nSaving Results to {SAVE_PATH}")
+
+    does_path_exist(SAVE_PATH)
+
+    copy_file(model_path,   f"{SAVE_PATH}/model.py")
+    copy_file(train_path,   f"{SAVE_PATH}/train.py")
+    copy_file(params_path,  f"{SAVE_PATH}/params.yaml")
+    copy_file(dataset_path, f"{SAVE_PATH}/dataset.py")
+
+    # Seeds for Reproducibility
+    random.seed(0)
+    torch.manual_seed(0)
+    np.random.seed(0)
+    os.environ["PYTHONHASHSEED"] = str(0)
+
+    # Training Parameters  
     NUM_MPN_LAYERS      = TRAINING_PARAMS["NUM_MPN_LAYERS"]
     HIDDEN_CHANNELS     = TRAINING_PARAMS["HIDDEN_CHANNELS"]
-    USE_NOC_DATASET     = TRAINING_PARAMS["USE_NOC_DATASET"]
-    IS_HETERO           = TRAINING_PARAMS["IS_HETERO"]
-    DO_POOLING          = TRAINING_PARAMS["DO_POOLING"] 
-    HAS_WAIT_TIME       = TRAINING_PARAMS["HAS_WAIT_TIME"]
-    HAS_SCHEDULER       = TRAINING_PARAMS["HAS_SCHEDULER"]
-    USE_HETERO_WRAPPER  = TRAINING_PARAMS["USE_HETERO_WRAPPER"]
-
-    CREATE_DATASET      = TRAINING_PARAMS["CREATE_DATASET"]
-    GEN_COUNT           = TRAINING_PARAMS["GEN_COUNT"]   
-    MAX_NODES           = TRAINING_PARAMS["MAX_NODES"]
+    LOSS_FN             = TRAINING_PARAMS["LOSS_FN"].lower()
+    DEVICE              = TRAINING_PARAMS["DEVICE"]
+    CONV_TYPE           = TRAINING_PARAMS["CONV_TYPE"]
+    AGGR                = TRAINING_PARAMS["AGGR"]
 
     LEARNING_RATE       = TRAINING_PARAMS["LEARNING_RATE"]
     EPOCHS              = TRAINING_PARAMS["EPOCHS"]
@@ -203,140 +241,101 @@ def main():
     MODEL_PATH          = TRAINING_PARAMS["MODEL_PATH"]
 
     DATA_DIR            = TRAINING_PARAMS["DATA_DIR"]
-    SAVE_RESULTS        = f"training/results/{args.name}"
     SAVE_THRESHOLD      = TRAINING_PARAMS["SAVE_THRESHOLD"]
 
+    hetero_args = {
+        "is_hetero"         : TRAINING_PARAMS["IS_HETERO"].strip().lower()       == "true", 
+        "has_dependency"    : TRAINING_PARAMS["HAS_DEPENDENCY"].strip().lower()  == "true", 
+        "has_exit"          : TRAINING_PARAMS["HAS_EXIT"].strip().lower()        == "true", 
+        "has_scheduler"     : TRAINING_PARAMS["HAS_SCHEDULER"].strip().lower()   == "true"
+    }
+    print(f"Hetero parameters {hetero_args}")
 
-    start_time = time.time()
+    if DEVICE == "cuda":
+        if torch.cuda.is_available():
+            # Set Seeds for Cuda Reproducibility
+            DEVICE = torch.device("cuda")
+            torch.use_deterministic_algorithms(True)
+            torch.cuda.manual_seed(0)
+            torch.cuda.manual_seed_all(0)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+        else: 
+            raise ValueError("CUDA is not available. Please set DEVICE='cpu' in params.yaml")
 
-    if CREATE_DATASET:
-        script_path = "data/create_training_data.sh"
-        results     = subprocess.run(
-                        [script_path, str(GEN_COUNT), str(MAX_NODES)])
+    elif DEVICE == "cpu":
+        DEVICE = torch.device("cpu")
 
-        continue_prompt = input("Dataset created. Continue with training? (yes/no): ")
-        if continue_prompt.lower() != "yes":
-            exit()
-
-    if USE_NOC_DATASET:
-        train_data_dir  = f"{DATA_DIR}/simulator/train"
-        test_data_dir   = f"{DATA_DIR}/simulator/test"
     else: 
-        train_data_dir = f"{DATA_DIR}"
-        test_data_dir  = f"{DATA_DIR}/test"
+        raise ValueError("DEVICE must be either 'cuda' or 'cpu'")
 
+    print(f"\nTraining on {DEVICE}")
 
-    train_loader, valid_loader  = load_data(
-                                    train_data_dir, 
-                                    batch_size          = BATCH_SIZE, 
-                                    validation_split    = 0.1,
-                                    use_noc_dataset     = USE_NOC_DATASET,
-                                    is_hetero           = IS_HETERO, 
-                                    has_wait_time       = HAS_WAIT_TIME,
-                                    has_scheduler_node  = HAS_SCHEDULER,
-                                )
+    train_data_dir  = f"{DATA_DIR}/train"
+    test_data_dir   = f"{DATA_DIR}/test"
 
-    test_loader, _              = load_data(
-                                    test_data_dir, 
-                                    batch_size          = 1, 
-                                    validation_split    = 0.0,
-                                    use_noc_dataset     = USE_NOC_DATASET,
-                                    is_hetero           = IS_HETERO, 
-                                    has_wait_time       = HAS_WAIT_TIME,
-                                    has_scheduler_node  = HAS_SCHEDULER, 
-                                )
+    train_loader, valid_loader  = load_data( train_data_dir, 
+                                             batch_size          = BATCH_SIZE, 
+                                             validation_split    = 0.1,
+                                             use_noc_dataset     = False,
+                                             **hetero_args )
 
-    if IS_HETERO:
+    test_loader, _              = load_data( test_data_dir, 
+                                             batch_size          = 1, 
+                                             validation_split    = 0.0,
+                                             use_noc_dataset     = False,
+                                             **hetero_args )
 
-        metadata    = get_metadata(test_data_dir, HAS_WAIT_TIME, USE_NOC_DATASET)
+    if hetero_args["is_hetero"]:
+        model_type = "MPNHetero"
+        metadata   = get_metadata( train_data_dir, **hetero_args )
+        model      = MPNHetero( hidden_channels = HIDDEN_CHANNELS, 
+                                num_mpn_layers  = NUM_MPN_LAYERS,
+                                model_str       = CONV_TYPE,
+                                metadata        = metadata ).to(DEVICE)
 
-        if DO_POOLING:
+    else: 
+        model_type  = "MPN"
+        model       = MPN( hidden_channels  = HIDDEN_CHANNELS, 
+                           output_channels  = 2, 
+                           num_conv_layers  = NUM_MPN_LAYERS, 
+                           model_str        = CONV_TYPE, 
+                           aggr             = AGGR).to(DEVICE) 
+    print(f"\nModel {model_type} with {CONV_TYPE}(aggr: {AGGR}) , loaded with {NUM_MPN_LAYERS} MPN Layers and {HIDDEN_CHANNELS} Hidden Channels")
 
-            model   = GNNHeteroPooling(HIDDEN_CHANNELS, NUM_MPN_LAYERS, metadata).to(DEVICE)
-            print(f"\nGNNHeteroPooling Model Loaded with {NUM_MPN_LAYERS} MPN Layers and {HIDDEN_CHANNELS} Hidden Channels")
-
-        elif USE_HETERO_WRAPPER: 
-
-            model = HeteroGNN(HIDDEN_CHANNELS, NUM_MPN_LAYERS).to(DEVICE)
-            print(f"\nHeteroGNN Model Loaded with {NUM_MPN_LAYERS} MPN Layers and {HIDDEN_CHANNELS} Hidden Channels")
-
-        else:
-
-            model   = GNNHetero(HIDDEN_CHANNELS, NUM_MPN_LAYERS, metadata).to(DEVICE)
-            print(f"\nGNNHetero Model Loaded with {NUM_MPN_LAYERS} MPN Layers and {HIDDEN_CHANNELS} Hidden Channels")
-
-    elif not IS_HETERO:
-
-        model       = GNN(HIDDEN_CHANNELS, NUM_MPN_LAYERS).to(DEVICE)
-        print(f"\nGNN Model Loaded with {NUM_MPN_LAYERS} MPN Layers and {HIDDEN_CHANNELS} Hidden Channels")
-
-    initialize_model(model, test_loader)
+    initialize_model(model, test_loader, DEVICE)
     print_parameter_count(model)
 
-
     if LOAD_MODEL:
-
-        model_state_dict = torch.load(MODEL_PATH)
+        model_state_dict = torch.load(MODEL_PATH, weights_only=True)
         model.load_state_dict(model_state_dict)
         print(f"\nPre-Trained Wieghts Loaded\n")
 
-    loss_fn     = nn.MSELoss().to(DEVICE)
-    optimizer   = optim.Adam(
-                    model.parameters(), 
-                    lr=LEARNING_RATE, 
-                    weight_decay=WEIGHT_DECAY)
+    if LOSS_FN == "mse":
+        loss_fn = nn.MSELoss().to(DEVICE)
+    elif LOSS_FN == "mae":
+        loss_fn = nn.L1Loss().to(DEVICE)
+    elif LOSS_FN == "huber":
+        loss_fn = nn.SmoothL1Loss().to(DEVICE)
+    else: 
+        raise ValueError("LOSS_FN must be either 'mse', 'mae', or 'huber'")
 
-    valid_loss_list     = []
-    train_loss_list     = []
-    test_metric_list    = []
+    print(f"Training with {LOSS_FN} Loss Function")
 
-    saved_test_metric = []
+    optimizer   = optim.Adam( model.parameters(), 
+                              lr=LEARNING_RATE, 
+                              weight_decay=WEIGHT_DECAY )
 
-    for epoch in range(EPOCHS):
-
-        train_loss          = train_fn(train_loader, model, optimizer, loss_fn, DO_POOLING, HAS_WAIT_TIME)
-        valid_loss          = validation_fn(valid_loader, model, loss_fn, DO_POOLING, HAS_WAIT_TIME)
-        test_metric, pvalue = test_fn(test_loader, model, DO_POOLING, HAS_WAIT_TIME)
-
-        print(f"Epoch {epoch+1}/{EPOCHS}, Validation Loss: {valid_loss}, Kendall's Tau: {test_metric}, P-Value: {round(pvalue,5)}")
-
-        train_loss_list.append(train_loss)
-        valid_loss_list.append(valid_loss)
-        test_metric_list.append(test_metric)
-
-        plot_and_save_loss(
-            train_loss_list, 
-            valid_loss_list, 
-            test_metric_list, 
-            args.name)
-
-        save_multiple = False
-        if epoch % 10 == 0:
-            save_multiple = True
-
-        if test_metric > SAVE_THRESHOLD or save_multiple:
-
-            test_metric = int( round(test_metric, 2) * 100 )
-
-            if not save_multiple:
-                if test_metric in saved_test_metric: 
-                    continue
-
-            torch.save(model, f"{SAVE_RESULTS}/LatNet_{test_metric}_{epoch+1}.pth")
-            torch.save(
-                model.state_dict(), 
-                f"{SAVE_RESULTS}/LatNet_{test_metric}_{epoch+1}.pth")
-
-            end_time        = time.time()
-            time_elapsed    = (end_time - start_time) / 60
-
-            saved_test_metric.append(test_metric)
-
-            print(f"\n[Saving mode] Total Training Time: {time_elapsed} minutes\n")
-
-    torch.save(model.state_dict(), f"{SAVE_RESULTS}/LatNet_state_dict.pth")
-    torch.save(model, f"{SAVE_RESULTS}/LatNet_final.pth")
-
+    train_and_validate( epochs         = EPOCHS, 
+                        train_loader   = train_loader, 
+                        valid_loader   = valid_loader, 
+                        test_loader    = test_loader, 
+                        model          = model, 
+                        optimizer      = optimizer, 
+                        loss_fn        = loss_fn, 
+                        device         = DEVICE, 
+                        save_path      = SAVE_PATH, 
+                        save_threshold = SAVE_THRESHOLD )
 
 if __name__ == "__main__":
     main()

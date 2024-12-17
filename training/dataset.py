@@ -1,6 +1,5 @@
 import os
 import yaml
-import json
 import torch
 
 import networkx                 as nx
@@ -9,78 +8,53 @@ from typing                     import Union
 from natsort                    import natsorted
 
 from torch_geometric.loader     import DataLoader
-from torch_geometric.transforms import ToUndirected
-from torch_geometric.utils      import from_networkx
 from torch_geometric.data       import HeteroData, Data
 from torch.utils.data           import Dataset, random_split
 
+from data.utils                 import load_graph_from_json
+
 
 class CustomDataset(Dataset):
-    def __init__(self, training_data_dir, is_hetero=False, has_wait_time=False, has_scheduler_node=False, return_graph=False):
+    def __init__(self, training_data_dir, is_hetero=False, has_dependency=False, has_exit=False, has_scheduler=False, return_graph=False):
         """
         Args 
         1. is_hetero            : If True, the dataset will return a HeteroData object, else a Data object  
-        2. has_wait_time        : If True, the dataset will contain wait time feature for task_depend nodes.
-                                  This is only relevant for heterogenous graphs. In homogenous graphs, all nodes
-                                  have the same features. 
-        3. has_scheduler_node   : If True, the dataset will connect all task nodes ('task' and 'task_depend')  
+        2. has_scheduler_node   : If True, the dataset will connect all task nodes ('task' and 'task_depend')  
                                   to one single node.   
-        3. return_graph         : If True, the __get__item__ will return the graph along with the data object. 
+        3. has_task_depend      : If True, the dataset will have task_depend nodes.
+                                  nodes of task_depend has predecessor connection to dependency nodes. 
+                                  These nodes will need packets from the dependecy nodes to start processing.
+        4. return_graph         : If True, the __get__item__ will return the graph along with the data object. 
                                   Useful for visualization.  
         """
-        self.is_hetero              = is_hetero
-        self.has_wait_time          = has_wait_time
-        self.has_scheduler_node     = has_scheduler_node
-        self.return_graph           = return_graph
+        self._is_hetero         = is_hetero
+        self._has_scheduler     = has_scheduler
+        self._return_graph      = return_graph
+        self._has_dependency    = has_dependency
+        self._has_exit          = has_exit   # Flag to check if the graph has exit nodes
 
-        self.input_dir              = os.path.join(training_data_dir, "input")
-        self.target_dir             = os.path.join(training_data_dir, "target")
+        self._file_dir              = training_data_dir
+        self._training_files        = natsorted(os.listdir(training_data_dir))
 
-        self.input_files            = natsorted(os.listdir(self.input_dir))
-        self.output_files           = natsorted(os.listdir(self.target_dir))
-
-        training_parameters         = yaml.safe_load(open("training/params.yaml"))
+        training_parameters         = yaml.safe_load(open("training/config/params_without_network.yaml"))
         self.max_generate           = training_parameters["MAX_GENERATE"]
         self.max_processing_time    = training_parameters["MAX_PROCESSING_TIME"]
         self.max_cycle              = training_parameters["MAX_CYCLE"]
 
-        assert len(self.input_files) == len(
-            self.output_files), f"Number of input files and output files must be the same. "
-        f"{len(self.input_files)} != {len(self.output_files)}"
-
     def __len__(self):
-        return len(self.input_files)
-
-    def get_file_path(self, index) -> tuple[str, str]:
-
-        input_file_path     = os.path.join(self.input_dir, self.input_files[index])
-        target_file_path    = os.path.join(self.target_dir, self.output_files[index])
-
-        return input_file_path, target_file_path
+        return len(self._training_files)
 
     def __getitem__(self, index):
         
-        input_file_path, target_file_path = self.get_file_path(index)
+        file_path = os.path.join(self._file_dir, self._training_files[index])
+        graph     = load_graph_from_json(file_path)
 
-        input_data  = self._load_json(input_file_path)
-        target_data = self._load_json(target_file_path)
-
-        graph = nx.node_link_graph(input_data)
-
-        if self.is_hetero:
-            return self._heterogenous_data(graph, target_data)
+        if not self._is_hetero:
+            return self._homogenous_data(graph)
         else:
-            return self._homogenous_data(graph, target_data)
+            return self._heterogenous_data(graph)
 
-    def _load_json(self, filename : str) -> dict: 
-        with open(filename, "r") as file:
-            data = json.load(file)
-        return data
-
-    def _homogenous_data(self, graph: nx.DiGraph, target_data: dict) -> Union[
-            Data, 
-            tuple[Data, tuple[dict, nx.DiGraph]]
-        ]:
+    def _homogenous_data(self, graph: nx.DiGraph) -> Union[ Data, tuple[Data, tuple[dict, nx.DiGraph]] ]:
         """
         Args: 
             1. graphs       : the directed graph of idx. From data/training_data/input/task_graph_idx.json 
@@ -88,32 +62,40 @@ class CustomDataset(Dataset):
 
         returns a tuple of Data and an empty dictionary (for compatibility with heterogenous data)
         """
-        data = from_networkx(graph)
+        data = Data()
 
-        # data.x should contain all the node features with shape [num_nodes, num_node_features]
-        data.x = torch.stack((data.generate, data.processing_time), dim=1).float() / 10 # Hardcoded normalization
+        task_input_feature  = []
+        task_target_feature = []
 
-        del data.generate
-        del data.processing_time
+        for idx, node_data in graph.nodes(data=True):
+            generate        = node_data["generate"]         / self.max_generate
+            processing_time = node_data["processing_time"]  / self.max_processing_time
+            start_cycle     = node_data["start_cycle"]      / self.max_cycle
+            end_cycle       = node_data["end_cycle"]        / self.max_cycle
 
-        # data.edge_attr should contain all the edge features with shape [num_edges, num_edge_features]
-        data.edge_attr = torch.stack((data.weight,), dim=1).float()
-        del data.weight
-        del data.type
+            task_input_feature.append([generate, processing_time])
+            task_target_feature.append([start_cycle, end_cycle])
 
-        data.y = float(target_data["latency"])
+        data.x = torch.tensor(task_input_feature, dtype=torch.float)
+        data.y = torch.tensor(task_target_feature, dtype=torch.float)
+
+        edge_index = []
+        for src, dst in graph.edges:
+            edge_index.append([src, dst])
+
+        data.edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+
         self._do_checks(data)
 
-        if self.return_graph:
+        if self._return_graph:
             return (data, ({}, graph))
 
         else: 
             return data
 
-
-    def _heterogenous_data(self, graph: nx.DiGraph, target_data: dict) -> Union[
+    def _heterogenous_data(self, graph: nx.DiGraph) -> Union[
             HeteroData, 
-            tuple[HeteroData, tuple[dict, nx.DiGraph]]
+            tuple[ HeteroData, tuple[dict, nx.DiGraph] ]
         ]:
         """
         Args: 
@@ -124,170 +106,175 @@ class CustomDataset(Dataset):
 
         The graph will have task and dependency nodes by default. 
         If has_wait_time is True, the graph will also have task_depend nodes.
-
         """
         hetero_data = HeteroData()
 
         task_input_feature          = []
-        task_depend_input_feature   = []
         dependency_input_feature    = []
+        exit_feature                = []
 
         task_target                 = [] # list of start and end cycle for each task
-        task_depend_target          = [] # list of start and end cycle for each task_depend
+        exit_target                 = [] 
 
-        global_to_local_indexing    = {"task": {}, "dependency": {}}
+        global_to_local_indexing    = { "task": {}, "dependency": {}, "exit": {}, "scheduler": {} }
+        
+        # Convert "dependency" nodes to "task" nodes
+        for node_idx, node_data in graph.nodes(data=True):
+            if not self._has_dependency:
+                if node_data["type"] == "dependency":
+                    node_data["type"] = "task"
+        
+            if self._has_exit:
+                successors = list(graph.successors(node_idx))
+                if len(successors) == 0:
+                    node_data["type"] = "exit"
 
-        if self.has_wait_time:
-            global_to_local_indexing["task_depend"] = {}    
+            # if not self._has_task_depend:
+            if node_data["type"] == "task_depend":
+                node_data["type"] = "task"
 
-        if self.has_scheduler_node:
+        if self._has_scheduler:
             # Create a scheduler node to connect all task nodes
-            global_to_local_indexing["scheduler"] = {}
-
             scheduler_node_id   = graph.number_of_nodes()
             scheduler_edge_type = "schedules"    
 
             graph.add_node(scheduler_node_id, type="scheduler")
-
             for node_idx, node_data in graph.nodes(data=True):
-
-                if node_data["type"] in ["task", "task_depend"]:
+                if node_data["type"] in ["task", "exit"]:
                     graph.add_edge(scheduler_node_id, node_idx, type=scheduler_edge_type)
 
         # Creating node features + global to local indexing
         for node_idx, node_data in graph.nodes(data=True):
             node_type = node_data["type"]
 
-            if node_type == "task_depend" and not self.has_wait_time:
-                # if wait time is not present, treat task_depend as task
-                node_type = "task"
-
             if node_type not in hetero_data:
                 hetero_data[node_type].x = []
 
-            if node_type == "task" or node_type == "task_depend":
-                generate = node_data["generate"] / self.max_generate
+            if node_type == "scheduler":
+                global_to_local_indexing[node_type][node_idx] = len(
+                    global_to_local_indexing[node_type])
+                continue
 
-                processing_time = (
-                    node_data["processing_time"] / self.max_processing_time)
-
-                task_target_feature = target_data[str(node_idx)]
-                target_start_cycle  = task_target_feature["start_cycle"] / self.max_cycle
-                target_end_cycle    = task_target_feature["end_cycle"] / self.max_cycle
-
-                # target is the same for both task and task_depend nodes
-                if node_type == "task_depend":
-                    # wait_time = node_data["wait_time"] / self.max_cycle
-                    task_depend_input_feature.append([generate, processing_time, target_end_cycle])
-                    task_depend_target.append([target_start_cycle, target_end_cycle])
-
-                elif node_type == "task":
-                    task_input_feature.append([generate, processing_time])
-                    task_target.append([target_start_cycle, target_end_cycle])
+            generate = node_data["generate"] / self.max_generate
 
             if node_type == "dependency":
-                generate = node_data["generate"] / self.max_generate
                 dependency_input_feature.append([generate])
+                global_to_local_indexing[node_type][node_idx] = len(
+                    global_to_local_indexing[node_type])
+                continue 
+
+            processing_time = node_data["processing_time"] / self.max_processing_time
+            target_start_cycle = node_data["start_cycle"] / self.max_cycle
+            target_end_cycle = node_data["end_cycle"] / self.max_cycle
+
+            if node_type == "task":
+                task_input_feature.append([generate, processing_time])
+                task_target.append([target_start_cycle, target_end_cycle])
+
+            if node_type == "exit":
+                exit_feature.append([generate, processing_time])
+                exit_target.append([target_start_cycle, target_end_cycle])
 
             global_to_local_indexing[node_type][node_idx] = len(
                 global_to_local_indexing[node_type])
 
-
         # Flag to check if data has no task node
-        has_task_node = True
-        if len(task_input_feature) == 0:
-            has_task_node = False
+        task_not_emtpy = len(task_input_feature) > 0
+        exit_not_empty = len(exit_feature) > 0
 
         # Converting list of node features to tensor
         num_features_task_node = 2
 
-        if has_task_node:
+        if self._has_dependency:
+            hetero_data["dependency"].x = torch.tensor( dependency_input_feature, dtype=torch.float )
+
+        if task_not_emtpy:
             hetero_data["task"].x = torch.tensor( task_input_feature, dtype=torch.float )
             hetero_data["task"].y = torch.tensor( task_target, dtype=torch.float )
         else: 
             hetero_data["task"].x = torch.empty( (0, num_features_task_node), dtype=torch.float )
             hetero_data["task"].y = torch.empty( (0, num_features_task_node), dtype=torch.float )
 
-        hetero_data["dependency"].x = torch.tensor( dependency_input_feature, dtype=torch.float )
+        if exit_not_empty and self._has_exit:
+            hetero_data["exit"].x = torch.tensor( exit_feature, dtype=torch.float )
+            hetero_data["exit"].y = torch.tensor( exit_target, dtype=torch.float ) 
 
-        if self.has_wait_time:
-            hetero_data["task_depend"].x    = torch.tensor(task_depend_input_feature, dtype=torch.float)
-            hetero_data["task_depend"].y    = torch.tensor(task_depend_target, dtype=torch.float)
+        elif not exit_not_empty and self._has_exit:
+            hetero_data["exit"].x = torch.empty( (0, 2), dtype=torch.float )
+            hetero_data["exit"].y = torch.empty( (0, 2), dtype=torch.float ) 
 
-        if self.has_scheduler_node: 
+        if self._has_scheduler: 
             hetero_data["scheduler"].x = torch.ones( (1, 1), dtype=torch.float)
 
         # Creating edge indices
-        require_edge_type = "requires"
+        generate_edge_type      = "generates"
+        rev_generate_edge_type  = "requires"
+        hetero_data["task", generate_edge_type, "task"].edge_index = [[], []]
 
-        hetero_data["task", require_edge_type, "task"].edge_index               = [[], []]
+        if self._has_dependency:
+            # There is no task_depend node in the graph
+            hetero_data["dependency", generate_edge_type, "task"].edge_index        = [[], []]
+            hetero_data["task", rev_generate_edge_type, "dependency"].edge_index    = [[], []]
 
-        if self.has_wait_time: 
-            hetero_data["dependency", require_edge_type, "task_depend"].edge_index  = [[], []]
-            hetero_data["task_depend", require_edge_type, "task_depend"].edge_index = [[], []]
+        if self._has_exit:
+            hetero_data["task", generate_edge_type, "exit"].edge_index              = [[], []]
+            hetero_data["exit", rev_generate_edge_type, "task"].edge_index          = [[], []]
+            hetero_data["dependency", generate_edge_type, "exit"].edge_index        = [[], []]
+            hetero_data["exit", rev_generate_edge_type, "dependency"].edge_index    = [[], []]
 
-            hetero_data["task_depend", require_edge_type, "task"].edge_index    = [[], []]
-            hetero_data["task", require_edge_type, "task_depend"].edge_index    = [[], []]
-
-        else: 
-
-            hetero_data["dependency", require_edge_type, "task"].edge_index         = [[], []]
-
-    
-        if self.has_scheduler_node:
+        if self._has_scheduler:
+            rev_scheduler_edge_type = f"rev_{scheduler_edge_type}"
             hetero_data["scheduler", scheduler_edge_type, "task"].edge_index = [[], []]
-            hetero_data["scheduler", scheduler_edge_type, "task_depend"].edge_index = [[], []]
+            hetero_data["task", rev_scheduler_edge_type, "scheduler"].edge_index = [[], []]
 
+            if self._has_exit:
+                hetero_data["scheduler", scheduler_edge_type, "exit"].edge_index = [[], []]
+                hetero_data["exit", rev_scheduler_edge_type, "scheduler"].edge_index = [[], []]
 
         for edge in graph.edges(data=True):
             src, dst, _ = edge
 
             src_type    = graph.nodes[src]["type"]
             dst_type    = graph.nodes[dst]["type"]
+            do_rev      = False
             
-            if not self.has_wait_time: 
-                # Converting task_depend to task if wait_time feature is not required
-                src_type = "task" if src_type == "task_depend" else src_type
-                dst_type = "task" if dst_type == "task_depend" else dst_type 
-
             if src_type == "scheduler": 
-                edge_type = scheduler_edge_type
-            else: 
-                edge_type = require_edge_type
-        
-                            
-            hetero_data[src_type, edge_type, dst_type].edge_index[0].append(
-                global_to_local_indexing[src_type][src])
+                edge_type       = scheduler_edge_type
+                rev_edge_type   = rev_scheduler_edge_type
+                do_rev          = True
 
-            hetero_data[src_type, edge_type, dst_type].edge_index[1].append(
-                global_to_local_indexing[dst_type][dst])
+            elif src_type == "dependency": 
+                edge_type       = generate_edge_type
+                rev_edge_type   = rev_generate_edge_type
+                do_rev          = True
+            
+            else: 
+                edge_type = generate_edge_type
+
+            
+            src_local_index = global_to_local_indexing[src_type][src]
+            dst_local_index = global_to_local_indexing[dst_type][dst]
+
+            hetero_data[src_type, edge_type, dst_type].edge_index[0].append(src_local_index)
+            hetero_data[src_type, edge_type, dst_type].edge_index[1].append(dst_local_index)
+
+            if do_rev:
+                hetero_data[dst_type, rev_edge_type, src_type].edge_index[0].append(dst_local_index)
+                hetero_data[dst_type, rev_edge_type, src_type].edge_index[1].append(src_local_index)
 
         # Converting edge indices [list] to tensors
         for edge_type in hetero_data.edge_types:
 
-            hetero_data[edge_type].edge_index = torch.tensor(
-                                                    hetero_data[edge_type].edge_index, 
-                                                    dtype=torch.long
-                                                ).contiguous()
+            hetero_data[edge_type].edge_index = torch.tensor( hetero_data[edge_type].edge_index, 
+                                                              dtype=torch.long ).contiguous()
 
-        hetero_data = ToUndirected()(hetero_data)  # To leverage message passing in both directions
-        
-        hetero_data.y = float(target_data["latency"])
         self._do_checks(hetero_data)
-
-        # [debugging] Uncomment to visualize the graph
-        # from data.utils import visualize_graph
-        # visualize_graph(graph=graph)    
-        # from training.utils import log_hetero_data
-        # log_hetero_data(hetero_data)
         
-        if self.return_graph:
+        if self._return_graph:
             return (hetero_data, (global_to_local_indexing, graph))
 
         else: 
             return hetero_data
-
-
 
     def _do_checks(self, data: Union[Data, HeteroData]) -> None:
 
@@ -297,34 +284,31 @@ class CustomDataset(Dataset):
         # assert data.is_directed() is True, "Data is not directed"
 
 
-def load_data(
-        training_data_dir, 
-        batch_size          : int =32, 
-        validation_split    : float =0.1,
-        **kwargs
+def load_data( training_data_dir, 
+               batch_size          : int =32, 
+               validation_split    : float =0.1,
+               **kwargs ) -> tuple[DataLoader, DataLoader] :
 
-    ) -> tuple[DataLoader, DataLoader]:
-
-    is_hetero           = kwargs.get( "is_hetero", False )
-    has_wait_time       = kwargs.get( "has_wait_time", False )
-    has_scheduler_node  = kwargs.get( "has_scheduler_node", False )
-    use_noc_dataset      = kwargs.get( "use_noc_dataset", False )
-
+    use_noc_dataset = kwargs.get( "use_noc_dataset", False )
 
     if use_noc_dataset:    
         from training.noc_dataset import NocDataset
-        dataset = NocDataset( training_data_dir )
-        print(f"\n[load_data] Is NOC dataset: \t{use_noc_dataset}")
+        classify_task_nodes = kwargs.get( "classify_task_nodes", False )
+        dataset            = NocDataset( training_data_dir, classify_task_nodes=classify_task_nodes )
+        print(f"[load_data] Is NOC dataset: \t{use_noc_dataset}")
 
     else: 
-        print(f"\n[load_data] Is hetero graph: \t{is_hetero}")
-        print(f"[load_data] Has wait time: \t{has_wait_time}")
-        dataset = CustomDataset(
-                    training_data_dir   = training_data_dir, 
-                    is_hetero           = is_hetero, 
-                    has_wait_time       = has_wait_time, 
-                    has_scheduler_node  = has_scheduler_node,
-                    return_graph        = False)
+        is_hetero       = kwargs.get( "is_hetero", False )
+        has_scheduler   = kwargs.get( "has_scheduler", False )
+        has_exit        = kwargs.get( "has_exit", False )
+        has_dependency  = kwargs.get( "has_dependency", False ) 
+
+        dataset = CustomDataset( training_data_dir  = training_data_dir, 
+                                 is_hetero          = is_hetero, 
+                                 has_scheduler      = has_scheduler,
+                                 has_exit    = has_exit,
+                                 has_dependency     = has_dependency,
+                                 return_graph       = False )
 
     validation_size = int( validation_split * len( dataset ) )
 
@@ -338,9 +322,6 @@ def load_data(
 
     train_dataset, val_dataset = random_split( dataset, [train_size, validation_size] )
 
-    print( f"\nTraining dataset size: \t\t{len(train_dataset)}" )
-    print( f"Validation dataset size: \t{len(val_dataset)}" )
-
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, drop_last=True )
 
@@ -352,52 +333,46 @@ def load_data(
 
 if __name__ == "__main__":
 
-    """
-    Usage: python3 -m training.dataset 10 True True True
-    Conditions to Test: 
-        1. Homogenous 
-            python3 -m training.dataset 10 False False False
+    from data.utils import visualize_application
 
-        2. Heterogenous
-            a. Without wait time
-                python3 -m training.dataset 10 True False False
-            b. With wait time
-                python3 -m training.dataset 10 True True False
-            c. With  wait time and connecting task nodes
-                python3 -m training.dataset 10 True True True
-            
-    """
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--idx", type=int, default=0, help="Index of the file in training_data/simualtor/test to visualize")
+    parser.add_argument("--is_hetero", action="store_true")
+    parser.add_argument("--has_scheduler", action="store_true")
+    parser.add_argument("--has_exit", action="store_true")
+    parser.add_argument("--has_dependency", action="store_true")
+    parser.add_argument("--show_graph", action="store_true")
+    args = parser.parse_args()
 
-    import sys
+    DATA_INDEX      = args.idx
+    IS_HETERO       = args.is_hetero
+    HAS_DEPENDENCY  = args.has_dependency   
+    HAS_EXIT        = args.has_exit
+    HAS_SCHEDULER   = args.has_scheduler
+    SHOW_GRAPH      = args.show_graph   
 
-    from data.utils import visualize_graph
+    print( f"\n------Dataset Test------"                )
+    print( f"Data index is          : {DATA_INDEX}"     )
+    print( f"Is heterogenous graph  : {IS_HETERO}"      )
+    print( f"Has dependency nodes   : {HAS_DEPENDENCY}")
+    print( f"Has Exit nodes  : {HAS_EXIT}") 
+    print( f"Connecting task nodes  : {HAS_SCHEDULER}"  )
+    print( f"Show graph             : {SHOW_GRAPH}"     )
 
-    if len(sys.argv) > 1:   
-        DATA_INDEX      = int(sys.argv[1])
-        IS_HETERO       = sys.argv[2].lower() in ['true', '1']
-        HAS_WAIT_TIME   = sys.argv[3].lower() in ['true', '1']
-        HAS_SCHEDULER   = sys.argv[4].lower() in ['true', '1']
+    DATASET_DIR = "data/training_data/without_network/train"
 
-    else:                   
-        DATA_INDEX      = 10
-        IS_HETERO       = False
-        HAS_WAIT_TIME   = False
-        HAS_SCHEDULER   = False
+    dataset = CustomDataset( DATASET_DIR, 
+                             is_hetero          = IS_HETERO, 
+                             has_scheduler      = HAS_SCHEDULER,
+                             has_exit           = HAS_EXIT,
+                             has_dependency     = HAS_DEPENDENCY,
+                             return_graph       = SHOW_GRAPH )   
 
-
-    print( f"Data index is          : {DATA_INDEX}" )
-    print( f"Is heterogenous graph  : {IS_HETERO}" )
-    print( f"Has wait time is       : {HAS_WAIT_TIME}" )
-    print( f"Connecting task nodes  : {HAS_WAIT_TIME}" )
-
-    DATASET_DIR = "data/training_data"
-
-    dataset = CustomDataset(
-                DATASET_DIR, 
-                is_hetero           = IS_HETERO, 
-                has_wait_time       = HAS_WAIT_TIME, 
-                has_scheduler_node  = HAS_SCHEDULER,
-                return_graph        = True)   
+    # from training.utils import log_hetero_data    
+    # data = dataset[DATA_INDEX]
+    # log_hetero_data(data)
+    # print(f"{data['exit'].y}")
 
     def check_all_files_in_dataset():
         # Inside a def for scoping
@@ -418,25 +393,31 @@ if __name__ == "__main__":
 
         print( f"[Passed] All files are valid\n" )
 
-    check_all_files_in_dataset()
-    data, ( index, graph ) = dataset[DATA_INDEX]
 
-    visualize_graph( graph=graph )
+    if SHOW_GRAPH:
+        check_all_files_in_dataset()
+        exit()
+        data, ( index, graph ) = dataset[DATA_INDEX]
+        if IS_HETERO:
+            print(f"X: {data.x_dict}")
+            print(f"Edge: {data.edge_index_dict}")
+        else:
+            print(f"Data: {data}")
+        # check_all_files_in_dataset()
+        visualize_application( graph=graph )
 
     print( f"\n\n----------------------DataLoader Test----------------------" )
 
     BATCH_SIZE = 10
     print( f"\nLoading data with batch size {BATCH_SIZE}" )
 
-    train_loader, val_loader           = load_data(
-                                                training_data_dir   = DATASET_DIR, 
-                                                is_hetero           = IS_HETERO, 
-                                                batch_size          = BATCH_SIZE,
-                                                has_wait_time       = HAS_WAIT_TIME,
-                                                has_scheduler_node  = HAS_SCHEDULER
-                                        )
+    train_loader, val_loader           = load_data( training_data_dir  = DATASET_DIR, 
+                                                    is_hetero          = IS_HETERO, 
+                                                    batch_size         = BATCH_SIZE,
+                                                    has_dependency     = HAS_DEPENDENCY,
+                                                    has_exit           = HAS_EXIT,
+                                                    has_scheduler      = HAS_SCHEDULER )
 
-    # print(f"Data from DataLoader            {next(iter(train_loader))}")
     print( f"DataLoader is                   {train_loader}" )
     print( f"Number of training batches:     {len(train_loader)}" )  
     print( f"Batch size:                     {train_loader.batch_size}" ) 

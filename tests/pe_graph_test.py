@@ -3,7 +3,7 @@ import random
 import networkx as nx
 
 from src.packet import Packet
-from src.utils import graph_to_task_list, get_random_packet_list, simulate
+from src.utils import graph_to_task_list, get_random_packet_list, simulate_application_on_pe
 
 from data.utils import load_graph_from_json 
 
@@ -61,7 +61,7 @@ def test_task_sequential_1():
         packet_2_copies.pop(0),
     ]
 
-    latency = simulate(computing_list, packet_list)
+    latency = simulate_application_on_pe(computing_list, packet_list)
     assert latency == 42
 
 
@@ -94,7 +94,7 @@ def test_task_sequential_2():
         *test_1_packet_4_copies,
     ]
 
-    test_1_latency = simulate(test_1_computing_list, test_1_packet_list)
+    test_1_latency = simulate_application_on_pe(test_1_computing_list, test_1_packet_list)
     assert test_1_latency == 51
 
     # Test 2 - Task 1 receives the 5 packets first
@@ -111,7 +111,7 @@ def test_task_sequential_2():
         test_2_packet_2_copies.pop(0),
     ]
 
-    test_2_latency = simulate(test_2_computing_list, test_2_packet_list)
+    test_2_latency = simulate_application_on_pe(test_2_computing_list, test_2_packet_list)
     assert test_2_latency == 62
 
 
@@ -134,7 +134,7 @@ def test_task_parallel_3():
 
     packet_list = [*packet_2_copies, *packet_3_copies, *packet_4_copies]
 
-    latency = simulate(computing_list, packet_list)
+    latency = simulate_application_on_pe(computing_list, packet_list)
     assert latency == 34
 
 
@@ -148,7 +148,7 @@ def test_task_random_graph_1():
         packet_list_copy = copy.deepcopy(packet_list)
 
         computing_list = graph_to_task_list(graph)
-        latency = simulate(computing_list, packet_list, debug_mode=True)
+        latency = simulate_application_on_pe(computing_list, packet_list, debug_mode=True)
 
         print(f"PAcket ")
         for packet in packet_list_copy: 

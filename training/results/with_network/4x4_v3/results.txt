@@ -1,0 +1,1 @@
+Best epoch is 14 with map tau = 0.86 and p_val = 0.0. Path: training/results/with_network_4x4_v3/base/models/LatNet_91_14_best.pth

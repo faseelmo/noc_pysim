@@ -1,0 +1,1 @@
+Best epoch is 28 with map tau = 0.69 and p_val = 0.0. Parameter count: 275490. Path: training/results/experiments/1_aggr/14_hetero_mean_max_conv_mean_max/models/LatNet_89_28_best.pth

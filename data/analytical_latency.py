@@ -8,7 +8,7 @@ from dataclasses    import dataclass
 
 from data.utils import (
     load_graph_from_json, 
-    visualize_graph, 
+    visualize_application, 
     get_compute_list_from_json)
 
 @dataclass
@@ -453,5 +453,5 @@ if __name__ == "__main__":
 
         analytical_schedule_list = convert_node_list_to_compute_dict(node_list)
         
-        visualize_graph(graph,  compute_list=schedule_list, pred_compute_list=analytical_schedule_list)
+        visualize_application(graph,  compute_list=schedule_list, pred_compute_list=analytical_schedule_list)
 

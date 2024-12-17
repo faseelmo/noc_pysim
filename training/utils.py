@@ -11,12 +11,10 @@ def log_hetero_data(data) -> None:
             print(f"\nEdge index: {edge_index} \n{data.edge_index_dict[edge_index]}")
 
 
-def does_path_exist(model_name):
+def does_path_exist(dir_path) -> None:
     import os
-    import yaml
 
-    training_params = yaml.safe_load(open("training/params.yaml"))
-    dir_path = os.path.join(training_params["RESULTS_DIR"], model_name)
+    model_path      = os.path.join(dir_path, "models")   
 
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
@@ -27,12 +25,16 @@ def does_path_exist(model_name):
         if continue_prompt.lower() != "yes":
             exit()
 
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+        print(f"Folder '{model_path}' created.")
+
 
 def copy_file(src_path, dest_path):
     import shutil
 
     shutil.copy2(src_path, dest_path)
-    print(f"Copied {src_path} to {dest_path}")
+    # print(f"Copied {src_path} to {dest_path}")
 
 
 def print_parameter_count(model):
@@ -42,33 +44,67 @@ def print_parameter_count(model):
         if p.requires_grad
     )
     print(f"Number of parameters: {num_params}")
+    return num_params
 
 
-def get_metadata(dataset_path, has_wait_time, use_noc_dataset: False):
+def get_metadata(dataset_path, **kwargs): 
+    
+    use_noc_dataset = kwargs.get( "use_noc_dataset", False )
 
     if use_noc_dataset:
         from training.noc_dataset import NocDataset
-        dataset = NocDataset(dataset_path)
+        dataset  = NocDataset(dataset_path)
         metadata = dataset[0].metadata()
 
     else: 
+        is_hetero       = kwargs.get( "is_hetero", False )
+        has_scheduler   = kwargs.get( "has_scheduler", False )
+        has_dependency  = kwargs.get( "has_dependency", False ) 
+        has_exit        = kwargs.get( "has_exit", False )
+
+
+        # print(f"Has task depend: {has_task_depend}")
+
+        # print(f"Fetching metadata for dataset without_network")
         from training.dataset import CustomDataset
-        dataset = CustomDataset(dataset_path, 
-                                is_hetero       = True, 
-                                has_wait_time   = has_wait_time, 
-                                return_graph    = False)
+        dataset = CustomDataset( dataset_path, 
+                                 is_hetero          = is_hetero, 
+                                 has_scheduler      = has_scheduler, 
+                                 has_exit           = has_exit,
+                                 has_dependency     = has_dependency,
+                                 return_graph       = False )
+
         metadata = dataset[0].metadata()
 
     return metadata
 
-def initialize_model(model, dataloader):
-    """Necessary since GraphConv is lazily initialized"""
-    data = next(iter(dataloader))
-    model(data)
-    print(f"Model initialized")
+def initialize_model(model, dataloader, device, use_noc_dataset=False):
+    """Initialize the model by performing a dummy forward pass."""
+    import torch
+    from torch_geometric.data import Data, HeteroData
+    model.to(device)
+    model.eval()
+    with torch.no_grad():
+        data = next(iter(dataloader))
+        data = data.to(device)  # Ensure data is on the correct device
+        
+        if isinstance(data, HeteroData):
+            if use_noc_dataset:
+                model(data)
+            else: 
+                model(data.x_dict, data.edge_index_dict)
+        else:
+            model(data.x, data.edge_index)  
+
+    # Verify all parameters are initialized
+    for name, param in model.named_parameters():
+        if isinstance(param, torch.nn.parameter.UninitializedParameter):
+            raise ValueError(f"Parameter {name} is still uninitialized.")
+    # print(f"Model initialized")
 
 
-def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
+
+def plot_and_save_loss(train_loss, valid_loss, test_metric, save_path):
     import matplotlib.pyplot as plt
     import pickle
 
@@ -92,7 +128,7 @@ def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
     fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.9))
     plt.title("Training and Validation Loss (Log Scale) with Kendall's Tau")
     plt.savefig(
-        f"training/results/{model_name}/validation_plot_log_with_kendalls_tau.png"
+        f"{save_path}/plot.png"
     )
     plt.clf()
 
@@ -102,50 +138,45 @@ def plot_and_save_loss(train_loss, valid_loss, test_metric, model_name):
         "kendalls_tau": test_metric,
     }
     with open(
-        f"training/results/{model_name}/loss_dict_with_kendalls_tau.pkl", "wb"
+        f"{save_path}/loss.pkl", "wb"
     ) as file:
         pickle.dump(loss_dict, file)
 
 
-from torch_sparse import mul
-from torch_sparse import sum as sparsesum
-from torch_geometric.nn.conv.gcn_conv import gcn_norm
+from itertools import combinations 
 
-
-def row_norm(adj):
+def adjusted_kendalls_tau(x: list, y: list, t_x: int=0, t_y: int=0) -> float:
     """
-    Applies the row-wise normalization:
-        \mathbf{D}_{out}^{-1} \mathbf{A}
+    Args:
+        x, y        : lists of values
+        t_x, t_y    : threshold values for x and y  
     """
-    row_sum = sparsesum(adj, dim=1)
+    n = len(x)
+    if n != len(y):
+        raise ValueError("The two lists must have the same length.")
 
-    return mul(adj, 1 / row_sum.view(-1, 1))
+    C, D = 0.0, 0.0 
+
+    for (i, j) in combinations(range(n), 2): 
+        dx = x[i] - x[j]
+        dy = y[i] - y[j]
+
+        if ( dx > t_x and dy > t_y ) or ( dx < -t_x and dy < -t_y ): # Concordant
+            C += 1
+
+        elif ( dx > t_x and dy < -t_y ) or ( dx < -t_x and dy > t_y ): # Discordant
+            D += 1
+        
+        else: # Tied
+            if abs(dx) <= t_x and abs(dy) <= t_y: # Both pairs are effectively equal
+                C += 1
+            else: 
+                D += 0.25
+
+    total_pairs = n * (n - 1) / 2
+    tau = (C - D) / total_pairs
+
+    return round(tau, 2)
+        
 
 
-def directed_norm(adj):
-    """
-    Applies the normalization for directed graphs:
-        \mathbf{D}_{out}^{-1/2} \mathbf{A} \mathbf{D}_{in}^{-1/2}.
-    """
-    in_deg = sparsesum(adj, dim=0)
-    in_deg_inv_sqrt = in_deg.pow_(-0.5)
-    in_deg_inv_sqrt.masked_fill_(in_deg_inv_sqrt == float("inf"), 0.0)
-
-    out_deg = sparsesum(adj, dim=1)
-    out_deg_inv_sqrt = out_deg.pow_(-0.5)
-    out_deg_inv_sqrt.masked_fill_(out_deg_inv_sqrt == float("inf"), 0.0)
-
-    adj = mul(adj, out_deg_inv_sqrt.view(-1, 1))
-    adj = mul(adj, in_deg_inv_sqrt.view(1, -1))
-    return adj
-
-
-def get_norm_adj(adj, norm):
-    if norm == "sym":
-        return gcn_norm(adj, add_self_loops=False)
-    elif norm == "row":
-        return row_norm(adj)
-    elif norm == "dir":
-        return directed_norm(adj)
-    else:
-        raise ValueError(f"{norm} normalization is not supported")

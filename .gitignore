@@ -5,7 +5,12 @@ __pycache__/
 *.pth 
 *.pkl
 *.txt
+!results.txt
+!tests/test_graphs/task_graph_0.json
+!tests/test_graphs/task_graph_1.json
 venv/
 data/training_data/input/
 data/training_data/target/
 training/results/test
+training/results/test_cpu
+activate_venv.sh

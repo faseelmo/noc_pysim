@@ -28,14 +28,14 @@ def simulate_pe(computing_list: list, packet_list: list):
     current_packet = packet_list.pop(0)
 
     for cycle in range(MAX_CYCLES):
-        print(f"\n> {cycle}")
+        # print(f"\n> {cycle}")
         pe.process(current_packet)
         if not current_packet is None and current_packet.get_status() is PacketStatus.IDLE:
             if len(packet_list) > 0:
                 current_packet = packet_list.pop(0)
             else:
                 current_packet = None
-        print(f"POST: {pe}\t{pe_status_string(pe.compute_is_busy)}")
+        # print(f"POST: {pe}\t{pe_status_string(pe.compute_is_busy)}")
         if pe._check_task_requirements_met():
             break
 
@@ -281,20 +281,20 @@ def test_pe_with_in_out_buffer():
     packet_list     = [packet_0, packet_0_1,  packet_2, packet_2_1, packet_0_2,]
     computing_list  = [task_1, task_3]
 
-    pe_1 = ProcessingElement( (0, 0), computing_list, debug_mode=True )
+    pe_1 = ProcessingElement( (0, 0), computing_list, debug_mode=False )
     current_packet = packet_list.pop(0)
 
     is_packet_transmitted = False
 
     for cycle in range(100):
-        print( f"\n> {cycle}" )
+        # print( f"\n> {cycle}" )
 
         # Start Injecting Flits
         if not is_packet_transmitted:
             is_flit_transmitted, flit = current_packet.pop_flit()
 
             # print( f"{flit} task_id: {flit.get_source_task_id()}" ) 
-            print(f"Injecting Flit: {flit} to buffer {pe_1.input_network_interface}")
+            # print(f"Injecting Flit: {flit} to buffer {pe_1.input_network_interface}")
             pe_1.receive_flits( flit ) # Injecting Flit to PE
 
             if is_flit_transmitted: 
@@ -333,10 +333,10 @@ def test_injection_pe():
     )
 
 
-    pe = ProcessingElement( (0, 0), [task_0], debug_mode=True )
+    pe = ProcessingElement( (0, 0), [task_0], debug_mode=False )
 
     for cycle in range(20): 
-        print( f"\n> {cycle}" )
+        # print( f"\n> {cycle}" )
         done_processing = pe.process(None)
 
         if done_processing: 
@@ -366,10 +366,10 @@ def test_injection_pe_3_packets():
     )
 
 
-    pe = ProcessingElement( (0, 0), [task_0], debug_mode=True )
+    pe = ProcessingElement( (0, 0), [task_0], debug_mode=False )
 
     for cycle in range(40): 
-        print( f"\n> {cycle}" )
+        # print( f"\n> {cycle}" )
         done_processing = pe.process(None)
 
         if done_processing: 
@@ -400,10 +400,10 @@ def test_transmitting_to_different_pe():
                                                 id = 2,
                                                 require = 3) ] ) 
 
-    pe = ProcessingElement( (0, 0), [task_0], debug_mode=True )
+    pe = ProcessingElement( (0, 0), [task_0], debug_mode=False )
 
     for cycle in range(20): 
-        print( f"\n> {cycle}" )
+        # print( f"\n> {cycle}" )
         done_processing = pe.process(None)
 
         if done_processing: 

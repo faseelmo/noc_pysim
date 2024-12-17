@@ -1,0 +1,33 @@
+# Model Parameters
+NUM_MPN_LAYERS      : 3       # Number of conv layers in MPN
+HIDDEN_CHANNELS     : 50      # Number of output node embeddings 
+DEVICE              : 'cpu'   # 'cuda' or 'cpu'
+
+# Dataset 
+CREATE_DATASET      : False
+GEN_COUNT           : 8000
+MAX_NODES           : 5
+
+# Normalization Constants
+MAX_GENERATE        : 10
+MAX_PROCESSING_TIME : 10
+MAX_CYCLE           : 100
+
+# Hyperparameters 
+LEARNING_RATE       : 0.01
+EPOCHS              : 1000 
+WEIGHT_DECAY        : 0
+BATCH_SIZE          : 128
+
+# Load pre-trained model
+LOAD_MODEL          : False
+MODEL_PATH          : training/results/gpu/1_GATv2/iter_2/LatNet_83_131.pth
+
+# Data Path
+DATA_DIR            : 'data/training_data'
+
+# Results directory 
+RESULTS_DIR         : 'training/results' 
+SAVE_THRESHOLD      : 0.8
+
+

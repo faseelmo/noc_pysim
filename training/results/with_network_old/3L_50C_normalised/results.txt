@@ -1,0 +1,1 @@
+Best epoch is 38 with map tau = 0.72 and p_val = 0.0. Path: training/results/with_network_old/3L_50C_normalised/models/LatNet_90_38_best.pth
