@@ -25,8 +25,8 @@ MODEL_PATH          : training/results/gpu/1_GATv2/iter_2/LatNet_83_131.pth
 MESH_SIZE           : 4
 
 # Data Path
-DATA_DIR            : 'data/training_data/with_network_4x4_v4'
+DATA_DIR            : 'data/training_data/with_network_4x4_v2'
 
 # Results directory 
-RESULTS_DIR         : 'training/results/with_network_4x4_v4' 
+RESULTS_DIR         : 'training/results/with_network_4x4_v2' 
 SAVE_THRESHOLD      : 0.8

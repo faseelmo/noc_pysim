@@ -200,15 +200,17 @@ if __name__ == "__main__" :
 
     channels    = params["HIDDEN_CHANNELS"]
     num_layers  = params["NUM_MPN_LAYERS"]
+    mesh_size   = params["MESH_SIZE"]
 
     DATA_DIR     = params["DATA_DIR"]
+
     test_dir     = f"{DATA_DIR}/test"
     map_test_dir = f"{DATA_DIR}/map_test"
 
     if args.with_network:
         dataset_obj = dataset_module.NocDataset
         dataset     = dataset_obj(test_dir)
-        model       = model_module.HeteroGNN( channels, num_layers )
+        model       = model_module.HeteroGNN( channels, num_layers, mesh_size )
 
     else: 
         is_hetero      = params["IS_HETERO"].strip().lower()      == "true" 

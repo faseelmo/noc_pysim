@@ -85,13 +85,13 @@ def process_batch(data, model, loss_fn, device):
 
     true_task, pred_task, true_exit, pred_exit = get_true_pred_hetero(data, output)
 
-    # loss_task = loss_fn(pred_task, true_task) if true_task is not None else 0
-    # loss_exit = loss_fn(pred_exit, true_exit) if true_exit is not None else 0
-    # total_loss = loss_task + loss_exit
+    loss_task = loss_fn(pred_task, true_task) if true_task is not None else 0
+    loss_exit = loss_fn(pred_exit, true_exit) if true_exit is not None else 0
+    total_loss = loss_task + loss_exit
 
-    batch = data['task'].batch
-    _, max_indices = scatter_max(true_task[:, 1], batch)
-    total_loss = loss_fn(output['task'][max_indices, 1], true_task[max_indices, 1])
+    # batch = data['task'].batch
+    # _, max_indices = scatter_max(true_task[:, 1], batch)
+    # total_loss = loss_fn(output['task'][max_indices, 1], true_task[max_indices, 1])
 
     return total_loss
 

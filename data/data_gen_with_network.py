@@ -50,6 +50,45 @@ def simulate(num_nodes: int, map_count : int = 1) -> list:
     return graph_list, max_latency
 
 
+def create_n_graphs(count, node_range, map_count, batch_size, data_dir):
+    max_latency = 0
+    batch_graphs = []
+    total_saved = 0
+
+    # Ensure the directory exists
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+
+    for i in range(count):
+        nodes = random.randint(*node_range)
+        graph_list, latency = simulate(nodes, map_count=map_count)
+
+        batch_graphs.extend(graph_list)
+        if latency > max_latency:
+            max_latency = latency
+
+        # Save batch when the batch size is reached
+        if len(batch_graphs) >= batch_size:
+            print(f"\nSaving batch of {len(batch_graphs)} graphs to disk...")
+            save_data(batch_graphs, data_dir, start_idx=total_saved)
+            total_saved += len(batch_graphs)
+            batch_graphs.clear()
+
+        print(f"\rCreating Graph {i * map_count}", end='', flush=False)
+
+    # Save any remaining graphs in the batch
+    if batch_graphs:
+        print(f"\nSaving final batch of {len(batch_graphs)} graphs to disk...")
+        save_data(batch_graphs, data_dir, start_idx=total_saved)
+
+    return max_latency
+
+
+def save_data(graph_list, data_dir, start_idx=0):
+    for i, graph in enumerate(graph_list):
+        save_graph_to_json(graph, os.path.join(data_dir, f"{start_idx + i}.json"))
+
+
 if __name__ == "__main__": 
 
     import random 
@@ -57,56 +96,41 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    test_split          = 1000      # 400
-    training_data_count = 10000     # 12000
-    training_graphs     = []
+    test_count          = 1000      # 400
+    training_data_count = 8000     # 12000
     node_range          = (2, 6)
-    map_count           = 4  
+    training_map_count  = 50  
+    batch_size          = 50000
+
+    print(f"Total training data needed: {training_data_count * training_map_count}")
+
+    training_data_dir = os.path.join( PARAMS['DATA_DIR'], "train" )
+    test_data_dir   = os.path.join( PARAMS['DATA_DIR'], "test" )
 
     print(f"NoC Size: {PARAMS['MESH_SIZE']}")
     print(f"Saving data to {PARAMS['DATA_DIR']}")
 
+    # Training Data Generation
+    training_max_latency = create_n_graphs( training_data_count, 
+                                            node_range, 
+                                            training_map_count, 
+                                            batch_size, 
+                                            training_data_dir )
 
-    # Simulating
-    max_latency = 0 
-    for i in range(training_data_count): 
-        nodes               = random.randint(*node_range)
-        graph_list, latency = simulate(nodes, map_count=map_count)
-        training_graphs.extend(graph_list)  
-        if latency > max_latency: 
-            max_latency = latency
-            print(f"\nMax Latency: {max_latency}")
-        print( f"\rCreating Graph {i*len(graph_list)}", end='', flush=False )
+    # Test Data Generation
+    test_map_count = 1
+    test_max_latency = create_n_graphs( test_count, 
+                                        node_range, 
+                                        test_map_count, 
+                                        batch_size, 
+                                        test_data_dir )
 
-    test_graphs     = random.sample(training_graphs, test_split)
-    training_graphs = [graph for graph in training_graphs if graph not in test_graphs]
-
-    print(f"\nNumber of training graphs: {len(training_graphs)}, Number of test graphs: {len(test_graphs)}")
-
-    test_data_dir   = os.path.join( PARAMS['DATA_DIR'], "test" )
-    traing_data_dir = os.path.join( PARAMS['DATA_DIR'], "train" )
-
-    # Creating test data dir 
-    if not os.path.exists(test_data_dir): 
-        os.makedirs(test_data_dir)
-
-    for i, graph in enumerate(test_graphs): 
-        save_graph_to_json(graph, os.path.join(test_data_dir, f"{i}.json"))
-
-    # Creating training data dir 
-    if not os.path.exists(traing_data_dir):
-        os.makedirs(traing_data_dir)
-
-    for i, graph in enumerate(training_graphs): 
-        save_graph_to_json(graph, os.path.join(traing_data_dir, f"{i}.json"))
-
-    # # # Creating data for mapping test metric 
+    # Creating data for mapping test metric 
     map_test_dir    = os.path.join( PARAMS['DATA_DIR'], "map_test" )
     if os.path.exists(map_test_dir): 
         shutil.rmtree(map_test_dir)
 
     os.makedirs(map_test_dir)
-    # exit()
 
     num_metric_graph        = 10
     metric_maps_per_graph   = 100

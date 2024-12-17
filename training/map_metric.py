@@ -54,9 +54,9 @@ def get_mapping_tau(model, NocDataset, map_test_dir, epoch, show):
 
     average_tau     = round(sum(tau_list)/len(tau_list), 2)
     average_p_val   = round(sum(p_value_list)/len(p_value_list), 2)
-    std_tau         = round(np.std(tau_list), 2)
+    # std_tau         = round(np.std(tau_list), 2)
 
-    print(f"Epoch: {epoch}\tAverage tau = {average_tau}\tAverage p_val = {average_p_val}\tStd p_val = {std_tau}")
+    print(f"Epoch: {epoch}\tAverage tau = {average_tau}\tAverage p_val = {average_p_val}")
 
     return average_tau, average_p_val
 
@@ -89,6 +89,7 @@ if __name__ == "__main__" :
     HIDDEN_CHANNELS     = params["HIDDEN_CHANNELS"]
     NUM_MPN_LAYERS      = params["NUM_MPN_LAYERS"]
     DATA_DIR            = params["DATA_DIR"]
+    MESH_SIZE           = params["MESH_SIZE"]
 
     test_dir        = f"{DATA_DIR}/test"
     map_test_dir    = f"{DATA_DIR}/map_test"
@@ -96,7 +97,7 @@ if __name__ == "__main__" :
     dataset = NocDataset(test_dir)
     data = dataset[0]
 
-    model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS )
+    model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS, MESH_SIZE )
     model(data.x_dict, data.edge_index_dict)
     print(f"Model initialized")
 
