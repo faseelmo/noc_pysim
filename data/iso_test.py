@@ -2,12 +2,14 @@
 import os 
 import torch
 import shutil 
+import numpy as np 
+from matplotlib import pyplot as plt    
 import networkx as nx 
 
 from src.utils import get_mesh_network
 from src.simulator import Simulator, GraphMap
 
-from training.train import get_max_latency_hetero, get_true_pred_hetero
+from training.train import ( get_max_latency_hetero, get_true_pred_hetero ) 
 
 from data.utils import ( import_model_dataset_param, 
                          modify_graph_to_application_graph,
@@ -17,6 +19,8 @@ from data.utils import ( import_model_dataset_param,
                          visualize_noc_application )
 
 if __name__ == "__main__": 
+
+    iso_test_path = "data/iso_test"
 
     model_path = "training/results/experiments/2_loss/3_weighted_mae_1000"
     model_epoch = 27
@@ -35,26 +39,79 @@ if __name__ == "__main__":
     graph.add_edge(0, 1)
     graph.add_edge(1, 2)
 
-    graph = modify_graph_to_application_graph( graph, (2, 2), (4, 4) )
+    mesh_size = 4
 
-    simulator = Simulator ( 4, 4, max_cycles=1000, debug_mode=False )
+    graph = modify_graph_to_application_graph( graph, 
+                                               generate_range=(2, 2), 
+                                               processing_time_range=(4, 4) )
+    # visualize_application(graph)
 
+    simulator = Simulator ( mesh_size, mesh_size, max_cycles=1000, debug_mode=False )
     task_list = simulator.graph_to_task(graph)
     
-    x_pos = 2
-    mapping = [ GraphMap(task_id=0, assigned_pe=( x_pos,0 )), 
-                GraphMap(task_id=1, assigned_pe=( x_pos,1 )), 
-                GraphMap(task_id=2, assigned_pe=( x_pos,3 )) ]
+    x_pos   = 2
+    mapping = [ GraphMap( task_id=0, assigned_pe=( x_pos,0 ) ), 
+                GraphMap( task_id=1, assigned_pe=( x_pos,1 ) ), 
+                GraphMap( task_id=2, assigned_pe=( x_pos,3 ) )  ]
 
     mapping_list = simulator.set_assigned_mapping_list(task_list, mapping)
     simulator.map(mapping_list)
     latency = simulator.run()
+
     print(f"Latency: {latency}")
 
-    output_graph = get_mesh_network(4, graph, mapping_list)
-    visualize_noc_application(output_graph)    
+    output_graph = get_mesh_network(mesh_size, graph, mapping_list)
+    # visualize_noc_application(output_graph)    
 
-    iso_test_path = "data/iso_test"
+    adj_matrix = nx.to_numpy_array(output_graph, weight=None)
+    print(f"Adjacency matrix: {adj_matrix}")
+    np.savetxt(f"{iso_test_path}/adjacency_matrix.txt", adj_matrix, fmt="%d")
+
+    num_nodes = adj_matrix.shape[0]
+    permutations = np.random.permutation(num_nodes)
+    iso_adj_matrix = adj_matrix[permutations][:, permutations]
+    iso_graph = nx.from_numpy_array(iso_adj_matrix, create_using=nx.DiGraph)
+
+    assert nx.is_isomorphic(output_graph, iso_graph), "Graph is not isomorphic"
+
+    original_node_dict = {}
+
+    for node_idx, node in enumerate(output_graph.nodes()):
+        original_node_dict[node_idx] = node
+
+    for new_node_idx, original_node_idx in enumerate(permutations):
+        original_node_id = original_node_dict[original_node_idx]
+        original_node_attr = output_graph.nodes(data=True)[original_node_id]
+        iso_graph.nodes[new_node_idx].update(original_node_attr)
+        print(f"")
+        print(f"Original Attr is {original_node_attr}")
+        print(f"New Attr is {iso_graph.nodes(data=True)[new_node_idx]}")
+
+    new_to_original_mapping = {new_node_idx: original_node_dict[original_node_idx]
+                           for new_node_idx, original_node_idx in enumerate(permutations)}
+
+    iso_graph = nx.relabel_nodes(iso_graph, new_to_original_mapping)
+
+    for node_id, node in iso_graph.nodes(data=True):
+        print(f"Node {node_id} has attr {node}")
+
+    visualize_noc_application(output_graph)
+    visualize_noc_application(iso_graph)
+    
+
+
+
+    
+
+
+
+
+
+
+
+
+    exit()
+
     os.makedirs(iso_test_path, exist_ok=True)  
     save_graph_to_json(output_graph, f"{iso_test_path}/graph.json")
 
@@ -66,7 +123,6 @@ if __name__ == "__main__":
     true, pred = get_max_latency_hetero( data, output )
 
     print(f"True latency: {int(true)}, Predicted latency: {int(pred)}")
-
     
     shutil.rmtree(iso_test_path)
 
