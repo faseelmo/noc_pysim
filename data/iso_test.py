@@ -43,31 +43,39 @@ if __name__ == "__main__":
     graph.add_edge(2, 3)
 
     mesh_size = 4
+    debug_mode = False
 
     graph = modify_graph_to_application_graph( graph, 
                                                generate_range=(2, 2), 
                                                processing_time_range=(2, 2) )
-    visualize_application(graph)
+    # visualize_application(graph)
 
-    simulator = Simulator ( mesh_size, mesh_size, max_cycles=1000, debug_mode=True )
+    simulator = Simulator ( mesh_size, mesh_size, max_cycles=1000, debug_mode=debug_mode )
     task_list = simulator.graph_to_task(graph)
     
-    mapping = [ GraphMap( task_id=0, assigned_pe=( 1,1 ) ), 
+
+    # 
+    mapping = [ GraphMap( task_id=0, assigned_pe=( 0,0 ) ), 
                 GraphMap( task_id=1, assigned_pe=( 2,1 ) ), 
                 GraphMap( task_id=2, assigned_pe=( 1,2 ) ), 
-                GraphMap( task_id=3, assigned_pe=( 2,2 ) ) ]
+                GraphMap( task_id=3, assigned_pe=( 3,3 ) ) ]
 
     mapping_list = simulator.set_assigned_mapping_list(task_list, mapping)
     simulator.map(mapping_list)
     latency = simulator.run()
+    print(f"First run Latency: {latency}")
     output_graph = get_mesh_network(mesh_size, graph, mapping_list)
-    # visualize_noc_application(output_graph)
 
+    # visualize_noc_application(output_graph)
     simulator.clear()
-    mapping = [ GraphMap( task_id=0, assigned_pe=( 2,2 ) ), 
+
+    #
+
+
+    mapping = [ GraphMap( task_id=0, assigned_pe=( 3,3 ) ), 
                 GraphMap( task_id=1, assigned_pe=( 1,2 ) ), 
                 GraphMap( task_id=2, assigned_pe=( 2,1 ) ), 
-                GraphMap( task_id=3, assigned_pe=( 1,1 ) ) ]
+                GraphMap( task_id=3, assigned_pe=( 0,0 ) ) ]
 
     task_list = simulator.graph_to_task(graph)
     mapping_list = simulator.set_assigned_mapping_list(task_list, mapping)
