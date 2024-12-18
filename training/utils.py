@@ -11,11 +11,16 @@ def log_hetero_data(data) -> None:
             print(f"\nEdge index: {edge_index} \n{data.edge_index_dict[edge_index]}")
 
 
+def does_model_dir_exit(dir_path) -> None:
+    import os
+    model_path = os.path.join(dir_path, "models")   
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+        print(f"Folder '{model_path}' created.")
+
+
 def does_path_exist(dir_path) -> None:
     import os
-
-    model_path      = os.path.join(dir_path, "models")   
-
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
         print(f"Folder '{dir_path}' created.")
@@ -24,10 +29,6 @@ def does_path_exist(dir_path) -> None:
         continue_prompt = input("Do you want to continue? (yes/no): ")
         if continue_prompt.lower() != "yes":
             exit()
-
-    if not os.path.exists(model_path):
-        os.makedirs(model_path)
-        print(f"Folder '{model_path}' created.")
 
 
 def copy_file(src_path, dest_path):

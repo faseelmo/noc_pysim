@@ -5,10 +5,9 @@ import numpy    as np
 
 from src.simulator import Simulator
 from src.utils     import get_mesh_network
-from data.utils    import ( save_graph_to_json, 
+from data.utils    import ( generate_graph, 
+                            save_graph_to_json, 
                             visualize_application, 
-                            visualize_noc_application, 
-                            generate_graph, 
                             modify_graph_to_application_graph )
 
 PARAMS = yaml.safe_load(open("training/config/params_with_network.yaml"))  

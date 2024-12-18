@@ -91,10 +91,10 @@ if __name__ == "__main__" :
     DATA_DIR            = params["DATA_DIR"]
     MESH_SIZE           = params["MESH_SIZE"]
 
-    test_dir        = f"{DATA_DIR}/test"
-    map_test_dir    = f"{DATA_DIR}/map_test"
+    # map_test_dir    = f"{DATA_DIR}/map_test"
+    map_test_dir    = "data/training_data/with_network_4x4_v4/map_test"
 
-    dataset = NocDataset(test_dir)
+    dataset = NocDataset(os.path.join(map_test_dir, "0"))
     data = dataset[0]
 
     model = HeteroGNN( HIDDEN_CHANNELS, NUM_MPN_LAYERS, MESH_SIZE )
@@ -153,4 +153,4 @@ if __name__ == "__main__" :
         "--with_network"
     ]
 
-    subprocess.run(command)
+    # subprocess.run(command)

@@ -205,11 +205,11 @@ if __name__ == "__main__" :
     DATA_DIR     = params["DATA_DIR"]
 
     test_dir     = f"{DATA_DIR}/test"
-    map_test_dir = f"{DATA_DIR}/map_test"
+    map_test_dir    = "data/training_data/with_network_4x4_v4/map_test"
 
     if args.with_network:
         dataset_obj = dataset_module.NocDataset
-        dataset     = dataset_obj(test_dir)
+        # dataset     = dataset_obj(test_dir)
         model       = model_module.HeteroGNN( channels, num_layers, mesh_size )
 
     else: 
@@ -237,8 +237,8 @@ if __name__ == "__main__" :
     print(f"Weight path is {weight_path}, epoch is {epoch}")
     model.load_state_dict(torch.load(weight_path, weights_only=False))
 
-    results = infer(model, dataset)
-    plot_application_pred(results, plot_path, f"application_latency_all_nodes.png")
+    # results = infer(model, dataset)
+    # plot_application_pred(results, plot_path, f"application_latency_all_nodes.png")
 
     if args.with_network:
         map_results = get_map_latency(model, dataset_obj, map_test_dir)

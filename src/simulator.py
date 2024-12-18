@@ -50,17 +50,13 @@ class Simulator:
 
         self._mapping_list.clear()
         self._task_list.clear()
-
         print("Simulation cleared. Ready for next run.")
-
-
 
     def run(self) -> int:
         assert self._mapping_list, "Tasks have not been assigned to PEs"
         self._debug_print(f"\nRunning simulation with {self._num_rows}x{self._num_cols} mesh PEs")
 
-        cycle_count         = 0
-        current_flit_list   = []
+        cycle_count = 0
         
         while True: 
 
@@ -69,26 +65,28 @@ class Simulator:
             cycle_count += 1
             status_list = [] # To check if simulation is done
 
+            # Processing all the PEs
             for pe in self._pes.values():
                 is_done = pe.process(None)
                 status_list.append(is_done)
 
-            flits_for_next_cycle = []
-
+            
+            # Process the output buffer of all the routers
+            flits_for_this_cycle = []
             for router in self._routers.values():
-                required_flit           = self._get_required_flit( current_flit_list, router )  
-                flits_from_out_buffers  = router.process( required_flit, self._routers, self._pes)
-                flits_for_next_cycle.extend(flits_from_out_buffers)
+                new_flit_list = router.forward_output_buffer_flits( self._routers, self._pes )
+                flits_for_this_cycle.extend(new_flit_list)
 
-            current_flit_list = flits_for_next_cycle
+            # Process the input buffer and receive of all the routers 
+            for router in self._routers.values():
+                required_flit = self._get_required_flit( flits_for_this_cycle, router )  
+                router.process( required_flit )
 
             if self._debug_mode:
                 self._visualizer(cycle_count)
 
             if self.is_stop_condition_met(status_list, cycle_count):
                 return cycle_count - 1
-
-
 
     def graph_to_task(self, graph: nx.DiGraph) -> list[TaskInfo]:
         """
@@ -145,7 +143,6 @@ class Simulator:
 
         return task_list
 
-
     def get_random_mapping(self, tasks: list[TaskInfo] = None, do_map: bool = False) -> list[Map]:
         """
         One-to-one mapping of tasks to PE. 
@@ -176,7 +173,6 @@ class Simulator:
 
         return mapping_list
 
-
     def set_assigned_mapping_list(self, tasks: list[TaskInfo], mapping: list[ GraphMap ] ) -> list[Map]:
         """
         Get mapping list when tasks are defined as graphs. 
@@ -195,10 +191,7 @@ class Simulator:
                     mapping_list.append(map)
                     break
 
-        print(f"Len task is {len(tasks)}")
-
         return mapping_list 
-
 
     def map(self, mapping_list: list[Map]) -> None:
         """
@@ -206,6 +199,7 @@ class Simulator:
         """
 
         self._mapping_list      = mapping_list
+        # router_order_list       = []
 
         for router in self._routers.values():
             router.set_mapping_list(mapping_list)
@@ -215,12 +209,12 @@ class Simulator:
             pe = self._pes[map.assigned_pe]
             pe.assign_task([map.task])
             active_pes.add(map.assigned_pe)
+            # router_order_list.append(map.assigned_pe)
 
         self._pe_active_count = len(active_pes)
 
         if self._debug_mode:
             self._visualizer.init_mapping(mapping_list)
-
 
     def _create_routers(self) -> dict[tuple[int, int], Router]:
         router_lookup = {}
@@ -229,7 +223,6 @@ class Simulator:
                 router = Router( pos=(x, y), debug_mode=self._debug_mode )
                 router_lookup[(x, y)] = router
         return router_lookup
-
 
     def _create_pes(self) -> dict[tuple[int, int], ProcessingElement]:
         pe_lookup = {}
@@ -263,7 +256,6 @@ class Simulator:
 
     def get_mapping_list(self) -> list[Map]:    
         return self._mapping_list
-
 
     def get_tasks_status(self, show: bool= False) -> list[TaskInfo]:
         """
@@ -313,7 +305,6 @@ class Simulator:
     def _debug_print(self, message: str) -> None:
         if self._debug_mode:
             print(message)
-
 
 if __name__ == "__main__":
 

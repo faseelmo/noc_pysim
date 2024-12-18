@@ -8,6 +8,7 @@ import numpy as np
 from training.model_with_network import HeteroGNN
 from training.dataset   import load_data
 from training.utils     import ( does_path_exist, 
+                                 does_model_dir_exit, 
                                  copy_file, 
                                  print_parameter_count, 
                                  initialize_model )
@@ -35,6 +36,7 @@ def main():
     print(f"\nSaving Results to {SAVE_PATH}")
 
     does_path_exist(SAVE_PATH)
+    does_model_dir_exit(SAVE_PATH)
 
     copy_file(model_path,   f"{SAVE_PATH}/model.py")
     copy_file(train_path,   f"{SAVE_PATH}/train.py")

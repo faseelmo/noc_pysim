@@ -16,6 +16,7 @@ from torch_geometric.data           import Data
 from training.model_without_network import MPN, MPNHetero
 from training.dataset               import load_data
 from training.utils                 import ( does_path_exist, 
+                                             does_model_dir_exit, 
                                              copy_file, 
                                              plot_and_save_loss, 
                                              print_parameter_count, 
@@ -212,6 +213,7 @@ def main():
     print(f"\nSaving Results to {SAVE_PATH}")
 
     does_path_exist(SAVE_PATH)
+    does_model_dir_exit(SAVE_PATH)
 
     copy_file(model_path,   f"{SAVE_PATH}/model.py")
     copy_file(train_path,   f"{SAVE_PATH}/train.py")

@@ -116,6 +116,23 @@ def generate_graph(num_nodes: int):
     return random.choice(graph_generator)()
 
 
+def generate_random_dag(num_nodes, edge_prob=0.1):
+    G = nx.DiGraph()
+    G.add_nodes_from(range(num_nodes))
+    # Create a random ordering
+    nodes = list(range(num_nodes))
+    random.shuffle(nodes)
+    
+    # Only add edges from earlier to later in the shuffle
+    for i in range(num_nodes):
+        for j in range(i+1, num_nodes):
+            if random.random() < edge_prob:
+                G.add_edge(nodes[i], nodes[j])
+    
+    return G
+
+
+
 def modify_graph_to_application_graph(graph: nx.DiGraph, generate_range: tuple, processing_time_range: tuple):
     """
     Adds weight attribute to the edges of the graph.

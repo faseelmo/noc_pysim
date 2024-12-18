@@ -86,9 +86,8 @@ def test_router_pe_simple():
             break
 
         for router in router_lookup.values():
-            flit_list = router.process( flit_list, router_lookup, pe_lookup )  
+            flit_list = router._forward_output_and_process( flit_list, router_lookup, pe_lookup )  
 
-        router_list = list(router_lookup.values())
 
     assert latency == 36
 
@@ -180,7 +179,7 @@ def test_router_pe_wait_in_input_buffer():
             break
 
         for router in router_lookup.values():
-            flit_list = router.process( flit_list, router_lookup, pe_lookup )  
+            flit_list = router._forward_output_and_process( flit_list, router_lookup, pe_lookup )  
 
     assert latency == 40
 
@@ -250,7 +249,7 @@ def test_router_proper_in_out_buffer_1():
             if not router.get_pos() == (0,0):  
                 flit_list = [] # Clearing the flit list for other routers.
 
-            flit_list = router.process( flit_list, router_lookup, {} )
+            flit_list = router._forward_output_and_process( flit_list, router_lookup, {} )
 
         # Checking conditions. 
         # Refer page 37 of thesis notes
@@ -323,12 +322,12 @@ def test_router_proper_in_out_buffer_2():
                     is_packet_2_injected = True
 
         if i < 8:
-            router_00.process( flit_list, router_lookup, {} )
+            router_00._forward_output_and_process( flit_list, router_lookup, {} )
 
         else: 
 
             for router in router_lookup.values():
-                flit_list = router.process( flit_list, router_lookup, {} )
+                flit_list = router._forward_output_and_process( flit_list, router_lookup, {} )
 
         # Checking conditions.
         if i == 10:
@@ -440,7 +439,7 @@ def test_ready_at_the_same_time():
             flit_list = []
 
         for router in router_lookup.values():
-            flit_list = router.process( flit_list, router_lookup, {} )
+            flit_list = router._forward_output_and_process( flit_list, router_lookup, {} )
 
     if i == 5: 
         peek_flit = router_10._north_output_buffer.queue[-1]    

@@ -32,7 +32,7 @@ def test_sim_simple(debug_mode: bool = False):
     sim.map(mapping_list)
     latency = sim.run()
 
-    assert latency == 63
+    assert latency == 59
 
 
 def test_sim_1(debug_mode: bool = False):    
@@ -87,7 +87,7 @@ def test_sim_1(debug_mode: bool = False):
     sim.map(mapping_list)
     latency = sim.run() 
 
-    assert latency == 71
+    assert latency == 69
 
 def test_sim_2(debug_mode: bool = False): 
     r"""
@@ -141,7 +141,7 @@ def test_sim_2(debug_mode: bool = False):
     sim.map(mapping_list)
     latency = sim.run() 
 
-    assert latency == 50
+    assert latency == 48
 
 
 def test_graph_to_task_fn(): 
@@ -223,7 +223,7 @@ def test_sim_graph(debug_mode: bool = False):
     sim.map(mapping_list)
     latency = sim.run()
 
-    assert latency == 109
+    assert latency == 100
 
 if __name__ == "__main__":
 

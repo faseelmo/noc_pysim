@@ -55,6 +55,9 @@ def plot_graphs_as_subplots(graphs, save_dir, save_name):
         row, col = divmod(idx, cols)
         ax = axes[row, col]
 
+        avg_clustering = nx.average_clustering(graph)
+        # print(f"Graph {idx + 1}: Avg Clustering Coefficient = {avg_clustering}")
+
         # Filter task nodes based on the node type
         task_nodes = [node for node, attr in graph.nodes(data=True) if attr.get("type") == node_type]
 
@@ -74,7 +77,7 @@ def plot_graphs_as_subplots(graphs, save_dir, save_name):
             edge_color="gray",
             font_weight="bold"
         )
-        ax.set_title(f"Task Nodes: Graph {idx + 1}")
+        ax.set_title(f"Task Nodes: Graph {idx + 1}, Avg Clust: {avg_clustering}")
 
     # Hide unused subplots
     for idx in range(len(graphs), rows * cols):
