@@ -38,6 +38,22 @@ class Simulator:
         if self._debug_mode:
             self._visualizer = self._init_visualizer()
 
+    def clear(self) -> None:
+        self._pe_done_count     = 0    
+        self._pe_active_count   = 0
+
+        for pe in self._pes.values():
+            pe.clear()
+
+        for router in self._routers.values():
+            router.clear()
+
+        self._mapping_list.clear()
+        self._task_list.clear()
+
+        print("Simulation cleared. Ready for next run.")
+
+
 
     def run(self) -> int:
         assert self._mapping_list, "Tasks have not been assigned to PEs"
@@ -165,6 +181,9 @@ class Simulator:
         """
         Get mapping list when tasks are defined as graphs. 
         """
+        assert tasks, "Task list is empty"
+        assert mapping, "Mapping list is empty"
+
         mapping_list = []
 
         for task in tasks: 
@@ -175,6 +194,8 @@ class Simulator:
                     map = Map(task=task, assigned_pe=pe)
                     mapping_list.append(map)
                     break
+
+        print(f"Len task is {len(tasks)}")
 
         return mapping_list 
 

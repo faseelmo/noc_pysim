@@ -17,6 +17,12 @@ class Buffer:
         
         self.fill_emtpy_slots()
 
+    def clear(self) -> None:
+        self.queue.clear()
+        self._acceptable_flit_uids.clear()
+        self._in_transmit_mode = False
+        self.fill_emtpy_slots()
+
     def add_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
         """
         Adds flit to the buffer if it is not full.

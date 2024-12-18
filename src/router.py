@@ -36,6 +36,16 @@ class Router:
 
         self._populate_buffer_lists()
 
+    def clear(self) -> None:
+        """Clears the buffers of the router."""
+        for buffer in self._input_buffers:
+            buffer.clear()
+
+        for buffer in self._output_buffers:
+            buffer.clear()
+
+        self._mapping_list.clear()
+
     def process( self, receive_flit_list: list, router_lookup: dict, pe_lookup: dict ) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
         """ - Process the flits in the input buffer first 
                 - forward_output_buffer_flits()

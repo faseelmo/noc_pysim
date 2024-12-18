@@ -75,6 +75,15 @@ class ProcessingElement:
         if self.compute_list is not None:
             self.required_packet_types  = self._get_unique_required_packet_type()
 
+    def clear(self) -> None:
+        self.compute_list = None
+        self.compute_is_busy = False
+        self.current_processing_cycle = 0
+        self.input_network_interface.clear()
+        self.output_network_interface.clear()
+        self.current_id_transmitted_count = 0
+        self.required_packet_types = None
+
     def assign_task(self, computing_list: list [ TaskInfo ]) -> None:
         if self.compute_list is not None:
             self.compute_list.extend(computing_list)
