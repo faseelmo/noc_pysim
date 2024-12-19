@@ -64,7 +64,8 @@ class HeaderFlit:
         return self._next_hop
 
     def clear_routing_info( self ) -> None:
-        self._next_hop = BufferLocation.UNASSIGNED
+        self._next_hop.output_buffer = BufferLocation.UNASSIGNED
+        self._next_hop.next_input_buffer = BufferLocation.UNASSIGNED
 
     def get_uid( self ) -> uuid.UUID:
         return self._packet_uid

@@ -182,7 +182,7 @@ class Router:
             # if next_hop_location == BufferLocation.UNASSIGNED:
                 if not buffer.can_do_routing():
                     continue
-                self._compute_routing_for_flits_from_pe( buffer )
+                self._compute_routing( buffer )
                 next_hop_location   = top_flit.get_routing_info().output_buffer
                 # continue 
 
@@ -206,7 +206,7 @@ class Router:
         for buffer in self._output_buffers:
             buffer.manager()
 
-    def _compute_routing_for_flits_from_pe( self, buffer: Buffer ) -> None:
+    def _compute_routing( self, buffer: Buffer ) -> None:
         tail_flit = buffer.queue[-1]
         self._update_routing( tail_flit, f"{buffer}".split()[0] )
 
@@ -227,14 +227,7 @@ class Router:
         self._debug_print( f"Received flit to {input_buffer_name}" )
 
         input_buffer.add_flit( flit )
-
-        # if isinstance(flit, HeaderFlit):
-        #     flit.clear_routing_info()
-
         self._debug_print(f"\t-> {input_buffer}", with_tag=False)
-
-        if input_buffer.can_do_routing(): 
-            self._update_routing( flit, input_buffer_name )
 
 
     def _update_routing( self, flit: TailFlit, buffer_name: str) -> None: 

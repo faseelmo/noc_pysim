@@ -47,25 +47,25 @@ if __name__ == "__main__":
                                                processing_time_range=(2, 2) )
 
     simulator = Simulator ( mesh_size, mesh_size, max_cycles=1000, debug_mode=debug_mode )
-    task_list = simulator.graph_to_task(graph)
+    task_list = simulator.graph_to_task( graph )
 
     mapping = [ GraphMap( task_id=0, assigned_pe=( 3,0 ) ), 
                 GraphMap( task_id=1, assigned_pe=( 2,0 ) ),
                 GraphMap( task_id=2, assigned_pe=( 1,0 ) ) ]
 
-    mapping_list = simulator.set_assigned_mapping_list(task_list, mapping)
-    simulator.map(mapping_list)
+    mapping_list = simulator.set_assigned_mapping_list( task_list, mapping )
+    simulator.map( mapping_list )
     latency = simulator.run()
-    output_graph = get_mesh_network(mesh_size, graph, mapping_list)
+    output_graph = get_mesh_network( mesh_size, graph, mapping_list )
     visualize_noc_application( output_graph )
 
-    os.makedirs(iso_test_path, exist_ok=True)  
-    save_graph_to_json(output_graph, f"{iso_test_path}/graph.json")
+    os.makedirs( iso_test_path, exist_ok=True )  
+    save_graph_to_json( output_graph, f"{iso_test_path}/graph.json" )
 
-    dataset = dataset.NocDataset(iso_test_path)
+    dataset = dataset.NocDataset( iso_test_path )
     data = dataset[0]
 
-    output = model(data.x_dict, data.edge_index_dict)
+    output = model( data.x_dict, data.edge_index_dict )
 
     true, pred = get_max_latency_hetero( data, output )
     print(f"True latency: {int(true)}, Predicted latency: {int(pred)}")
