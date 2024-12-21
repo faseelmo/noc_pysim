@@ -22,14 +22,14 @@ if __name__ == "__main__":
 
     iso_test_path = "data/iso_test"
 
-    model_path = "training/results/with_network/4x4_v4"
-    model_epoch = 13
-    model, dataset, params = import_model_dataset_param( model_path )
+    # model_path = "training/results/with_network/4x4_v4"
+    # model_epoch = 13
+    # model, dataset, params = import_model_dataset_param( model_path )
 
     # Loading the model
-    model = model.HeteroGNN( params["HIDDEN_CHANNELS"], params["NUM_MPN_LAYERS"], params["MESH_SIZE"] )
-    model_weights_path = get_weights_from_directory( f"{model_path}/models", model_epoch )
-    model.load_state_dict( torch.load( model_weights_path, weights_only=False ) )
+    # model = model.HeteroGNN( params["HIDDEN_CHANNELS"], params["NUM_MPN_LAYERS"], params["MESH_SIZE"] )
+    # model_weights_path = get_weights_from_directory( f"{model_path}/models", model_epoch )
+    # model.load_state_dict( torch.load( model_weights_path, weights_only=False ) )
 
     graph = nx.DiGraph()
     graph.add_node(0)
@@ -40,11 +40,11 @@ if __name__ == "__main__":
     graph.add_edge(1, 2)
 
     mesh_size = 4
-    debug_mode = False
+    debug_mode = True
 
     graph = modify_graph_to_application_graph( graph, 
                                                generate_range=(2, 2), 
-                                               processing_time_range=(2, 2) )
+                                               processing_time_range=(4, 4) )
 
     simulator = Simulator ( mesh_size, mesh_size, max_cycles=1000, debug_mode=debug_mode )
     task_list = simulator.graph_to_task( graph )
@@ -59,8 +59,11 @@ if __name__ == "__main__":
     output_graph = get_mesh_network( mesh_size, graph, mapping_list )
     visualize_noc_application( output_graph )
 
+    exit()
+
     os.makedirs( iso_test_path, exist_ok=True )  
     save_graph_to_json( output_graph, f"{iso_test_path}/graph.json" )
+
 
     dataset = dataset.NocDataset( iso_test_path )
     data = dataset[0]

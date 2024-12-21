@@ -46,40 +46,25 @@ class Router:
 
         self._mapping_list.clear()
 
-    def process( self, receive_flit_list: list ) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
+    def process( self ) -> None:
         """ - Process the flits in the input buffer first 
                 - forward_input_buffer_flits()
             - Receive New flits 
                 - receive_flits() """
 
-        # [Forward] Input Buffer    -> Output Buffer
         self._forward_input_buffer_flits()
-
-        # [Receive]  
-        # TODO: 
-        # No need for filtering any more. simulator takes care of it. 
-        # Instead throw an exception if non relevant flits are received.
-        # UPDATE (03-11-2024): tests/router_test.py:443 test is failing. Non Critical. 
-
-        # filtered_flit_list = self._filter_required_flits( receive_flit_list )
-        for flit in receive_flit_list:
-            self._receive_flit( flit )
-
         self.management()
 
-        # return new_flit_list
 
-    def _forward_output_and_process( self, receive_flit_list, router_lookup, pe_lookup) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
+    def _forward_output_and_process( self, router_lookup, pe_lookup) -> None:
         """
         BACKWARD COMPATIBILITY (ONLY FOR PYTEST)
         Forward flits from the output buffer to the next router.
         Process the flits in the input buffer.
         Receive new flits.
         """
-        new_flit_list = self.forward_output_buffer_flits( router_lookup, pe_lookup )
-        self.process( receive_flit_list )
-
-        return new_flit_list
+        self.forward_output_buffer_flits( router_lookup, pe_lookup )
+        self.process( )
 
 
     def set_mapping_list(self, mapping_list: list) -> None:
@@ -104,14 +89,12 @@ class Router:
     def add_flit_to_local_input_buffer(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> None:
         self._local_input_buffer.add_flit(flit)
 
-    def forward_output_buffer_flits( self, router_lookup: dict, pe_lookup: dict ) -> list[ Union[ HeaderFlit, PayloadFlit, TailFlit ] ]:
+    def forward_output_buffer_flits( self, router_lookup: dict, pe_lookup: dict ) -> None:
         """
         Check if the output has any flits to be forwarded to the next router.
         If there are, check if the next router has space in the input buffer.
         If it does, remove the flit from the output buffer and return it. 
         """
-
-        flit_list = []
 
         for buffer in self._output_buffers:
             top_flit = buffer.peek()
@@ -142,7 +125,6 @@ class Router:
             next_router_input_buffer = next_router._get_buffer( direction = next_hop_buffer, is_input = True )
 
             if not next_router_input_buffer.is_full():
-
                 # Checking if new Header can be registered in the input buffer of 
                 # the next router.
                 if isinstance(top_flit, HeaderFlit):
@@ -156,9 +138,8 @@ class Router:
                     f" {next_router}" )
 
                 flit = buffer.remove()
-                flit_list.append( flit )
+                next_router._receive_flit( flit )
 
-        return flit_list 
 
     def _forward_input_buffer_flits( self ) -> None:
         """
@@ -172,19 +153,27 @@ class Router:
 
             top_flit   = buffer.peek()
 
-            if top_flit is None:
-                continue
+            if not buffer.can_transmit_flit(): 
+                continue    
+
 
             next_hop_location   = top_flit.get_routing_info().output_buffer
 
             # Check if routing information is available for packets copied from the PE
-            if next_hop_location == BufferLocation.UNASSIGNED or isinstance(top_flit, HeaderFlit):
+            if next_hop_location == BufferLocation.UNASSIGNED and isinstance(top_flit, HeaderFlit):
             # if next_hop_location == BufferLocation.UNASSIGNED:
                 if not buffer.can_do_routing():
                     continue
+
                 self._compute_routing( buffer )
                 next_hop_location   = top_flit.get_routing_info().output_buffer
-                # continue 
+
+                print(f"Computing routing for {buffer}")
+
+                if buffer.get_name() == "local_input": 
+                    continue 
+
+            
 
             next_buffer = self._get_buffer( direction = next_hop_location, is_input = False )
 
@@ -197,6 +186,7 @@ class Router:
                 next_buffer.add_flit( flit )    
 
                 self._debug_print(f"\t-> {next_buffer}", with_tag=False)
+
 
     def management( self ) -> None:
         
@@ -228,6 +218,10 @@ class Router:
 
         input_buffer.add_flit( flit )
         self._debug_print(f"\t-> {input_buffer}", with_tag=False)
+
+        if isinstance(flit, TailFlit):
+            self._debug_print( f"Clearing routing info of the packet in {input_buffer_name}" )
+            flit.get_header_pointer().clear_routing_info()
 
 
     def _update_routing( self, flit: TailFlit, buffer_name: str) -> None: 

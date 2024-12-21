@@ -72,18 +72,15 @@ class Simulator:
 
             
             # Process the output buffer of all the routers
-            flits_for_this_cycle = []
             for router in self._routers.values():
-                new_flit_list = router.forward_output_buffer_flits( self._routers, self._pes )
-                flits_for_this_cycle.extend(new_flit_list)
+                router.forward_output_buffer_flits( self._routers, self._pes )
 
             # Process the input buffer and receive of all the routers 
             for router in self._routers.values():
-                required_flit = self._get_required_flit( flits_for_this_cycle, router )  
-                router.process( required_flit )
+                router.process()
 
             if self._debug_mode:
-                self._visualizer(cycle_count)
+                self._visualizer(cycle_count - 1)
 
             if self.is_stop_condition_met(status_list, cycle_count):
                 return cycle_count - 1
