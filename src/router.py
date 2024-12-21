@@ -168,12 +168,8 @@ class Router:
                 self._compute_routing( buffer )
                 next_hop_location   = top_flit.get_routing_info().output_buffer
 
-                print(f"Computing routing for {buffer}")
-
                 if buffer.get_name() == "local_input": 
                     continue 
-
-            
 
             next_buffer = self._get_buffer( direction = next_hop_location, is_input = False )
 

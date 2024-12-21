@@ -55,7 +55,6 @@ def graph_to_task_list(graph: nx.DiGraph) -> list:
 
     return computing_list
 
-
 def simulate_application_on_pe( computing_list  : list[TaskInfo], 
                                 packet_list     : list[Packet], 
                                 debug_mode      : bool = False, 
