@@ -92,9 +92,10 @@ if __name__ == "__main__":
     """
 
     from training.dataset   import load_data
+    from torch_scatter      import scatter_max
 
     IDX             = 10
-    BATCH_SIZE      = 1
+    BATCH_SIZE      = 2
     HIDDEN_CHANNELS = 50
 
     torch.manual_seed(0)
@@ -108,3 +109,19 @@ if __name__ == "__main__":
 
     model       = HeteroGNN(HIDDEN_CHANNELS, num_mpn_layers=3)
     output      = model(data.x_dict, data.edge_index_dict)
+
+    target_task = data['task'].y
+    batch = data['task'].batch  
+    _, max_indices = scatter_max(target_task[:, 1], batch)
+
+    print(f"indicees is {max_indices}")
+    
+    print(f"Target is {data['task'].y}")
+    print(f"Target max is {data['task'].y[max_indices, 1]}")
+
+    print(f"Output is {output['task']}")
+    print(f"Output max is {output['task'][max_indices, 1]}")
+
+    abs_error = torch.abs(output['task'][max_indices, 1] - data['task'].y[max_indices, 1])
+
+

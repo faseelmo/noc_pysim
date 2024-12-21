@@ -95,10 +95,10 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    test_count          = 1000      # 400
-    training_data_count = 8000     # 12000
+    test_count          = 1000   # 400
+    training_data_count = 6000   # 12000
     node_range          = (2, 6)
-    training_map_count  = 50  
+    training_map_count  = 40  
     batch_size          = 50000
 
     print(f"Total training data needed: {training_data_count * training_map_count}")
@@ -124,70 +124,6 @@ if __name__ == "__main__":
                                         batch_size, 
                                         test_data_dir )
 
-    # Creating data for mapping test metric 
-    map_test_dir    = os.path.join( PARAMS['DATA_DIR'], "map_test" )
-    if os.path.exists(map_test_dir): 
-        shutil.rmtree(map_test_dir)
-
-    os.makedirs(map_test_dir)
-
-    num_metric_graph        = 10
-    metric_maps_per_graph   = 100
-    count                   = 0
-    std_threshold           = 5    
-    node_range              = (2, 5)
-    # map_node_range          = [2, 3, 4]
-
-    print(f"Creating Mapping Test graphs with std threshold {std_threshold}")
-    map_count_dict = {}
-
-    while count < num_metric_graph:
-        
-        # nodes                   = random.choice(map_node_range)
-        nodes = random.randint(*node_range)
-        map_graph_list, latency = simulate(nodes, map_count=metric_maps_per_graph)
-
-        latency_list = []
-        for _, graph in enumerate(map_graph_list): 
-            # Checking the distribution of the latency
-            end_cycle_list = []
-
-            for node_id, node_data in graph.nodes(data=True): 
-                if node_data["type"] == "task": 
-                    end_cycle = node_data["end_cycle"] 
-                    end_cycle_list.append(end_cycle)    
-
-            max_latency = max(end_cycle_list)
-            latency_list.append(max_latency)
-
-        num_nodes = len(map_graph_list[0].nodes) - ((PARAMS['MESH_SIZE']**2) * 2) 
-
-        std = np.std(latency_list)
-        print( f"\rStd: \t{std}, num_nodes \t{num_nodes}", end='', flush=False ) 
-
-        if std > std_threshold:
-            dir     = os.path.join(map_test_dir, f"{count}")
-            
-            if map_count_dict.get(num_nodes) is None: 
-                map_count_dict[num_nodes] = 0
-
-            map_count_dict[num_nodes] += 1
-
-            if num_nodes == 5:
-                if map_count_dict[num_nodes] >= 1: 
-                    node_range = (2, 4)
-
-
-            if not os.path.exists(dir): 
-                os.makedirs(dir)
-
-            for j, graph in enumerate(map_graph_list):
-                save_graph_to_json(graph, os.path.join(dir, f"{j}.json"))
-
-            print( f"\nCreating Mapping Test graph {count}" )
-            count   += 1
-
-    print()
 
 
 

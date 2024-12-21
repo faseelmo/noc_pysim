@@ -1,1 +1,0 @@
-Best epoch is 71 with map tau = 0.79 and p_val = 0.0. Path: training/results/with_network_old/3L_50C_normalised_NoMLP/models/LatNet_90_71_interval.pth

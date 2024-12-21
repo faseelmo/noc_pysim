@@ -9,7 +9,7 @@ MIN_GENERATE        : 1
 MAX_GENERATE        : 5
 MIN_PROCESSING_TIME : 5
 MAX_PROCESSING_TIME : 10
-MAX_CYCLE           : 500
+MAX_CYCLE           : 1000
 
 # Hyperparameters 
 LEARNING_RATE       : 0.01
@@ -22,8 +22,8 @@ LOAD_MODEL          : False
 MODEL_PATH          : training/results/gpu/1_GATv2/iter_2/LatNet_83_131.pth
 
 # Data Path
-DATA_DIR            : 'data/training_data/with_network_old'
+DATA_DIR            : 'data/training_data/with_network'
 
 # Results directory 
-RESULTS_DIR         : 'training/results/with_network_old' 
+RESULTS_DIR         : 'training/results/with_network' 
 SAVE_THRESHOLD      : 0.8
