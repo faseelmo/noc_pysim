@@ -1,30 +1,45 @@
 
 import networkx as nx
+import random
 
 from src.simulator import Simulator, GraphMap
-from data.utils import ( modify_graph_to_application_graph )
 
 def test_symmetry(): 
+
+    r"""
+
+       - 1 -
+      /     \
+     /       \ 
+    0         3
+     \       /
+      \     /
+       - 2 -
+   
+    """
 
     mesh_size = 4
     debug_mode = False
     sim = Simulator( num_rows=mesh_size, 
                      num_cols=mesh_size, 
                      debug_mode=debug_mode, 
-                     max_cycles=100 )
+                     max_cycles=1000 )
 
     graph = nx.DiGraph()
-    graph.add_node(0)
-    graph.add_node(1)
-    graph.add_node(2)
-    graph.add_node(3)
 
-    graph.add_edge(0, 1)
-    graph.add_edge(0, 2)
-    graph.add_edge(1, 3)
-    graph.add_edge(2, 3)
 
-    graph = modify_graph_to_application_graph( graph, generate_range=(2,2), processing_time_range=(2,2) )
+    proc_range = (2, 8)
+    graph.add_node(0, processing_time=random.randint(*proc_range))
+    graph.add_node(1, processing_time=random.randint(*proc_range))
+    graph.add_node(2, processing_time=random.randint(*proc_range))
+    graph.add_node(3, processing_time=random.randint(*proc_range), generate=2)
+
+    require_range = (2, 10)
+    graph.add_edge(0, 1, weight=random.randint(*require_range))  
+    graph.add_edge(0, 2, weight=random.randint(*require_range))  
+    graph.add_edge(1, 3, weight=random.randint(*require_range))  
+    graph.add_edge(2, 3, weight=random.randint(*require_range))  
+
     task_list = sim.graph_to_task( graph )
     mapping = [ GraphMap( task_id=0, assigned_pe=( 1,1 ) ), 
                 GraphMap( task_id=1, assigned_pe=( 2,1 ) ), 

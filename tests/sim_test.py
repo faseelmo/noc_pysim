@@ -160,7 +160,7 @@ def test_graph_to_task_fn():
     import networkx as nx 
 
     graph = nx.DiGraph()
-    graph.add_node(0, type="task", processing_time=5, generate=5)
+    graph.add_node(0, type="task", processing_time=5)
     graph.add_node(1, type="task", processing_time=3, generate=2)
     graph.add_node(2, type="task", processing_time=4, generate=1)
 
@@ -201,9 +201,9 @@ def test_sim_graph(debug_mode: bool = False):
     import networkx as nx
 
     graph = nx.DiGraph()
-    graph.add_node(1, type="task", processing_time=4, generate=4)
-    graph.add_node(2, type="task", processing_time=3, generate=3)
-    graph.add_node(3, type="task", processing_time=5, generate=9)
+    graph.add_node(1, type="task", processing_time=4)
+    graph.add_node(2, type="task", processing_time=3)
+    graph.add_node(3, type="task", processing_time=5)
     graph.add_node(0, type="task", processing_time=8, generate=1)
 
     graph.add_edge(2, 0, weight=3)
