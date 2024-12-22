@@ -1,6 +1,4 @@
-
 import networkx as nx
-
 from src.simulator import Simulator
 
 graph = nx.DiGraph()

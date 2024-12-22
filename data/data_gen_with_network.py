@@ -44,8 +44,6 @@ def simulate(num_nodes: int, map_count : int = 1) -> list:
         output_graph = get_mesh_network(mesh_size, graph, mapping_list)
         graph_list.append(output_graph)
 
-        # visualize_noc_application(output_graph)
-
     return graph_list, max_latency
 
 
