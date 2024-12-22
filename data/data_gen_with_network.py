@@ -8,16 +8,18 @@ from src.utils     import get_mesh_network
 from data.utils    import ( generate_graph, 
                             save_graph_to_json, 
                             visualize_application, 
+                            assign_random_attributes, 
                             modify_graph_to_application_graph )
 
 PARAMS = yaml.safe_load(open("training/config/params_with_network.yaml"))  
 
-def simulate(num_nodes: int, map_count : int = 1) -> list: 
+def simulate(num_nodes: int, map_count : int) -> tuple[list, int]: 
+
+    generate_range = (PARAMS['MIN_GENERATE'], PARAMS['MAX_GENERATE'])
+    processing_range = (PARAMS['MIN_PROCESSING_TIME'], PARAMS['MAX_PROCESSING_TIME'])
 
     graph = generate_graph(num_nodes)
-    graph = modify_graph_to_application_graph( graph, 
-                                               ( PARAMS['MIN_GENERATE'] ,        PARAMS['MAX_GENERATE'] ), 
-                                               ( PARAMS['MIN_PROCESSING_TIME'] , PARAMS['MAX_PROCESSING_TIME'] ) )
+    graph = assign_random_attributes(graph, generate_range, processing_range)
 
     debug_mode  = False 
     if debug_mode: visualize_application(graph)
@@ -26,6 +28,7 @@ def simulate(num_nodes: int, map_count : int = 1) -> list:
 
     graph_list = []
     max_latency = 0
+
     for i in range(map_count): 
 
         sim = Simulator( num_rows=mesh_size, 
@@ -94,9 +97,9 @@ if __name__ == "__main__":
     random.seed(0)
 
     test_count          = 1000   # 400
-    training_data_count = 6000   # 12000
+    training_data_count = 8000   # 12000
     node_range          = (2, 6)
-    training_map_count  = 40  
+    training_map_count  = 25  
     batch_size          = 50000
 
     print(f"Total training data needed: {training_data_count * training_map_count}")

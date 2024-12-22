@@ -144,17 +144,18 @@ class Simulator:
                 generate_count = 0
                 for successor in successors:
                     generate_count += graph[node_id][successor]["weight"]
-                node["generate"] = generate_count
 
             else: 
                 if "generate" not in node:
                     raise ValueError("Need to mention generate count for terminal nodes")
 
+                else: 
+                    generate_count = node["generate"]
 
             task = TaskInfo(
                 task_id                     = node_id, 
                 processing_cycles           = node["processing_time"], 
-                expected_generated_packets  = node["generate"], 
+                expected_generated_packets  = generate_count, 
                 require_list                = require_list, 
                 is_transmit_task            = is_transmit_node, 
                 transmit_list               = transmit_list, 

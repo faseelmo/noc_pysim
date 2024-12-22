@@ -173,6 +173,42 @@ def modify_graph_to_application_graph(graph: nx.DiGraph, generate_range: tuple, 
 
     return graph
 
+
+def assign_random_attributes(graph: nx.DiGraph, generate_range: tuple, processing_time_range: tuple):
+
+    # Assigning random weights to the edges
+    for src, dest in graph.edges:
+        graph[src][dest]["weight"] = random.randint(*generate_range)
+
+    # Assigning random processing time to the nodes
+    for node in graph.nodes: 
+        successor_count = len(list(graph.successors(node)))
+        predecessor_count = len(list(graph.predecessors(node)))
+
+        graph.nodes[node]["processing_time"] = random.randint(*processing_time_range)
+
+        if successor_count == 0:
+            final_node_generate_count = random.randint(*generate_range)
+            graph.nodes[node]["type"] = "exit"
+            graph.nodes[node]["generate"] = final_node_generate_count
+            continue
+
+        if predecessor_count == 0:
+            graph.nodes[node]["type"] = "dependency"
+            continue
+
+        if predecessor_count != 0 and successor_count != 0:
+            graph.nodes[node]["type"] = "task"
+            continue    
+
+    return graph
+
+
+
+        
+
+
+
 def create_and_clear_dir(directory_path):
     import shutil
     if os.path.exists(directory_path):
