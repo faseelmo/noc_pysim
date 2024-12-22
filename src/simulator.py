@@ -72,18 +72,15 @@ class Simulator:
 
             
             # Process the output buffer of all the routers
-            flits_for_this_cycle = []
             for router in self._routers.values():
-                new_flit_list = router.forward_output_buffer_flits( self._routers, self._pes )
-                flits_for_this_cycle.extend(new_flit_list)
+                router.forward_output_buffer_flits( self._routers, self._pes )
 
             # Process the input buffer and receive of all the routers 
             for router in self._routers.values():
-                required_flit = self._get_required_flit( flits_for_this_cycle, router )  
-                router.process( required_flit )
+                router.process()
 
             if self._debug_mode:
-                self._visualizer(cycle_count)
+                self._visualizer(cycle_count - 1)
 
             if self.is_stop_condition_met(status_list, cycle_count):
                 return cycle_count - 1
@@ -106,18 +103,31 @@ class Simulator:
             if len(predecessors) > 0:
                 for predecessor in predecessors:
                     require_id      = predecessor
+                    edge            = graph[predecessor][node_id]
+
+                    if "weight" not in edge:
+                        raise ValueError("Need to mention weight for all edges")
+
                     require_count   = graph[predecessor][node_id]["weight"]
+
                     require         = RequireInfo(
                                         require_type_id=require_id, 
                                         required_packets=require_count)
                     require_list.append(require)
 
+            if "processing_time" not in node:
+                raise ValueError("Need to mention processing_time for all nodes")
 
             is_transmit_node = False
             if len(successors) > 0:
                 is_transmit_node = True
                 for successor in successors:
                     transmit_id     = successor
+                    edge            = graph[node_id][successor]
+
+                    if "weight" not in edge:
+                        raise ValueError("Need to mention weight for all edges")
+
                     transmit_count  = graph[node_id][successor]["weight"]
                     transmit        = TransmitInfo(
                                         id=transmit_id, 
@@ -126,6 +136,19 @@ class Simulator:
 
                 # Sorting based on shortest transmit first
                 transmit_list.sort(key=lambda transmit_info: transmit_info.require,)
+
+                if "generate" in node:
+                    raise ValueError( f"Node {node_id} should not have generate count." 
+                                      f"Generate here is calculated based on edge weights.")
+
+                generate_count = 0
+                for successor in successors:
+                    generate_count += graph[node_id][successor]["weight"]
+                node["generate"] = generate_count
+
+            else: 
+                if "generate" not in node:
+                    raise ValueError("Need to mention generate count for terminal nodes")
 
 
             task = TaskInfo(

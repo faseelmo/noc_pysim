@@ -10,17 +10,18 @@ class Buffer:
     def __init__(self, size: int, name: str = "Buffer"):
         self.size               = size
         self.queue              = deque(maxlen=size)
-        self._in_transmit_mode  = False 
         self._name              = name
 
         self._acceptable_flit_uids = deque(maxlen=2)
         
         self.fill_emtpy_slots()
 
+    def get_name(self) -> str:
+        return self._name
+
     def clear(self) -> None:
         self.queue.clear()
         self._acceptable_flit_uids.clear()
-        self._in_transmit_mode = False
         self.fill_emtpy_slots()
 
     def add_flit(self, flit: Union[HeaderFlit, PayloadFlit, TailFlit]) -> bool:
@@ -55,6 +56,22 @@ class Buffer:
             return False
 
         return True
+
+
+    def can_transmit_flit(self) -> bool:
+        top_flit = self.peek()
+        if isinstance(top_flit, HeaderFlit):
+            if self.is_full():
+                if isinstance(self.queue[-1], TailFlit):
+                    return True
+                else: 
+                    raise Exception("Cannot transmit packet. Tail Flit not in buffer.")
+            else: 
+                return False
+        elif top_flit is None:
+            return False
+        else: 
+            return True
 
 
         
@@ -174,16 +191,6 @@ class Buffer:
                 return True
         return False
 
-    def can_transmit_flits(self) -> bool:
-        if self.can_do_routing():
-            self._in_transmit_mode = True
-
-        if isinstance(self.queue[0], TailFlit):
-            self._in_transmit_mode = False
-            return True
-
-        return self._in_transmit_mode
-
     def fill_emtpy_slots(self, n: int = 0) -> None:
         """
         Fill non occupied spaces with Empty Flits
@@ -208,7 +215,8 @@ class Buffer:
         # If there are no empty flits and the buffer is not full (one slot remaining),
         # fill the buffer with empty flits, leaving one slot empty.
         if empty_flit_count == 0:
-            if len(self.queue) < (self.size - 1): 
+            # if len(self.queue) < (self.size - 1): 
+            # if len(self.queue) < (self.size - 1): 
                 self.fill_emtpy_slots(1)
 
 
