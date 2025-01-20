@@ -15,6 +15,14 @@ python3 -m pytest tests
 
 ### 1. Usage 
 
+An application is defined using the `DiGraph()` object from the NetworkX library. The following conditions must be met when designing the application graph:
+
+1. Each node should be initialized with a unique node id and a `processing_time` attribute.
+2. Dependencies between nodes are represented by edges, where the `weight` attribute indicates the number of packets required by the destination node from the source node.
+3. The sink node (or terminal node) in the graph must include a `generate` attribute.  
+  
+   
+
 ```python 
 # from demo.py
 import networkx as nx
@@ -36,7 +44,7 @@ sim.get_tasks_status( show=True )
 
 #### Output: 
 ```bash 
-python3 demo.py 
+$ python3 demo.py 
 ---------Final Report---------
 Task 	 PE 	 Start 	 End
  0	(1, 1) 	 1 	 18
