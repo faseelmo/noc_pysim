@@ -335,35 +335,38 @@ if __name__ == "__main__":
     import random
 
     from src.processing_element import TaskInfo, RequireInfo, TransmitInfo
-    from src.utils              import (visualize_noc_application, 
-                                        get_mesh_network,  
-                                        visualize_application)
+    from src.utils              import ( visualize_noc_application, 
+                                         get_mesh_network,  
+                                         visualize_application )
 
     random.seed(0)
 
-    mesh_size = 4
-    debug_mode = False
-    sim = Simulator( num_rows=mesh_size, 
-                     num_cols=mesh_size, 
-                     debug_mode=debug_mode, 
-                     max_cycles=1000 )
+    mesh_size   = 4
+    debug_mode  = False
+    sim         = Simulator( num_rows=mesh_size, 
+                             num_cols=mesh_size, 
+                             debug_mode=debug_mode, 
+                             max_cycles=1000 )
 
-    graph = nx.DiGraph()
-    proc_range = (2, 8)
-    graph.add_node(0, processing_time=random.randint(*proc_range))
-    graph.add_node(1, processing_time=random.randint(*proc_range))
-    graph.add_node(2, processing_time=random.randint(*proc_range))
-    graph.add_node(3, processing_time=random.randint(*proc_range), generate=2)
+    graph         = nx.DiGraph()
+    proc_range    = ( 2, 8 )
+    require_range = ( 2, 10 )
 
-    require_range = (2, 10)
-    graph.add_edge(0, 1, weight=random.randint(*require_range))  
-    graph.add_edge(0, 2, weight=random.randint(*require_range))  
-    graph.add_edge(1, 3, weight=random.randint(*require_range))  
-    graph.add_edge(2, 3, weight=random.randint(*require_range))  
+    graph.add_node( 0, processing_time=random.randint( *proc_range ) )
+    graph.add_node( 1, processing_time=random.randint( *proc_range ) )
+    graph.add_node( 2, processing_time=random.randint( *proc_range ) )
+    graph.add_node( 3, processing_time=random.randint( *proc_range ), generate=2 )
 
-    visualize_application(graph)
+    graph.add_edge( 0, 1, weight=random.randint( *require_range ) )  
+    graph.add_edge( 0, 2, weight=random.randint( *require_range ) )  
+    graph.add_edge( 1, 3, weight=random.randint( *require_range ) )  
+    graph.add_edge( 2, 3, weight=random.randint( *require_range ) )  
+
+    visualize_application( graph )
 
     task_list = sim.graph_to_task( graph )
+    
+    """ Explicitly mapping the tasks to PEs """ 
     mapping = [ GraphMap( task_id=0, assigned_pe=( 1,1 ) ), 
                 GraphMap( task_id=1, assigned_pe=( 2,1 ) ), 
                 GraphMap( task_id=2, assigned_pe=( 1,2 ) ), 
@@ -371,9 +374,14 @@ if __name__ == "__main__":
 
     mapping_list = sim.set_assigned_mapping_list( task_list, mapping )
     sim.map( mapping_list )
-    latency_1 = sim.run()
 
-    print(f"Latency is {latency_1}")
+    """ Randomly mapping the tasks to PEs """
+    # mapping_list = sim.get_random_mapping( task_list, do_map=True )
 
-    output_graph = get_mesh_network(mesh_size, graph, mapping_list)
-    visualize_noc_application(output_graph)
+    execution_time = sim.run()
+    sim.get_tasks_status( show=True )
+
+    print( f"Execution Time is {execution_time} cycles" )
+
+    output_graph = get_mesh_network( mesh_size, graph, mapping_list )
+    visualize_noc_application( output_graph )

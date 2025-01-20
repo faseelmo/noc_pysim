@@ -4,11 +4,4 @@ networkx==3.3
 numpy==2.0.1
 pytest==8.3.3
 PyYAML==6.0.2
-# scikit-learn==1.5.2
-# scipy==1.14.0
-# sympy==1.13.1
-# torch==2.4.0
-# torch_geometric==2.5.3
-# tqdm==4.66.5
-# torch-scatter @ https://data.pyg.org/whl/torch-2.4.0%2Bcu121.html
-# lark==1.2.2
+lark==1.2.2
