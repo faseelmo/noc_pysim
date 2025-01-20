@@ -334,8 +334,8 @@ if __name__ == "__main__":
 
     import random
 
-    from src.processing_element import TaskInfo, RequireInfo, TransmitInfo
-    from src.utils              import ( visualize_noc_application, 
+    from .processing_element import TaskInfo, RequireInfo, TransmitInfo
+    from .utils              import ( visualize_noc_application, 
                                          get_mesh_network,  
                                          visualize_application )
 
