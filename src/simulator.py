@@ -2,8 +2,8 @@ import networkx as nx
 
 from dataclasses import dataclass
 
-from src.router             import Router 
-from src.processing_element import ProcessingElement, TaskInfo, RequireInfo, TransmitInfo
+from .router             import Router 
+from .processing_element import ProcessingElement, TaskInfo, RequireInfo, TransmitInfo
 
 @dataclass 
 class Map:

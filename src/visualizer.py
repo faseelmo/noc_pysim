@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import random
 
-from src.router import Router
-from src.flit import EmptyFlit, HeaderFlit, PayloadFlit, TailFlit
-from src.processing_element import ProcessingElement
-from src.simulator import Map
+from .router import Router
+from .flit import EmptyFlit, HeaderFlit, PayloadFlit, TailFlit
+from .processing_element import ProcessingElement
+from .simulator import Map
 
 
 class Visualizer:

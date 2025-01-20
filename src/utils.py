@@ -2,9 +2,9 @@ import json
 import random
 import networkx as nx
 
-from src.simulator import Map
-from src.packet import PacketStatus, Packet
-from src.processing_element import TaskInfo
+from .simulator import Map
+from .packet import PacketStatus, Packet
+from .processing_element import TaskInfo
 
 def graph_to_task_list(graph: nx.DiGraph) -> list:
     """
