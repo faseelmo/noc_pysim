@@ -39,6 +39,8 @@ sim.get_random_mapping( do_map=True )
 
 sim.run()
 sim.get_tasks_status( show=True )
+
+sim.clear()
 ```
 
 
