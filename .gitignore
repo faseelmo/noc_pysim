@@ -1,0 +1,4 @@
+activate_venv.sh
+venv/
+__pycache__/
+.pytest_cache/
