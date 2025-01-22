@@ -55,8 +55,8 @@ Task 	 PE 	 Start 	 End
 
 For a detailed usage example, refer to the main function in [src/simulator.py](https://github.com/faseelmo/noc_pysim/blob/main/src/simulator.py).
 
-
-
+When the `debug=True` for Simulator, the flit movement in the NoC can be visualized like below. 
+![flit movement in the NoC](docs/sim_packet_movement.gif)
 
 
 

@@ -20,9 +20,9 @@ class Visualizer:
         self._num_cols          = num_cols
 
         # Matplotlib parameters
-        self._buffer_spacing    = 1.6
-        self._label_font_size   = 10
-        self._flit_font_size    = 12
+        self._buffer_spacing    = 1.4
+        self._label_font_size   = 8
+        self._flit_font_size    = 14
         self._label_offset      = 0.3
         self._flit_offset       = 0.3
         self._lim_spacing       = 2.4
@@ -157,12 +157,12 @@ class Visualizer:
     
                 ax.add_patch(
                     plt.Circle(
-                        (position[0] + 0.2 * idx, position[1] + flit_y_offset), 
-                        0.08, color=color, 
+                        (position[0] + 0.3 * idx, position[1] + flit_y_offset), 
+                        0.15, color=color, 
                         ec='black') )
 
                 ax.text(
-                    position[0] + 0.2 * idx, position[1] + flit_y_offset, 
+                    position[0] + 0.3 * idx, position[1] + flit_y_offset, 
                     label, 
                     fontsize=self._flit_font_size, 
                     ha='center', 

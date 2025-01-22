@@ -341,7 +341,7 @@ if __name__ == "__main__":
 
     random.seed(0)
 
-    mesh_size   = 4
+    mesh_size   = 3
     debug_mode  = False
     sim         = Simulator( num_rows=mesh_size, 
                              num_cols=mesh_size, 
@@ -367,10 +367,10 @@ if __name__ == "__main__":
     task_list = sim.graph_to_task( graph )
     
     """ Explicitly mapping the tasks to PEs """ 
-    mapping = [ GraphMap( task_id=0, assigned_pe=( 1,1 ) ), 
-                GraphMap( task_id=1, assigned_pe=( 2,1 ) ), 
-                GraphMap( task_id=2, assigned_pe=( 1,2 ) ), 
-                GraphMap( task_id=3, assigned_pe=( 3,3 ) ) ]
+    mapping = [ GraphMap( task_id=0, assigned_pe=( 0,0 ) ), 
+                GraphMap( task_id=1, assigned_pe=( 1,1 ) ), 
+                GraphMap( task_id=2, assigned_pe=( 0,1 ) ), 
+                GraphMap( task_id=3, assigned_pe=( 2,2 ) ) ]
 
     mapping_list = sim.set_assigned_mapping_list( task_list, mapping )
     sim.map( mapping_list )
